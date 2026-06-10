@@ -1,22 +1,53 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowDownRight, ArrowUpRight, IndianRupee, LineChart, Repeat, ShoppingBag, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, cn } from '@feedo/ui';
-import { formatCurrency, formatDate, formatPercent } from '@feedo/utils';
-import { useAuth, useDashboard } from '../lib/api.js';
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger, cn } from '@feedo/ui';
+import { formatCurrency, formatDate, formatPercent, formatRelativeTime } from '@feedo/utils';
+import { useAuth, useDashboard, useOrders } from '../lib/api.js';
+
+const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
+  pending: 'warning',
+  confirmed: 'accent',
+  preparing: 'warning',
+  ready: 'success',
+  served: 'default',
+  completed: 'success',
+  cancelled: 'destructive',
+  refunded: 'destructive',
+};
+
+const RANGE_LABEL: Record<'day' | 'week' | 'month', string> = {
+  day: 'today',
+  week: 'this week',
+  month: 'this month',
+};
 
 export function DashboardPage() {
   const user = useAuth((s) => s.user);
-  const { data, isLoading } = useDashboard('week');
+  const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
+  const { data, isLoading } = useDashboard(range);
+  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const recent = orders?.slice(0, 8);
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Here&apos;s how your restaurant is performing.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here&apos;s how your restaurant is performing.
+          </p>
+        </div>
+        <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
+          <TabsList>
+            <TabsTrigger value="day">Day</TabsTrigger>
+            <TabsTrigger value="week">Week</TabsTrigger>
+            <TabsTrigger value="month">Month</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -35,7 +66,7 @@ export function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Revenue this week</CardTitle>
+            <CardTitle className="text-base">Revenue {RANGE_LABEL[range]}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -91,6 +122,53 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent orders */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Recent orders</CardTitle>
+          <Link to="/orders" className="text-sm font-medium text-accent hover:underline">
+            View all
+          </Link>
+        </CardHeader>
+        <CardContent className="p-0">
+          {ordersLoading ? (
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
+            </div>
+          ) : recent && recent.length > 0 ? (
+            <div className="divide-y divide-border">
+              {recent.map((o) => (
+                <Link
+                  key={o._id}
+                  to="/orders"
+                  className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-secondary/50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">#{o.orderNumber}</span>
+                      <Badge variant={STATUS_VARIANT[o.status]} className="capitalize">
+                        {o.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {o.customerName ? `${o.customerName} · ` : ''}
+                      {o.items.length} item{o.items.length > 1 ? 's' : ''} · {formatRelativeTime(o.placedAt)}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold">{formatCurrency(o.total)}</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8">
+              <EmptyState icon={ShoppingBag} title="No orders yet" description="New orders will show up here." />
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

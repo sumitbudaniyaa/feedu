@@ -92,7 +92,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
                 onClick={() => setActiveCat(c._id)}
                 className={cn(
                   'whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
-                  activeCat === c._id ? 'border-transparent bg-foreground text-background' : 'border-border text-muted-foreground',
+                  activeCat === c._id
+                    ? 'border-transparent bg-accent text-accent-foreground'
+                    : 'border-border text-muted-foreground',
                 )}
               >
                 {c.name}
