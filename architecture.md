@@ -124,10 +124,21 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime)
 - `/analytics/dashboard` — revenue series, top products, peak hours, AOV, repeat % (aggregations)
 - `/platform/*` — super-admin, cross-tenant (stats, restaurants, subscriptions)
-- `/public/*` — customer, no auth: `/r/:slug`, `/qr/:qrToken`, place order, track order
+- `/public/*` — customer, no auth: `/r/:slug`, `/qr/:qrToken`, `checkout`, `orders/:id/pay`,
+  track order
 
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
-never trusted from the client. Aggregations cast `restaurantId` to `ObjectId` explicitly
+never trusted from the client.
+
+### Payments (Razorpay)
+Customer checkout is pay-first: `POST /public/r/:slug/checkout` captures name + mobile,
+creates a **pending, silent** order (not shown to the kitchen yet) and a matching Razorpay
+order. The client opens Razorpay Checkout; on success `POST /public/orders/:id/pay` verifies
+the HMAC `sha256(order_id|payment_id, key_secret)` signature, marks the order paid +
+confirmed, records a `Payment`, and emits it to the kitchen/admin. When Razorpay keys are
+unset the backend runs in **demo mode** (signature check skipped) so the flow is usable
+locally. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend), `VITE_RAZORPAY_KEY_ID`
+(customer app). Aggregations cast `restaurantId` to `ObjectId` explicitly
 (aggregation does not auto-cast like `find`).
 
 ### Security (enterprise)

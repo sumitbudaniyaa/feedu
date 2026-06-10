@@ -18,6 +18,9 @@ const envSchema = z.object({
     .string()
     .default('http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176'),
   REDIS_URL: z.string().optional(),
+  // Razorpay (optional in dev — when unset, payments run in a demo/mock mode).
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -30,4 +33,5 @@ export const env = {
   ...parsed.data,
   corsOrigins: parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()),
   isProd: parsed.data.NODE_ENV === 'production',
+  razorpayConfigured: Boolean(parsed.data.RAZORPAY_KEY_ID && parsed.data.RAZORPAY_KEY_SECRET),
 };

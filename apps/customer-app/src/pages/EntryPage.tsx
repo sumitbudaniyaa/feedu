@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, QrCode } from 'lucide-react';
-import { Button, Input, ThemeToggle } from '@feedo/ui';
+import { Button, Input } from '@feedo/ui';
 
 /**
  * Real entry is by scanning a table QR (→ /t/:qrToken). This screen is the
@@ -14,9 +14,6 @@ export function EntryPage() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
       <div className="pointer-events-none absolute -top-32 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-accent/10 blur-3xl" />
-      <div className="absolute right-5 top-5">
-        <ThemeToggle />
-      </div>
 
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground text-background">
         <span className="text-xl font-bold">F</span>

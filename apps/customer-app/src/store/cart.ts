@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface CartLine {
   key: string; // productId + variant + addons signature
@@ -10,14 +11,29 @@ export interface CartLine {
   quantity: number;
 }
 
+/** Minimal restaurant snapshot kept so the cart page works without a refetch. */
+export interface CartRestaurant {
+  slug: string;
+  name: string;
+  gstPercent: number;
+  inclusive: boolean;
+  accent?: string;
+}
+
 interface CartState {
-  /** Restaurant slug the cart belongs to; clears if you switch restaurants. */
-  slug: string | null;
+  restaurant: CartRestaurant | null;
   tableId: string | null;
+  /** Path to return to the menu (slug or QR entry). */
+  menuPath: string | null;
   lines: CartLine[];
-  setContext: (slug: string, tableId: string | null) => void;
+  setContext: (restaurant: CartRestaurant, tableId: string | null, menuPath: string) => void;
   add: (line: Omit<CartLine, 'key' | 'quantity'>, qty?: number) => void;
   setQty: (key: string, qty: number) => void;
+  /** Net quantity of a product across all its variant/addon lines. */
+  productQty: (productId: string) => number;
+  /** Increment a simple (no-options) product directly. */
+  incSimple: (line: Omit<CartLine, 'key' | 'quantity'>) => void;
+  decSimple: (productId: string) => void;
   clear: () => void;
   count: () => number;
   subtotal: () => number;
@@ -27,34 +43,52 @@ function lineKey(l: { productId: string; variantLabel?: string; addonLabels: str
   return `${l.productId}|${l.variantLabel ?? ''}|${[...l.addonLabels].sort().join(',')}`;
 }
 
-export const useCart = create<CartState>((set, get) => ({
-  slug: null,
-  tableId: null,
-  setContext: (slug, tableId) => {
-    if (get().slug && get().slug !== slug) set({ lines: [] }); // switched restaurant
-    set({ slug, tableId });
-  },
-  lines: [],
-  add: (line, qty = 1) => {
-    const key = lineKey(line);
-    set((state) => {
-      const existing = state.lines.find((l) => l.key === key);
-      if (existing) {
-        return {
-          lines: state.lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + qty } : l)),
-        };
-      }
-      return { lines: [...state.lines, { ...line, key, quantity: qty }] };
-    });
-  },
-  setQty: (key, qty) =>
-    set((state) => ({
-      lines:
-        qty <= 0
-          ? state.lines.filter((l) => l.key !== key)
-          : state.lines.map((l) => (l.key === key ? { ...l, quantity: qty } : l)),
-    })),
-  clear: () => set({ lines: [] }),
-  count: () => get().lines.reduce((s, l) => s + l.quantity, 0),
-  subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
-}));
+export const useCart = create<CartState>()(
+  persist(
+    (set, get) => ({
+      restaurant: null,
+      tableId: null,
+      menuPath: null,
+      lines: [],
+      setContext: (restaurant, tableId, menuPath) => {
+        if (get().restaurant && get().restaurant?.slug !== restaurant.slug) set({ lines: [] });
+        set({ restaurant, tableId, menuPath });
+      },
+      add: (line, qty = 1) => {
+        const key = lineKey(line);
+        set((state) => {
+          const existing = state.lines.find((l) => l.key === key);
+          if (existing) {
+            return {
+              lines: state.lines.map((l) =>
+                l.key === key ? { ...l, quantity: l.quantity + qty } : l,
+              ),
+            };
+          }
+          return { lines: [...state.lines, { ...line, key, quantity: qty }] };
+        });
+      },
+      setQty: (key, qty) =>
+        set((state) => ({
+          lines:
+            qty <= 0
+              ? state.lines.filter((l) => l.key !== key)
+              : state.lines.map((l) => (l.key === key ? { ...l, quantity: qty } : l)),
+        })),
+      productQty: (productId) =>
+        get()
+          .lines.filter((l) => l.productId === productId)
+          .reduce((s, l) => s + l.quantity, 0),
+      incSimple: (line) => get().add(line, 1),
+      decSimple: (productId) => {
+        const key = lineKey({ productId, addonLabels: [] });
+        const existing = get().lines.find((l) => l.key === key);
+        if (existing) get().setQty(key, existing.quantity - 1);
+      },
+      clear: () => set({ lines: [] }),
+      count: () => get().lines.reduce((s, l) => s + l.quantity, 0),
+      subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
+    }),
+    { name: 'feedo-cart' },
+  ),
+);

@@ -20,6 +20,9 @@ const orderSchema = new Schema(
     orderNumber: { type: String, required: true },
     tableId: { type: Schema.Types.ObjectId, ref: 'Table', default: null },
     customerId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    // Guest contact captured at checkout (orders can be placed anonymously).
+    customerName: { type: String },
+    customerPhone: { type: String },
     type: { type: String, enum: ['dine_in', 'takeaway'], required: true },
     status: {
       type: String,

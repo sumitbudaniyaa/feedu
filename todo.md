@@ -40,8 +40,10 @@
 - [x] Restaurants module (profile, settings, onboarding, go-live) API
 - [x] Categories + Products CRUD API (tenant-scoped, zod-validated, search)
 - [x] QR resolve endpoint (qrToken → restaurant + table + menu)
-- [x] Customer: live menu fetch, product sheet, variants/addons selection
-- [x] Customer: cart store + checkout → create order (server-authoritative pricing)
+- [x] Customer: live menu, light-mode only, 2-column grid, on-card quantity steppers
+- [x] Customer: product sheet for variants/add-ons; persisted cart store
+- [x] Customer: dedicated /cart page — name + mobile capture, Razorpay payment
+- [x] Razorpay integration (create order, HMAC signature verify; demo mode when keys unset)
 - [x] Sections (Menu CMS) API + customer homepage rendering
 
 ### Phase 3 — Kitchen + realtime ✅
@@ -75,10 +77,11 @@
 ## Pending / Next
 - [ ] Image upload pipeline (logos, banners, product images) — initials/placeholders today
 - [ ] Sections drag-and-drop reorder UI (endpoint exists)
-- [ ] Loyalty redemption flow + customer accounts (orders are anonymous today)
+- [ ] Loyalty redemption flow + customer accounts (orders are guest checkout today)
 - [ ] Onboarding wizard (8 guided steps) — backend onboarding state ready
 - [ ] Kitchen sound notifications on new order
-- [ ] Payments (Razorpay/Stripe) integration
+- [ ] Add real Razorpay keys to .env (RAZORPAY_KEY_ID/SECRET + VITE_RAZORPAY_KEY_ID) to
+      switch from demo mode to live payments; Razorpay webhook for async capture
 
 ## Bugs
 - (none open) — fixed during E2E: status state-machine blocked kitchen start; analytics

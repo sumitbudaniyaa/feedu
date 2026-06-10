@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { createOrderSchema } from '@feedo/types';
+import { z } from 'zod';
+import { cartItemSchema, createOrderSchema, orderTypeSchema } from '@feedo/types';
 import { Category, Order, Product, Restaurant, Section, Table } from '../../models/index.js';
 import { isValidObjectId } from 'mongoose';
 import { validate } from '../../middleware/validate.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import * as orders from '../orders/orders.service.js';
+import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../payments/payments.service.js';
 
 const router = Router();
 
@@ -54,6 +56,70 @@ router.post(
       input: req.body,
     });
     return ok(res, order, 201);
+  }),
+);
+
+// ─── Checkout + payment ───────────────────────────────────────────────
+const checkoutSchema = z.object({
+  type: orderTypeSchema,
+  tableId: z.string().optional(),
+  items: z.array(cartItemSchema).min(1),
+  notes: z.string().optional(),
+  customer: z.object({
+    name: z.string().min(1),
+    phone: z.string().min(7).max(15),
+  }),
+});
+
+/**
+ * Create a pending order (server computes the authoritative total) and, if
+ * Razorpay is configured, a matching Razorpay order. The order is NOT surfaced
+ * to the kitchen until payment is confirmed.
+ */
+router.post(
+  '/r/:slug/checkout',
+  validate(checkoutSchema),
+  asyncHandler(async (req, res) => {
+    const restaurant = await Restaurant.findOne({ slug: req.params.slug, isLive: true }).lean();
+    if (!restaurant) throw ApiError.notFound('Restaurant not found');
+
+    const { customer, ...orderInput } = req.body;
+    const order = await orders.createOrder({
+      restaurantId: String(restaurant._id),
+      input: orderInput,
+      customer,
+      paymentMethod: 'razorpay',
+      silent: true,
+    });
+
+    const razorpay = await createRazorpayOrder(order.total, String(order._id));
+    return ok(res, { order, razorpay, demo: isDemoMode() }, 201);
+  }),
+);
+
+const paySchema = z.object({
+  razorpayOrderId: z.string().optional(),
+  razorpayPaymentId: z.string().optional(),
+  razorpaySignature: z.string().optional(),
+});
+
+/** Confirm payment for an order. Verifies the Razorpay signature (or accepts in demo mode). */
+router.post(
+  '/orders/:id/pay',
+  validate(paySchema),
+  asyncHandler(async (req, res) => {
+    if (!isValidObjectId(req.params.id)) throw ApiError.badRequest('Invalid order id');
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    const valid = verifyPaymentSignature({
+      razorpayOrderId: razorpayOrderId ?? '',
+      razorpayPaymentId: razorpayPaymentId ?? '',
+      razorpaySignature: razorpaySignature ?? '',
+    });
+    if (!valid) throw ApiError.badRequest('Payment verification failed');
+
+    const order = await orders.markPaid(req.params.id!, razorpayPaymentId);
+    return ok(res, order);
   }),
 );
 

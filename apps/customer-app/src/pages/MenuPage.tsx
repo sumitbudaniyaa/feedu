@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, ShoppingBag, Star, UtensilsCrossed } from 'lucide-react';
-import { Button, Card, EmptyState, Input, Skeleton, ThemeToggle, cn, useTheme } from '@feedo/ui';
+import { Minus, Plus, Search, ShoppingBag, Star, UtensilsCrossed } from 'lucide-react';
+import { Button, Card, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
 import { useMenuByQr, useMenuBySlug } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { ProductSheet } from '../components/ProductSheet.js';
-import { CartSheet } from '../components/CartSheet.js';
 
 export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const params = useParams();
+  const navigate = useNavigate();
   const slugQuery = useMenuBySlug(mode === 'slug' ? params.slug : undefined);
   const qrQuery = useMenuByQr(mode === 'qr' ? params.qrToken : undefined);
   const query = mode === 'slug' ? slugQuery : qrQuery;
@@ -20,26 +20,39 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const { setAccent } = useTheme();
   const setContext = useCart((s) => s.setContext);
   const count = useCart((s) => s.count());
+  const subtotal = useCart((s) => s.subtotal());
 
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState<string>('all');
   const [selected, setSelected] = useState<Product | null>(null);
-  const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
     if (!data) return;
-    setContext(data.restaurant.slug, data.table?._id ?? null);
+    const menuPath = mode === 'qr' ? `/t/${params.qrToken}` : `/r/${data.restaurant.slug}`;
+    setContext(
+      {
+        slug: data.restaurant.slug,
+        name: data.restaurant.name,
+        gstPercent: data.restaurant.tax?.gstPercent ?? 5,
+        inclusive: data.restaurant.tax?.inclusive ?? false,
+        accent: data.restaurant.branding?.accent,
+      },
+      data.table?._id ?? null,
+      menuPath,
+    );
     if (data.restaurant.branding?.accent) setAccent(data.restaurant.branding.accent);
-  }, [data, setContext, setAccent]);
+  }, [data, mode, params.qrToken, setContext, setAccent]);
 
   if (query.isLoading) {
     return (
       <div className="mx-auto max-w-md space-y-4 p-5">
         <Skeleton className="h-12 w-2/3" />
         <Skeleton className="h-11 w-full" />
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 rounded-xl" />
-        ))}
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-52 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -61,14 +74,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background pb-24">
-      <header className="sticky top-0 z-20 bg-background/80 px-5 pt-6 pb-3 backdrop-blur">
-        <div className="flex items-center justify-between">
-          <div>
-            {table && <p className="text-xs text-muted-foreground">Dine-in · {table.name}</p>}
-            <h1 className="text-lg font-semibold tracking-tight">{restaurant.name}</h1>
-          </div>
-          <ThemeToggle />
-        </div>
+      <header className="sticky top-0 z-20 bg-background/85 px-5 pt-6 pb-3 backdrop-blur">
+        {table && <p className="text-xs text-muted-foreground">Dine-in · {table.name}</p>}
+        <h1 className="text-lg font-semibold tracking-tight">{restaurant.name}</h1>
         <div className="relative mt-4">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search dishes…" className="h-11 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -94,30 +102,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         )}
 
         {filtered.length > 0 ? (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {filtered.map((p, i) => (
-              <motion.div key={p._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.3) }}>
-                <Card className="flex items-center gap-3 p-3" onClick={() => setSelected(p)} role="button">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-secondary text-lg font-semibold">
-                    {p.name[0]}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{p.name}</p>
-                    {p.description && <p className="truncate text-xs text-muted-foreground">{p.description}</p>}
-                    <div className="mt-1 flex items-center gap-2">
-                      {p.ratingCount > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Star className="h-3 w-3 fill-warning text-warning" /> {p.rating}
-                        </span>
-                      )}
-                      <span className="text-sm font-semibold">{formatCurrency(p.basePrice)}</span>
-                    </div>
-                  </div>
-                  <Button size="icon" variant="outline" className="shrink-0 rounded-full" onClick={(e) => { e.stopPropagation(); setSelected(p); }}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </Card>
-              </motion.div>
+              <ProductCard key={p._id} product={p} index={i} onCustomise={() => setSelected(p)} />
             ))}
           </div>
         ) : (
@@ -127,9 +114,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
       {count > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="fixed inset-x-0 bottom-5 z-30 mx-auto max-w-md px-5">
-          <Button className="h-12 w-full justify-between rounded-xl shadow-elevated" onClick={() => setCartOpen(true)}>
+          <Button className="h-12 w-full justify-between rounded-xl shadow-elevated" onClick={() => navigate('/cart')}>
             <span className="flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4" /> {count} item{count > 1 ? 's' : ''}
+              <ShoppingBag className="h-4 w-4" /> {count} item{count > 1 ? 's' : ''} · {formatCurrency(subtotal)}
             </span>
             <span>View cart</span>
           </Button>
@@ -137,7 +124,84 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       )}
 
       <ProductSheet product={selected} onClose={() => setSelected(null)} />
-      <CartSheet open={cartOpen} onClose={() => setCartOpen(false)} restaurant={restaurant} />
     </div>
+  );
+}
+
+function ProductCard({
+  product,
+  index,
+  onCustomise,
+}: {
+  product: Product;
+  index: number;
+  onCustomise: () => void;
+}) {
+  const incSimple = useCart((s) => s.incSimple);
+  const decSimple = useCart((s) => s.decSimple);
+  const qty = useCart((s) => s.productQty(product._id));
+  const hasOptions = product.variants.length > 0 || product.addons.length > 0;
+
+  const addSimple = () =>
+    incSimple({ productId: product._id, name: product.name, addonLabels: [], unitPrice: product.basePrice });
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.3) }}>
+      <Card className="flex h-full flex-col overflow-hidden">
+        <div className="relative flex aspect-square items-center justify-center bg-secondary text-2xl font-semibold text-muted-foreground">
+          {product.name[0]}
+          {product.isVeg !== undefined && (
+            <span
+              className={cn(
+                'absolute left-2 top-2 flex h-4 w-4 items-center justify-center rounded-sm border bg-background',
+                product.isVeg ? 'border-success' : 'border-destructive',
+              )}
+            >
+              <span className={cn('h-2 w-2 rounded-full', product.isVeg ? 'bg-success' : 'bg-destructive')} />
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-1 flex-col p-3">
+          <p className="line-clamp-2 text-sm font-medium leading-snug">{product.name}</p>
+          {product.ratingCount > 0 && (
+            <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <Star className="h-3 w-3 fill-warning text-warning" /> {product.rating} ({product.ratingCount})
+            </span>
+          )}
+
+          <div className="mt-auto flex items-center justify-between pt-3">
+            <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
+
+            {qty === 0 ? (
+              <Button size="sm" variant="outline" className="h-8 rounded-lg px-3" onClick={() => (hasOptions ? onCustomise() : addSimple())}>
+                <Plus className="h-3.5 w-3.5" /> Add
+              </Button>
+            ) : hasOptions ? (
+              <button
+                onClick={onCustomise}
+                className="flex h-8 items-center gap-1 rounded-lg border border-accent bg-accent/10 px-2 text-sm font-semibold text-accent"
+              >
+                <span className="tabular-nums">{qty}</span>
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <div className="flex h-8 items-center gap-2 rounded-lg border border-accent bg-accent/10 px-1.5 text-accent">
+                <button onClick={() => decSimple(product._id)} className="px-1">
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-4 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                <button onClick={addSimple} className="px-1">
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+          {hasOptions && qty > 0 && (
+            <p className="pt-1 text-[10px] text-muted-foreground">Customisable · edit in cart</p>
+          )}
+        </div>
+      </Card>
+    </motion.div>
   );
 }

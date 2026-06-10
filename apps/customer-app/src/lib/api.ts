@@ -13,5 +13,5 @@ export const apiClient = new ApiClient({
   onAuthError: () => useAuth.getState().clear(),
 });
 
-export const { useMenuBySlug, useMenuByQr, useTrackOrder, usePlaceOrder } =
+export const { useMenuBySlug, useMenuByQr, useTrackOrder, usePlaceOrder, useCheckout, usePayOrder } =
   createPublicHooks(apiClient);

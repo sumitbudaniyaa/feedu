@@ -6,6 +6,7 @@ import {
   CustomerLoyalty,
   LoyaltyProgram,
   Order,
+  Payment,
   Product,
   Restaurant,
 } from '../../models/index.js';
@@ -42,13 +43,25 @@ interface CreateContext {
   restaurantId: string;
   customerId?: string | null;
   input: CreateOrderInput;
+  /** Guest contact captured at checkout. */
+  customer?: { name?: string; phone?: string };
+  paymentMethod?: 'cash' | 'card' | 'upi' | 'razorpay' | 'stripe';
+  /** Suppress the create emit (used for pay-first flows; emit happens on markPaid). */
+  silent?: boolean;
 }
 
 /**
  * Create an order from a validated cart. Server is authoritative for pricing:
  * prices are re-derived from the DB, never trusted from the client.
  */
-export async function createOrder({ restaurantId, customerId, input }: CreateContext) {
+export async function createOrder({
+  restaurantId,
+  customerId,
+  input,
+  customer,
+  paymentMethod,
+  silent,
+}: CreateContext) {
   const restaurant = await Restaurant.findById(restaurantId).lean();
   if (!restaurant) throw ApiError.notFound('Restaurant not found');
 
@@ -110,6 +123,8 @@ export async function createOrder({ restaurantId, customerId, input }: CreateCon
         orderNumber: await nextOrderNumber(restaurantId),
         tableId: input.tableId ?? null,
         customerId: customerId ?? null,
+        customerName: customer?.name,
+        customerPhone: customer?.phone,
         type: input.type,
         status: 'pending',
         items,
@@ -119,6 +134,7 @@ export async function createOrder({ restaurantId, customerId, input }: CreateCon
         total: totals.total,
         notes: input.notes,
         paymentStatus: 'unpaid',
+        paymentMethod,
       });
       break;
     } catch (err) {
@@ -147,7 +163,7 @@ export async function createOrder({ restaurantId, customerId, input }: CreateCon
     );
   }
 
-  emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, order.toObject());
+  if (!silent) emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, order.toObject());
   return order.toObject();
 }
 
@@ -232,4 +248,28 @@ export async function getOrder(restaurantId: string, orderId: string) {
   const order = await Order.findOne({ _id: orderId, restaurantId }).lean();
   if (!order) throw ApiError.notFound('Order not found');
   return order;
+}
+
+/** Mark an order paid and auto-confirm it (used after a verified payment). */
+export async function markPaid(orderId: string, providerRef?: string) {
+  const order = await Order.findById(orderId);
+  if (!order) throw ApiError.notFound('Order not found');
+  order.paymentStatus = 'paid';
+  if (order.status === 'pending') order.status = 'confirmed';
+  await order.save();
+
+  const restaurantId = String(order.restaurantId);
+  const obj = order.toObject();
+  emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, obj); // surface to kitchen/admin once paid
+  if (providerRef) {
+    await Payment.create({
+      restaurantId,
+      orderId: order._id,
+      amount: order.total,
+      method: 'razorpay',
+      status: 'paid',
+      providerRef,
+    }).catch(() => undefined);
+  }
+  return obj;
 }

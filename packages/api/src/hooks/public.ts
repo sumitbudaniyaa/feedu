@@ -2,6 +2,22 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Category, CreateOrderInput, Order, Product, Restaurant, Section, Table } from '@feedo/types';
 import type { ApiClient } from '../client.js';
 
+export interface CheckoutResult {
+  order: Order;
+  razorpay: { orderId: string; amount: number; currency: string; keyId: string } | null;
+  demo: boolean;
+}
+
+export interface CheckoutInput extends CreateOrderInput {
+  customer: { name: string; phone: string };
+}
+
+export interface PayInput {
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+}
+
 export interface MenuPayload {
   restaurant: Restaurant;
   table?: Table;
@@ -46,6 +62,19 @@ export function createPublicHooks(client: ApiClient) {
     usePlaceOrder(slug: string) {
       return useMutation({
         mutationFn: (body: CreateOrderInput) => client.post<Order>(`/public/r/${slug}/orders`, body),
+      });
+    },
+    /** Create a pending order + Razorpay order. */
+    useCheckout(slug: string) {
+      return useMutation({
+        mutationFn: (body: CheckoutInput) => client.post<CheckoutResult>(`/public/r/${slug}/checkout`, body),
+      });
+    },
+    /** Confirm payment for an order (verifies Razorpay signature server-side). */
+    usePayOrder() {
+      return useMutation({
+        mutationFn: ({ orderId, ...body }: PayInput & { orderId: string }) =>
+          client.post<Order>(`/public/orders/${orderId}/pay`, body),
       });
     },
   };
