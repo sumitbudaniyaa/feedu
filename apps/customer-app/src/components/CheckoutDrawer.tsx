@@ -86,7 +86,7 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 
-              <Button type="submit" variant="accent" className="h-12 w-full justify-between rounded-xl" disabled={!canProceed}>
+              <Button type="submit" variant="success" className="h-12 w-full justify-between rounded-xl" disabled={!canProceed}>
                 <span>{submitting ? 'Processing…' : 'Proceed to pay'}</span>
                 <span>{formatCurrency(total)}</span>
               </Button>

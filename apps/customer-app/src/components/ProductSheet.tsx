@@ -72,7 +72,7 @@ export function ProductSheet({
                   onClick={() => setVariant(v.label)}
                   className={cn(
                     'rounded-lg border px-3 py-1.5 text-sm transition-colors',
-                    variant === v.label ? 'border-accent bg-accent/10 text-accent' : 'border-border',
+                    variant === v.label ? 'border-foreground bg-foreground/5 font-medium text-foreground' : 'border-border',
                   )}
                 >
                   {v.label} · {formatCurrency(v.price)}
@@ -113,7 +113,6 @@ export function ProductSheet({
         </div>
 
         <Button
-          variant="accent"
           className="w-full"
           onClick={() => {
             add(

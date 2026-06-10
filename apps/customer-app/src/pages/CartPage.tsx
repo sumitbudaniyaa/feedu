@@ -86,7 +86,7 @@ export function CartPage() {
         name: restaurant.name,
         description: `Order ${order.orderNumber}`,
         prefill: { name, contact: phone },
-        theme: { color: '#8B5CF6' },
+        theme: { color: '#10B981' },
         handler: async (resp) => {
           try {
             await payOrder.mutateAsync({
@@ -150,7 +150,7 @@ export function CartPage() {
 
       {/* Sticky pay bar — opens the details drawer. */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-border bg-background/95 p-4 backdrop-blur">
-        <Button variant="accent" className="h-12 w-full justify-between rounded-xl" onClick={() => setDrawerOpen(true)}>
+        <Button variant="success" className="h-12 w-full justify-between rounded-xl" onClick={() => setDrawerOpen(true)}>
           <span>Proceed to pay</span>
           <span>{formatCurrency(totals.total)}</span>
         </Button>

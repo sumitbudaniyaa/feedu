@@ -74,12 +74,27 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background pb-24">
-      <header className="sticky top-0 z-20 bg-background/85 px-5 pt-6 pb-3 backdrop-blur">
-        {table && <p className="text-xs text-muted-foreground">Dine-in · {table.name}</p>}
-        <h1 className="text-lg font-semibold tracking-tight">{restaurant.name}</h1>
+      {/* Brand-colored gradient hero — the restaurant's accent lives here, not on buttons. */}
+      <header
+        className="rounded-b-3xl px-5 pb-6 pt-9 text-white"
+        style={{
+          background:
+            'linear-gradient(160deg, hsl(var(--accent)), hsl(var(--accent) / 0.78) 60%, hsl(var(--accent) / 0.6))',
+        }}
+      >
+        {table && <p className="text-xs font-medium text-white/85">Dine-in · {table.name}</p>}
+        <h1 className="text-2xl font-bold tracking-tight">{restaurant.name}</h1>
+        {restaurant.cuisineType && restaurant.cuisineType.length > 0 && (
+          <p className="mt-0.5 text-sm text-white/85">{restaurant.cuisineType.join(' · ')}</p>
+        )}
         <div className="relative mt-4">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search dishes…" className="h-11 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            placeholder="Search dishes…"
+            className="h-11 border-0 bg-white pl-9 text-foreground shadow-soft"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
       </header>
 
@@ -93,7 +108,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
                 className={cn(
                   'whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
                   activeCat === c._id
-                    ? 'border-transparent bg-accent text-accent-foreground'
+                    ? 'border-transparent bg-foreground text-background'
                     : 'border-border text-muted-foreground',
                 )}
               >
@@ -116,7 +131,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
       {count > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="fixed inset-x-0 bottom-5 z-30 mx-auto max-w-md px-5">
-          <Button variant="accent" className="h-12 w-full justify-between rounded-xl shadow-elevated" onClick={() => navigate('/cart')}>
+          <Button variant="success" className="h-12 w-full justify-between rounded-xl shadow-elevated" onClick={() => navigate('/cart')}>
             <span className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" /> {count} item{count > 1 ? 's' : ''} · {formatCurrency(subtotal)}
             </span>
@@ -186,13 +201,13 @@ function ProductCard({
             ) : hasOptions ? (
               <button
                 onClick={onCustomise}
-                className="flex h-8 items-center gap-1 rounded-lg border border-accent bg-accent/10 px-2 text-sm font-semibold text-accent"
+                className="flex h-8 items-center gap-1 rounded-lg border border-foreground bg-foreground px-2 text-sm font-semibold text-background"
               >
                 <span className="tabular-nums">{qty}</span>
                 <Plus className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <div className="flex h-8 items-center gap-2 rounded-lg border border-accent bg-accent/10 px-1.5 text-accent">
+              <div className="flex h-8 items-center gap-2 rounded-lg border border-foreground bg-foreground px-1.5 text-background">
                 <button onClick={() => decSimple(product._id)} className="px-1">
                   <Minus className="h-3.5 w-3.5" />
                 </button>
