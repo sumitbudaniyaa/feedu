@@ -27,6 +27,7 @@
 - [x] kitchen-app — KDS board with order cards, status transitions, waiting timers
 - [x] super-admin-app — platform console shell (MRR/restaurants stats + list)
 - [x] `architecture.md` + `todo.md`
+- [x] Root dev launcher (`scripts/dev.mjs`) — interactive menu + `dev:all`/`dev:admin`/`dev:user`/`dev:kitchen`/`dev:company`/`dev:backend` shortcuts (every option includes backend)
 
 ---
 

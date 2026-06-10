@@ -8,7 +8,14 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:all": "turbo run dev",
+    "dev:admin": "turbo run dev --filter=@feedo/admin-app --filter=@feedo/backend",
+    "dev:user": "turbo run dev --filter=@feedo/customer-app --filter=@feedo/backend",
+    "dev:kitchen": "turbo run dev --filter=@feedo/kitchen-app --filter=@feedo/backend",
+    "dev:company": "turbo run dev --filter=@feedo/super-admin-app --filter=@feedo/backend",
+    "dev:backend": "turbo run dev --filter=@feedo/backend",
+    "seed": "npm run seed -w @feedo/backend",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

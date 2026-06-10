@@ -29,15 +29,40 @@ npm install
 cp .env.example .env      # set MONGODB_URI + JWT secrets
 
 # 3. Seed demo data (needs MongoDB running)
-npm run seed -w @feedo/backend
+npm run seed
 #   super@feedo.app / password123   (super admin)
 #   owner@feedo.app / password123   (demo restaurant owner)
 
-# 4. Run everything
-npm run dev               # turbo runs all apps
-# or a single app:
-npm run dev -w @feedo/admin-app
+# 4. Run — interactive launcher (pick what to start; backend is always included)
+npm run dev
 ```
+
+Running `npm run dev` shows a menu:
+
+```
+  Feedo  — what do you want to run?
+
+  1  Run all apps
+  2  Run admin + backend
+  3  Run user (customer) + backend
+  4  Run kitchen + backend
+  5  Run company (super admin) + backend
+```
+
+### Direct scripts (skip the menu)
+
+| Command | Starts | URLs |
+|---------|--------|------|
+| `npm run dev:all` | backend + all 4 apps | :4000 · :5173 · :5174 · :5175 · :5176 |
+| `npm run dev:admin` | backend + admin | :4000 · :5173 |
+| `npm run dev:user` | backend + customer | :4000 · :5174 |
+| `npm run dev:kitchen` | backend + kitchen | :4000 · :5175 |
+| `npm run dev:company` | backend + super admin | :4000 · :5176 |
+| `npm run dev:backend` | backend only | :4000 |
+
+You can also pass the choice straight to the launcher:
+`npm run dev -- admin` (aliases: `admin`/`owner`, `user`/`customer`, `kitchen`/`kds`,
+`company`/`super`/`platform`, `all`).
 
 ## Docs
 

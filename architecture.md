@@ -24,10 +24,18 @@ feedo/
 │   ├── utils/            Framework-agnostic helpers (cn, format, pricing)
 │   ├── ui/               Theme system + shadcn-style component library
 │   └── api/              Typed fetch client, auth store, TanStack Query hooks, socket
+├── scripts/dev.mjs       Interactive dev launcher (pick apps; backend always included)
 ├── turbo.json            Task pipeline
 ├── package.json          Workspaces + root scripts
 └── tsconfig.base.json    Strict TS base config
 ```
+
+### Running locally
+
+`npm run dev` opens an interactive menu (all / admin / user / kitchen / company — each
+bundled with the backend). Direct shortcuts skip the menu: `dev:all`, `dev:admin`,
+`dev:user`, `dev:kitchen`, `dev:company`, `dev:backend`. Each maps to a Turborepo
+`--filter` set so only the chosen workspaces start. `npm run seed` loads demo data.
 
 ### Dependency direction
 
