@@ -1,4 +1,4 @@
-import { ApiClient, createAuthHooks, createAuthStore } from '@feedo/api';
+import { ApiClient, createAuthHooks, createAuthStore, createPlatformHooks } from '@feedo/api';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
@@ -13,3 +13,6 @@ export const apiClient = new ApiClient({
 });
 
 export const { useLogin, useLogout, useMe } = createAuthHooks({ client: apiClient, useAuth });
+
+const platform = createPlatformHooks(apiClient);
+export const { useStats, useRestaurants, useUpdateSubscription, useToggleLive } = platform;

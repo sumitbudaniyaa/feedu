@@ -30,7 +30,7 @@ userSchema.methods.comparePassword = function (candidate: string): Promise<boole
 };
 
 userSchema.statics.hashPassword = function (plain: string): Promise<string> {
-  return bcrypt.hash(plain, 10);
+  return bcrypt.hash(plain, 12);
 };
 
 // Strip sensitive fields from JSON output.

@@ -3,7 +3,14 @@ import { useAuth } from './lib/api.js';
 import { DashboardLayout } from './components/DashboardLayout.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
-import { PlaceholderPage } from './pages/PlaceholderPage.js';
+import { OrdersPage } from './pages/OrdersPage.js';
+import { InventoryPage } from './pages/InventoryPage.js';
+import { MenuPage } from './pages/MenuPage.js';
+import { LoyaltyPage } from './pages/LoyaltyPage.js';
+import { TablesPage } from './pages/TablesPage.js';
+import { StaffPage } from './pages/StaffPage.js';
+import { AnalyticsPage } from './pages/AnalyticsPage.js';
+import { SettingsPage } from './pages/SettingsPage.js';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
@@ -22,14 +29,14 @@ export function App() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/orders" element={<PlaceholderPage title="Orders" />} />
-        <Route path="/inventory" element={<PlaceholderPage title="Inventory" />} />
-        <Route path="/menu" element={<PlaceholderPage title="Menu CMS" />} />
-        <Route path="/loyalty" element={<PlaceholderPage title="Loyalty" />} />
-        <Route path="/tables" element={<PlaceholderPage title="Tables & QR" />} />
-        <Route path="/staff" element={<PlaceholderPage title="Staff" />} />
-        <Route path="/analytics" element={<PlaceholderPage title="Analytics" />} />
-        <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/menu" element={<MenuPage />} />
+        <Route path="/loyalty" element={<LoyaltyPage />} />
+        <Route path="/tables" element={<TablesPage />} />
+        <Route path="/staff" element={<StaffPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

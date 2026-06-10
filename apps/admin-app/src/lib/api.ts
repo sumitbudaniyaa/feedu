@@ -1,6 +1,15 @@
-import { ApiClient, createAuthHooks, createAuthStore } from '@feedo/api';
+import {
+  ApiClient,
+  createAuthHooks,
+  createAuthStore,
+  createDomainHooks,
+  createResource,
+  createSocket,
+} from '@feedo/api';
+import type { Category, LoyaltyProgram, Product, Section, Table, User } from '@feedo/types';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+const socketUrl = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:4000';
 
 /** App-scoped auth store (namespaced localStorage key). */
 export const useAuth = createAuthStore('feedo-admin-auth');
@@ -14,7 +23,26 @@ export const apiClient = new ApiClient({
   onAuthError: () => useAuth.getState().clear(),
 });
 
+export const socket = createSocket(socketUrl);
+
 export const { useLogin, useRegister, useLogout, useMe } = createAuthHooks({
   client: apiClient,
   useAuth,
 });
+
+const domain = createDomainHooks(apiClient);
+export const {
+  useRestaurant,
+  useUpdateRestaurant,
+  useDashboard,
+  useOrders,
+  useUpdateOrderStatus,
+} = domain;
+
+// CRUD resources
+export const products = createResource<Product>(apiClient, 'products', '/products');
+export const categories = createResource<Category>(apiClient, 'categories', '/categories');
+export const sections = createResource<Section>(apiClient, 'sections', '/sections');
+export const loyalty = createResource<LoyaltyProgram>(apiClient, 'loyalty', '/loyalty');
+export const tables = createResource<Table>(apiClient, 'tables', '/tables');
+export const staff = createResource<User>(apiClient, 'staff', '/staff');

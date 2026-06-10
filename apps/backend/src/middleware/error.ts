@@ -23,6 +23,25 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     });
   }
 
+  const name = (err as { name?: string })?.name;
+  // Mongoose cast / validation
+  if (name === 'CastError') {
+    return res
+      .status(400)
+      .json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid identifier' } });
+  }
+  if (name === 'ValidationError') {
+    return res
+      .status(400)
+      .json({ success: false, error: { code: 'BAD_REQUEST', message: 'Validation failed' } });
+  }
+  // JWT
+  if (name === 'JsonWebTokenError' || name === 'TokenExpiredError') {
+    return res
+      .status(401)
+      .json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } });
+  }
+
   logger.error('Unhandled error', err);
   return res.status(500).json({
     success: false,

@@ -11,6 +11,7 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import {
   Avatar,
   AvatarFallback,
@@ -18,10 +19,12 @@ import {
   Separator,
   ThemeToggle,
   cn,
+  useTheme,
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth, useLogout } from '../lib/api.js';
+import { useAuth, useLogout, useMe, useRestaurant } from '../lib/api.js';
+import { useLiveSync } from '../lib/useLiveSync.js';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
@@ -37,8 +40,26 @@ const NAV = [
 
 export function DashboardLayout() {
   const user = useAuth((s) => s.user);
+  const setSession = useAuth((s) => s.setSession);
+  const tokens = useAuth((s) => s.tokens);
   const logout = useLogout();
   const navigate = useNavigate();
+  const { setAccent } = useTheme();
+
+  // Realtime order/analytics sync.
+  useLiveSync();
+
+  // Hydrate the current user (refresh-safe) and apply restaurant branding accent.
+  const { data: me } = useMe();
+  const { data: restaurant } = useRestaurant(Boolean(tokens?.accessToken));
+
+  useEffect(() => {
+    if (me && tokens) setSession(me, tokens);
+  }, [me, tokens, setSession]);
+
+  useEffect(() => {
+    if (restaurant?.branding?.accent) setAccent(restaurant.branding.accent);
+  }, [restaurant?.branding?.accent, setAccent]);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">

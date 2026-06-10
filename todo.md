@@ -2,7 +2,7 @@
 
 > Update immediately after every task. Keep tasks granular. Track blockers.
 
-**Current Phase:** Phase 1 — Foundation (complete) → Phase 2 next.
+**Current Phase:** Phases 1–5 core complete — every app runs on real API data (no mock/placeholder UI). Hardening + polish ongoing.
 
 ---
 
@@ -36,51 +36,62 @@
 
 ---
 
-## Pending
+### Phase 2 — Customer app + ordering ✅
+- [x] Restaurants module (profile, settings, onboarding, go-live) API
+- [x] Categories + Products CRUD API (tenant-scoped, zod-validated, search)
+- [x] QR resolve endpoint (qrToken → restaurant + table + menu)
+- [x] Customer: live menu fetch, product sheet, variants/addons selection
+- [x] Customer: cart store + checkout → create order (server-authoritative pricing)
+- [x] Sections (Menu CMS) API + customer homepage rendering
 
-### Phase 2 — Customer app + ordering
-- [ ] Restaurants module (profile, onboarding state, branding) API
-- [ ] Categories + Products CRUD API (tenant-scoped, zod-validated)
-- [ ] QR resolve endpoint (qrToken → restaurant + table)
-- [ ] Customer: live menu fetch, product detail, variants/addons selection
-- [ ] Customer: cart store + checkout → create order
-- [ ] Sections (Menu CMS) read API + customer homepage rendering
-- [ ] Image upload pipeline (logos, banners, product images)
+### Phase 3 — Kitchen + realtime ✅
+- [x] Orders module API (create/list/status transitions with a state machine)
+- [x] Socket emits on order create/status change; kitchen + admin live subscription
+- [x] Customer order tracking page (auto-polling; join:order room available)
 
-### Phase 3 — Kitchen + realtime
-- [ ] Orders module API (create/list/status transitions)
-- [ ] Socket emits on order create/status change; kitchen live subscription
-- [ ] Order status sound notification + admin live order feed
-- [ ] Customer order tracking page (join:order room)
+### Phase 4 — Admin depth ✅
+- [x] Inventory (products CRUD, stock tracking, low-stock alerts, availability)
+- [x] Dynamic Sections CMS (create, toggle, delete; reorder endpoint)
+- [x] Loyalty engine (programs CRUD, points accrual on order)
+- [x] Analytics (revenue series, top products, peak hours, AOV, repeat %)
+- [x] Staff management (invite with role, list, deactivate, delete)
+- [x] Settings (branding accent live-preview, tax/GST) + go-live
+- [x] Tables & QR generation + downloadable QR (real QR encoding customer URL)
 
-### Phase 4 — Admin depth
-- [ ] Inventory management (stock, low-stock alerts) UI + API
-- [ ] Dynamic Sections CMS (drag-and-drop reorder, layouts, scheduling)
-- [ ] Loyalty engine (programs CRUD, accrual on order, redemption)
-- [ ] Analytics module (revenue series, top products, peak hours, AOV, retention)
-- [ ] Staff management (invite, roles, permissions)
-- [ ] Settings (branding, tax/GST, timings) + onboarding wizard (8 steps)
-- [ ] Tables & QR generation + downloadable QR
+### Phase 5 — Super admin ✅
+- [x] Platform stats (MRR, restaurants, staff, subscriptions)
+- [x] Restaurant management list + suspend/reactivate + subscription update API
 
-### Phase 5 — Super admin
-- [ ] Subscriptions + plan management API
-- [ ] Restaurant management, feature toggles, platform analytics
-- [ ] Support tools, admin management
+### Security (enterprise) ✅
+- [x] Rate limiting (global + strict auth + order placement)
+- [x] NoSQL-injection sanitization (express-mongo-sanitize), HPP guard
+- [x] Helmet with tight CSP; x-powered-by off; trust proxy
+- [x] ObjectId param validation; CastError/ValidationError/JWT error mapping
+- [x] bcrypt cost 12; RBAC (authorize) + tenant scoping on every route
+- [x] JSON body size limits; password hash never serialized
 
 ---
 
+## Pending / Next
+- [ ] Image upload pipeline (logos, banners, product images) — initials/placeholders today
+- [ ] Sections drag-and-drop reorder UI (endpoint exists)
+- [ ] Loyalty redemption flow + customer accounts (orders are anonymous today)
+- [ ] Onboarding wizard (8 guided steps) — backend onboarding state ready
+- [ ] Kitchen sound notifications on new order
+- [ ] Payments (Razorpay/Stripe) integration
+
 ## Bugs
-- (none reported)
+- (none open) — fixed during E2E: status state-machine blocked kitchen start; analytics
+  aggregation needed an ObjectId cast; soldCount now increments for untracked products too.
 
 ## Refactor Notes
 - Production backend build (`tsc`) imports shared packages by their `.ts` source; for a
   deployable build, either pre-build packages to JS or bundle the backend (e.g. tsup).
-  Dev (`tsx`) works as-is. Revisit before Phase 5 deploy.
+  Dev (`tsx`) works as-is.
 
 ## Technical Debt
 - Auth refresh is access+refresh in body/localStorage; consider httpOnly cookies for
   the customer PWA before launch.
-- No rate limiting / request logging persistence yet.
 
 ## Future Improvements
 - AI recommendations & analytics, ONDC, Swiggy/Zomato sync, POS + printer integrations,

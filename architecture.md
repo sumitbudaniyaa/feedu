@@ -116,6 +116,31 @@ index.ts      Bootstrap: DB connect → http server → sockets → listen
 `route → validate(zod) → authenticate → resolveTenant/authorize → controller →
 service (business logic + models) → ok() envelope`. Errors bubble to `errorHandler`.
 
+### API surface (modules)
+- `/auth` — register / login / refresh / me
+- `/restaurants` — profile, settings, onboarding state, go-live (tenant)
+- `/categories`, `/products`, `/sections`, `/loyalty`, `/tables`, `/staff` — tenant-scoped CRUD
+  (most via a shared `crud()` factory that auto-scopes every query to `req.restaurantId`)
+- `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime)
+- `/analytics/dashboard` — revenue series, top products, peak hours, AOV, repeat % (aggregations)
+- `/platform/*` — super-admin, cross-tenant (stats, restaurants, subscriptions)
+- `/public/*` — customer, no auth: `/r/:slug`, `/qr/:qrToken`, place order, track order
+
+Pricing is server-authoritative: order totals are re-derived from DB product prices,
+never trusted from the client. Aggregations cast `restaurantId` to `ObjectId` explicitly
+(aggregation does not auto-cast like `find`).
+
+### Security (enterprise)
+- **Rate limiting** (`express-rate-limit`): global ceiling, strict on `/auth`, and on public
+  order placement.
+- **Input safety**: `express-mongo-sanitize` (strips `$`/`.` operators → blocks NoSQL
+  injection), `hpp` (param pollution), Zod validation on every body, ObjectId param guard.
+- **Headers**: `helmet` with a tight CSP (JSON-only API), `x-powered-by` disabled, `trust proxy`.
+- **AuthN/Z**: JWT access+refresh, bcrypt cost 12, `authorize(...roles)` RBAC, tenant scoping
+  on every protected route, password hash never serialized. Body size capped at 1 MB.
+- **Error hygiene**: Mongoose CastError/ValidationError/duplicate-key and JWT errors mapped to
+  clean 4xx envelopes; internals never leaked.
+
 ### API response envelope
 ```ts
 // success

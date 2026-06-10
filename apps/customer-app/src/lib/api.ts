@@ -1,7 +1,8 @@
-import { ApiClient, createAuthHooks, createAuthStore } from '@feedo/api';
+import { ApiClient, createAuthStore, createPublicHooks } from '@feedo/api';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
+// Customer sessions are optional/anonymous; store kept for future customer login.
 export const useAuth = createAuthStore('feedo-customer-auth');
 
 export const apiClient = new ApiClient({
@@ -12,7 +13,5 @@ export const apiClient = new ApiClient({
   onAuthError: () => useAuth.getState().clear(),
 });
 
-export const { useLogin, useRegister, useLogout, useMe } = createAuthHooks({
-  client: apiClient,
-  useAuth,
-});
+export const { useMenuBySlug, useMenuByQr, useTrackOrder, usePlaceOrder } =
+  createPublicHooks(apiClient);

@@ -6,6 +6,8 @@ export * from './theme/theme-toggle.js';
 export * from './components/button.js';
 export * from './components/card.js';
 export * from './components/input.js';
+export * from './components/textarea.js';
+export * from './components/select.js';
 export * from './components/label.js';
 export * from './components/badge.js';
 export * from './components/skeleton.js';
