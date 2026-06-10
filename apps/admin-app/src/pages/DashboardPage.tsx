@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, IndianRupee, LineChart, Repeat, ShoppingBag, TrendingUp } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronRight, IndianRupee, LineChart, Repeat, ShoppingBag, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger, cn } from '@feedo/ui';
 import { formatCurrency, formatDate, formatPercent, formatRelativeTime } from '@feedo/utils';
+import type { Order } from '@feedo/types';
 import { useAuth, useDashboard, useOrders } from '../lib/api.js';
+import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
   pending: 'warning',
@@ -29,6 +31,7 @@ export function DashboardPage() {
   const { data, isLoading } = useDashboard(range);
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const recent = orders?.slice(0, 8);
+  const [selected, setSelected] = useState<Order | null>(null);
 
   return (
     <div className="space-y-8">
@@ -141,10 +144,10 @@ export function DashboardPage() {
           ) : recent && recent.length > 0 ? (
             <div className="divide-y divide-border">
               {recent.map((o) => (
-                <Link
+                <button
                   key={o._id}
-                  to="/orders"
-                  className="flex items-center gap-3 px-6 py-3 transition-colors hover:bg-secondary/50"
+                  onClick={() => setSelected(o)}
+                  className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-secondary/50"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -159,7 +162,8 @@ export function DashboardPage() {
                     </p>
                   </div>
                   <span className="text-sm font-semibold">{formatCurrency(o.total)}</span>
-                </Link>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
               ))}
             </div>
           ) : (
@@ -169,6 +173,8 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <OrderDetailsDialog order={selected} open={Boolean(selected)} onOpenChange={(v) => !v && setSelected(null)} />
     </div>
   );
 }
