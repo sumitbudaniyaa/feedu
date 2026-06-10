@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { imageSchema, objectIdSchema } from '../common.js';
+import { imageSchema, objectIdSchema, phoneSchema } from '../common.js';
 import { accentKeys } from './branding.js';
 
 export const dayHoursSchema = z.object({
@@ -43,7 +43,7 @@ export const restaurantSchema = z.object({
   cuisineType: z.array(z.string()).default([]),
   logo: imageSchema.optional(),
   banner: imageSchema.optional(),
-  contactNumber: z.string().optional(),
+  contactNumber: phoneSchema.optional(),
   address: addressSchema.optional(),
   timings: timingsSchema.optional(),
   branding: z

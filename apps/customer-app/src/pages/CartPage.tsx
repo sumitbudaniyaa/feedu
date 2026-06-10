@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
-import { Button, Card, EmptyState, Input, Label } from '@feedo/ui';
+import { Button, Card, EmptyState } from '@feedo/ui';
 import { computeTotals, formatCurrency } from '@feedo/utils';
 import { useCart } from '../store/cart.js';
 import { useCheckout, usePayOrder } from '../lib/api.js';
 import { loadRazorpay, openRazorpay } from '../lib/razorpay.js';
+import { CheckoutDrawer } from '../components/CheckoutDrawer.js';
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -13,8 +14,7 @@ export function CartPage() {
   const checkout = useCheckout(restaurant?.slug ?? '');
   const payOrder = usePayOrder();
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
 
@@ -42,19 +42,17 @@ export function CartPage() {
     inclusive: restaurant.inclusive,
   });
 
-  const phoneValid = /^\d{7,15}$/.test(phone.replace(/\D/g, ''));
-  const canPay = name.trim().length >= 2 && phoneValid && !paying && !checkout.isPending;
-
   const finish = (orderId: string) => {
     clear();
     navigate(`/order/${orderId}`);
   };
 
-  const handlePay = async () => {
+  // Called from the drawer after details are entered and validated.
+  const proceed = async ({ name, phone }: { name: string; phone: string }) => {
     setError(null);
     setPaying(true);
     try {
-      const result = await checkout.mutateAsync({
+      const { order, razorpay, demo } = await checkout.mutateAsync({
         type: tableId ? 'dine_in' : 'takeaway',
         tableId: tableId ?? undefined,
         items: lines.map((l) => ({
@@ -63,10 +61,8 @@ export function CartPage() {
           addonLabels: l.addonLabels,
           quantity: l.quantity,
         })),
-        customer: { name: name.trim(), phone: phone.trim() },
+        customer: { name, phone },
       });
-
-      const { order, razorpay, demo } = result;
 
       // Demo mode (no Razorpay keys) — confirm directly so the flow is usable.
       if (demo || !razorpay) {
@@ -89,7 +85,7 @@ export function CartPage() {
         order_id: razorpay.orderId,
         name: restaurant.name,
         description: `Order ${order.orderNumber}`,
-        prefill: { name: name.trim(), contact: phone.trim() },
+        prefill: { name, contact: phone },
         theme: { color: '#8B5CF6' },
         handler: async (resp) => {
           try {
@@ -114,7 +110,7 @@ export function CartPage() {
   };
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-background pb-40">
+    <div className="mx-auto min-h-screen max-w-md bg-background pb-28">
       <Header onBack={goBack} />
 
       <main className="space-y-5 px-5 pt-2">
@@ -142,26 +138,6 @@ export function CartPage() {
           ))}
         </Card>
 
-        {/* Contact details — required before payment. */}
-        <Card className="space-y-4 p-4">
-          <p className="text-sm font-semibold">Your details</p>
-          <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Mobile number</Label>
-            <Input
-              type="tel"
-              inputMode="numeric"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="10-digit mobile number"
-            />
-            {phone && !phoneValid && <p className="text-xs text-destructive">Enter a valid mobile number.</p>}
-          </div>
-        </Card>
-
         <Card className="space-y-1.5 p-4 text-sm">
           <Row label="Subtotal" value={formatCurrency(totals.subtotal)} />
           <Row label={`Tax (GST ${restaurant.gstPercent}%)`} value={formatCurrency(totals.taxAmount)} />
@@ -170,18 +146,24 @@ export function CartPage() {
             <span>{formatCurrency(totals.total)}</span>
           </div>
         </Card>
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
       </main>
 
-      {/* Sticky pay bar */}
+      {/* Sticky pay bar — opens the details drawer. */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-border bg-background/95 p-4 backdrop-blur">
-        <Button className="h-12 w-full justify-between rounded-xl" onClick={handlePay} disabled={!canPay}>
-          <span>{paying || checkout.isPending ? 'Processing…' : 'Pay securely'}</span>
+        <Button className="h-12 w-full justify-between rounded-xl" onClick={() => setDrawerOpen(true)}>
+          <span>Proceed to pay</span>
           <span>{formatCurrency(totals.total)}</span>
         </Button>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">Payments secured by Razorpay</p>
       </div>
+
+      <CheckoutDrawer
+        open={drawerOpen}
+        total={totals.total}
+        submitting={paying || checkout.isPending}
+        error={error}
+        onClose={() => setDrawerOpen(false)}
+        onProceed={proceed}
+      />
     </div>
   );
 }

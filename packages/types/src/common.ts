@@ -42,6 +42,14 @@ export interface Paginated<T> {
   totalPages: number;
 }
 
+/** Strict 10-digit mobile number (Indian format). Use everywhere a phone is collected. */
+export const phoneSchema = z
+  .string()
+  .regex(/^\d{10}$/, 'Enter a valid 10-digit mobile number');
+
+/** Regex string for client-side input validation (keep in sync with `phoneSchema`). */
+export const PHONE_PATTERN = '^\\d{10}$';
+
 export const moneySchema = z.number().nonnegative();
 export const imageSchema = z.object({
   url: z.string().url(),

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { objectIdSchema } from '../common.js';
+import { objectIdSchema, phoneSchema } from '../common.js';
 import { userRoleSchema } from '../enums.js';
 
 export const userSchema = z.object({
@@ -26,7 +26,7 @@ export type PublicUser = z.infer<typeof publicUserSchema>;
 export const createStaffSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  phone: z.string().optional(),
+  phone: phoneSchema.optional(),
   role: z.enum(['manager', 'kitchen', 'waiter']),
   password: z.string().min(8),
   permissions: z.array(z.string()).optional(),

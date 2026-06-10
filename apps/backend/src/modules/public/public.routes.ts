@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { cartItemSchema, createOrderSchema, orderTypeSchema } from '@feedo/types';
+import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema } from '@feedo/types';
 import { Category, Order, Product, Restaurant, Section, Table } from '../../models/index.js';
 import { isValidObjectId } from 'mongoose';
 import { validate } from '../../middleware/validate.js';
@@ -66,8 +66,8 @@ const checkoutSchema = z.object({
   items: z.array(cartItemSchema).min(1),
   notes: z.string().optional(),
   customer: z.object({
-    name: z.string().min(1),
-    phone: z.string().min(7).max(15),
+    name: z.string().min(2),
+    phone: phoneSchema,
   }),
 });
 

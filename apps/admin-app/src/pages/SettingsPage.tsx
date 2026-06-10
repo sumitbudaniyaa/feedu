@@ -60,7 +60,10 @@ export function SettingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant'] }),
   });
 
+  const contactInvalid = Boolean(form.contactNumber) && !/^\d{10}$/.test(form.contactNumber);
+
   const save = () => {
+    if (contactInvalid) return;
     update.mutate({
       name: form.name,
       description: form.description || undefined,
@@ -109,7 +112,19 @@ export function SettingsPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Contact number</Label>
-            <Input value={form.contactNumber} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} />
+            <Input
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              value={form.contactNumber}
+              onChange={(e) =>
+                setForm({ ...form, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })
+              }
+              placeholder="10-digit mobile number"
+            />
+            {form.contactNumber && !/^\d{10}$/.test(form.contactNumber) && (
+              <p className="text-xs text-destructive">Enter a valid 10-digit number.</p>
+            )}
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Cuisine (comma separated)</Label>
@@ -169,7 +184,7 @@ export function SettingsPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={save} disabled={update.isPending}>
+        <Button onClick={save} disabled={update.isPending || contactInvalid}>
           {update.isPending ? 'Saving…' : 'Save changes'}
         </Button>
       </div>
