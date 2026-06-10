@@ -18,6 +18,18 @@ export interface PayInput {
   razorpaySignature?: string;
 }
 
+/** Order plus the restaurant info needed to render a self-contained invoice. */
+export interface TrackedOrder extends Order {
+  restaurant: {
+    name: string;
+    currency?: string;
+    gstNumber?: string;
+    gstPercent?: number;
+    contactNumber?: string;
+    address?: { line1?: string; city?: string; state?: string };
+  } | null;
+}
+
 export interface MenuPayload {
   restaurant: Restaurant;
   table?: Table;
@@ -49,7 +61,7 @@ export function createPublicHooks(client: ApiClient) {
     useTrackOrder(orderId?: string) {
       return useQuery({
         queryKey: ['public', 'order', orderId],
-        queryFn: () => client.get<Order>(`/public/orders/${orderId}`),
+        queryFn: () => client.get<TrackedOrder>(`/public/orders/${orderId}`),
         enabled: Boolean(orderId),
         refetchInterval: (q) => {
           const status = q.state.data?.status;

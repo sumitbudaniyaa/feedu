@@ -130,7 +130,23 @@ router.get(
     if (!isValidObjectId(req.params.id)) throw ApiError.badRequest('Invalid order id');
     const order = await Order.findById(req.params.id).lean();
     if (!order) throw ApiError.notFound('Order not found');
-    return ok(res, order);
+    // Attach lightweight restaurant info so the customer can render a self-contained invoice.
+    const restaurant = await Restaurant.findById(order.restaurantId)
+      .select('name slug currency tax address contactNumber')
+      .lean();
+    return ok(res, {
+      ...order,
+      restaurant: restaurant
+        ? {
+            name: restaurant.name,
+            currency: restaurant.currency,
+            gstNumber: restaurant.tax?.gstNumber,
+            gstPercent: restaurant.tax?.gstPercent,
+            contactNumber: restaurant.contactNumber,
+            address: restaurant.address,
+          }
+        : null,
+    });
   }),
 );
 

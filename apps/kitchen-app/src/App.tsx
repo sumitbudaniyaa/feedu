@@ -95,13 +95,14 @@ function VegMark({ isVeg }: { isVeg?: boolean }) {
 }
 
 // Status → full-card theme. New = black, preparing = yellow, ready = green.
-type CardTheme = { card: string; sub: string; divide: string; qty: string; btn: string };
+type CardTheme = { card: string; sub: string; divide: string; qty: string; btn: string; itemBg: string };
 const NEW_THEME: CardTheme = {
   card: 'bg-neutral-950 text-white border-neutral-800',
   sub: 'text-neutral-400',
   divide: 'border-neutral-800',
   qty: 'text-amber-400',
   btn: 'bg-white text-neutral-950 hover:bg-white/90',
+  itemBg: 'bg-white/5',
 };
 const THEMES: Record<string, CardTheme> = {
   pending: NEW_THEME,
@@ -112,6 +113,7 @@ const THEMES: Record<string, CardTheme> = {
     divide: 'border-amber-500/60',
     qty: 'text-neutral-900',
     btn: 'bg-neutral-950 text-white hover:bg-neutral-800',
+    itemBg: 'bg-black/10',
   },
   ready: {
     card: 'bg-emerald-500 text-white border-emerald-600',
@@ -119,6 +121,7 @@ const THEMES: Record<string, CardTheme> = {
     divide: 'border-emerald-400/50',
     qty: 'text-white',
     btn: 'bg-neutral-950 text-white hover:bg-neutral-800',
+    itemBg: 'bg-black/15',
   },
 };
 
@@ -137,14 +140,12 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (id: string,
           </span>
         </div>
 
-        <div className="space-y-2 px-5 py-4">
+        <div className="space-y-2 px-4 py-4">
           {order.items.map((item, i) => (
-            <div key={i} className="flex items-baseline gap-2.5 text-lg">
+            <div key={i} className={cn('flex items-center gap-2.5 rounded-lg px-3 py-2 text-lg', t.itemBg)}>
+              <VegMark isVeg={item.isVeg} />
               <span className={cn('font-bold', t.qty)}>{item.quantity}×</span>
-              <span className="relative top-0.5">
-                <VegMark isVeg={item.isVeg} />
-              </span>
-              <span className="font-medium">{item.name}</span>
+              <span className="font-medium leading-tight">{item.name}</span>
               {item.variantLabel && <span className={cn('text-sm', t.sub)}>({item.variantLabel})</span>}
             </div>
           ))}

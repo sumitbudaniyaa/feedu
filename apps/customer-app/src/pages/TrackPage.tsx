@@ -1,9 +1,11 @@
+import { useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, ChefHat, Clock, CookingPot, PartyPopper, Receipt, Sparkles } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { Check, ChefHat, Clock, CookingPot, Download, PartyPopper, Receipt, Sparkles } from 'lucide-react';
 import { Button, Card, Skeleton, cn } from '@feedo/ui';
-import { formatCurrency } from '@feedo/utils';
 import type { OrderStatus } from '@feedo/types';
 import { useTrackOrder } from '../lib/api.js';
+import { InvoiceTicket } from '../components/InvoiceTicket.js';
 
 const STEPS: { status: OrderStatus; label: string; icon: typeof Clock }[] = [
   { status: 'pending', label: 'Order placed', icon: Receipt },
@@ -19,6 +21,26 @@ export function TrackPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { data: order, isLoading } = useTrackOrder(orderId);
+  const ticketRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadInvoice = async () => {
+    if (!ticketRef.current) return;
+    setDownloading(true);
+    try {
+      const dataUrl = await toPng(ticketRef.current, {
+        pixelRatio: 2,
+        backgroundColor: '#FFFFFF',
+        cacheBust: true,
+      });
+      const link = document.createElement('a');
+      link.download = `feedo-invoice-${order?.orderNumber ?? 'order'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (isLoading || !order) {
     return (
@@ -84,23 +106,16 @@ export function TrackPage() {
         </Card>
       )}
 
-      <Card className="mt-4 p-4">
-        <p className="mb-2 text-sm font-medium">Items</p>
-        <div className="space-y-1.5">
-          {order.items.map((item, i) => (
-            <div key={i} className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {item.quantity}× {item.name}
-              </span>
-              <span>{formatCurrency(item.lineTotal)}</span>
-            </div>
-          ))}
+      {/* Invoice — vintage bus-ticket style */}
+      <div className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-medium">Invoice</p>
+          <Button size="sm" variant="outline" onClick={downloadInvoice} disabled={downloading}>
+            <Download className="h-4 w-4" /> {downloading ? 'Saving…' : 'Download'}
+          </Button>
         </div>
-        <div className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
-          <span>Total</span>
-          <span>{formatCurrency(order.total)}</span>
-        </div>
-      </Card>
+        <InvoiceTicket ref={ticketRef} order={order} />
+      </div>
 
       <Button variant="outline" className="mt-6 w-full" onClick={() => navigate(-1)}>
         Back to menu

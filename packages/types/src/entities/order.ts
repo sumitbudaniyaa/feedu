@@ -28,6 +28,8 @@ export const orderSchema = z.object({
   orderNumber: z.string(), // human-friendly, daily-resetting per restaurant
   tableId: objectIdSchema.nullable().optional(),
   customerId: objectIdSchema.nullable().optional(),
+  customerName: z.string().optional(),
+  customerPhone: z.string().optional(),
   type: orderTypeSchema,
   status: orderStatusSchema,
   items: z.array(orderItemSchema).min(1),
