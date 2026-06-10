@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   Sparkles,
   Users,
+  UserRound,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import {
@@ -34,6 +35,7 @@ const NAV = [
   { to: '/loyalty', label: 'Loyalty', icon: Sparkles },
   { to: '/tables', label: 'Tables & QR', icon: QrCode },
   { to: '/staff', label: 'Staff', icon: Users },
+  { to: '/customers', label: 'Customers', icon: UserRound },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];

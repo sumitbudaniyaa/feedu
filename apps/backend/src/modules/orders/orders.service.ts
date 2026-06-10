@@ -3,6 +3,7 @@ import { rooms, SOCKET_EVENTS } from '@feedo/types';
 import { computeTotals } from '@feedo/utils';
 import mongoose from 'mongoose';
 import {
+  Customer,
   CustomerLoyalty,
   LoyaltyProgram,
   Order,
@@ -98,6 +99,7 @@ export async function createOrder({
     return {
       productId: product._id,
       name: product.name,
+      isVeg: product.isVeg,
       variantLabel: cartItem.variantLabel,
       addons,
       unitPrice,
@@ -256,9 +258,19 @@ export async function markPaid(orderId: string, providerRef?: string) {
   if (!order) throw ApiError.notFound('Order not found');
   order.paymentStatus = 'paid';
   if (order.status === 'pending') order.status = 'confirmed';
+
+  // Accrue loyalty + customer tracking now that payment succeeded.
+  const restaurantId = String(order.restaurantId);
+  if (order.customerPhone) {
+    const earned = await accrueCustomer(restaurantId, {
+      phone: order.customerPhone,
+      name: order.customerName ?? undefined,
+      total: order.total,
+    });
+    order.loyaltyPointsEarned = earned;
+  }
   await order.save();
 
-  const restaurantId = String(order.restaurantId);
   const obj = order.toObject();
   emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, obj); // surface to kitchen/admin once paid
   if (providerRef) {
@@ -272,4 +284,30 @@ export async function markPaid(orderId: string, providerRef?: string) {
     }).catch(() => undefined);
   }
   return obj;
+}
+
+/** Upsert a guest customer (by phone) and award loyalty points. Returns points earned. */
+async function accrueCustomer(
+  restaurantId: string,
+  { phone, name, total }: { phone: string; name?: string; total: number },
+): Promise<number> {
+  const program = await LoyaltyProgram.findOne({
+    restaurantId,
+    type: 'points',
+    isActive: true,
+  }).lean();
+  const earned = program?.conditions?.pointsPerCurrency
+    ? Math.floor(total * program.conditions.pointsPerCurrency)
+    : 0;
+
+  await Customer.updateOne(
+    { restaurantId, phone },
+    {
+      $set: { lastOrderAt: new Date(), ...(name ? { name } : {}) },
+      $inc: { totalOrders: 1, totalSpent: total, points: earned },
+      $setOnInsert: { restaurantId, phone },
+    },
+    { upsert: true },
+  );
+  return earned;
 }

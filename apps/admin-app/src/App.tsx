@@ -9,6 +9,7 @@ import { MenuPage } from './pages/MenuPage.js';
 import { LoyaltyPage } from './pages/LoyaltyPage.js';
 import { TablesPage } from './pages/TablesPage.js';
 import { StaffPage } from './pages/StaffPage.js';
+import { CustomersPage } from './pages/CustomersPage.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 
@@ -35,6 +36,7 @@ export function App() {
         <Route path="/loyalty" element={<LoyaltyPage />} />
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/staff" element={<StaffPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

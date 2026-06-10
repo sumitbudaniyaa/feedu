@@ -74,10 +74,20 @@
 
 ---
 
+## Recently added
+- [x] Product image upload (multer + local static serving, ApiClient.upload); shown in
+      admin inventory + customer cards/sheet
+- [x] Kitchen cards: veg/non-veg marker per item; status-colored cards (new=black,
+      preparing=yellow, ready=green); isVeg snapshotted onto order items
+- [x] Customer tracking: Customer model (by phone), loyalty points accrued on paid orders;
+      admin Customers page (spend ranking + points); points surfaced on diner track page
+- [x] Branding accent reflected on customer CTAs (cart pill, pay, add)
+- [x] Strict 10-digit phone validation everywhere; staff "Password" (not temp)
+
 ## Pending / Next
-- [ ] Image upload pipeline (logos, banners, product images) — initials/placeholders today
+- [ ] Logo/banner upload in Settings (product images done; reuse the upload endpoint)
 - [ ] Sections drag-and-drop reorder UI (endpoint exists)
-- [ ] Loyalty redemption flow + customer accounts (orders are guest checkout today)
+- [ ] Loyalty redemption flow (points accrue; redeeming for rewards is next) + customer login
 - [ ] Onboarding wizard (8 guided steps) — backend onboarding state ready
 - [ ] Kitchen sound notifications on new order
 - [ ] Add real Razorpay keys to .env (RAZORPAY_KEY_ID/SECRET + VITE_RAZORPAY_KEY_ID) to

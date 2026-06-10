@@ -110,8 +110,8 @@ function StaffDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Temp password</Label>
-              <Input type="text" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+              <Label>Password</Label>
+              <Input type="password" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 8 characters" required />
             </div>
             <div className="space-y-1.5">
               <Label>Role</Label>

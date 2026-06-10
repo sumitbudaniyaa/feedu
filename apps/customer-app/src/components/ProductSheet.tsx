@@ -51,6 +51,9 @@ export function ProductSheet({
   return (
     <Dialog open={Boolean(product)} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-sm">
+        {product.image?.url && (
+          <img src={product.image.url} alt={product.name} className="h-40 w-full rounded-xl object-cover" />
+        )}
         <DialogHeader>
           <DialogTitle>{product.name}</DialogTitle>
         </DialogHeader>
@@ -110,6 +113,7 @@ export function ProductSheet({
         </div>
 
         <Button
+          variant="accent"
           className="w-full"
           onClick={() => {
             add(

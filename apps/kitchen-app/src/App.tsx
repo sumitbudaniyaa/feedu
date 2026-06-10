@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Clock, LogOut } from 'lucide-react';
 import { SOCKET_EVENTS } from '@feedo/types';
 import type { Order, OrderStatus } from '@feedo/types';
-import { Badge, Button, Card, EmptyState, Skeleton, ThemeToggle, cn } from '@feedo/ui';
+import { Badge, Button, EmptyState, Skeleton, ThemeToggle, cn } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
 import { ChefHat } from 'lucide-react';
 import { socket, useAuth, useLogin, useLogout, useMe, useOrders, useUpdateOrderStatus } from './lib/api.js';
@@ -78,51 +78,99 @@ function KitchenBoard() {
   );
 }
 
+/** Veg / non-veg marker (green / red dot in a bordered box). */
+function VegMark({ isVeg }: { isVeg?: boolean }) {
+  if (isVeg === undefined) return null;
+  return (
+    <span
+      className={cn(
+        'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border bg-white',
+        isVeg ? 'border-green-600' : 'border-red-600',
+      )}
+      title={isVeg ? 'Veg' : 'Non-veg'}
+    >
+      <span className={cn('h-2 w-2 rounded-full', isVeg ? 'bg-green-600' : 'bg-red-600')} />
+    </span>
+  );
+}
+
+// Status → full-card theme. New = black, preparing = yellow, ready = green.
+type CardTheme = { card: string; sub: string; divide: string; qty: string; btn: string };
+const NEW_THEME: CardTheme = {
+  card: 'bg-neutral-950 text-white border-neutral-800',
+  sub: 'text-neutral-400',
+  divide: 'border-neutral-800',
+  qty: 'text-amber-400',
+  btn: 'bg-white text-neutral-950 hover:bg-white/90',
+};
+const THEMES: Record<string, CardTheme> = {
+  pending: NEW_THEME,
+  confirmed: NEW_THEME,
+  preparing: {
+    card: 'bg-amber-400 text-neutral-950 border-amber-500',
+    sub: 'text-neutral-800',
+    divide: 'border-amber-500/60',
+    qty: 'text-neutral-900',
+    btn: 'bg-neutral-950 text-white hover:bg-neutral-800',
+  },
+  ready: {
+    card: 'bg-emerald-500 text-white border-emerald-600',
+    sub: 'text-emerald-50/80',
+    divide: 'border-emerald-400/50',
+    qty: 'text-white',
+    btn: 'bg-neutral-950 text-white hover:bg-neutral-800',
+  },
+};
+
 function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (id: string, status: OrderStatus) => void }) {
   const waiting = minutesSince(order.placedAt);
   const urgent = waiting >= 12;
+  const t = THEMES[order.status] ?? NEW_THEME;
 
   return (
     <motion.div layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
-      <Card className={cn('overflow-hidden', urgent && 'border-destructive/50')}>
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className={cn('overflow-hidden rounded-xl border shadow-card', t.card)}>
+        <div className={cn('flex items-center justify-between border-b px-5 py-3', t.divide)}>
           <span className="text-xl font-bold tracking-tight">#{order.orderNumber}</span>
-          <Badge variant={order.status === 'ready' ? 'success' : 'warning'} className="capitalize">
-            {order.status}
-          </Badge>
+          <span className="rounded-full bg-black/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
+            {order.status === 'pending' || order.status === 'confirmed' ? 'New' : order.status}
+          </span>
         </div>
 
         <div className="space-y-2 px-5 py-4">
           {order.items.map((item, i) => (
-            <div key={i} className="flex items-baseline gap-3 text-lg">
-              <span className="font-bold text-accent">{item.quantity}×</span>
+            <div key={i} className="flex items-baseline gap-2.5 text-lg">
+              <span className={cn('font-bold', t.qty)}>{item.quantity}×</span>
+              <span className="relative top-0.5">
+                <VegMark isVeg={item.isVeg} />
+              </span>
               <span className="font-medium">{item.name}</span>
-              {item.variantLabel && <span className="text-sm text-muted-foreground">({item.variantLabel})</span>}
+              {item.variantLabel && <span className={cn('text-sm', t.sub)}>({item.variantLabel})</span>}
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-between border-t border-border px-5 py-3">
-          <span className={cn('flex items-center gap-1.5 text-sm font-medium', urgent ? 'text-destructive' : 'text-muted-foreground')}>
+        <div className={cn('flex items-center justify-between border-t px-5 py-3', t.divide)}>
+          <span className={cn('flex items-center gap-1.5 text-sm font-semibold', urgent && order.status !== 'ready' ? 'text-red-600' : t.sub)}>
             <Clock className="h-4 w-4" /> {waiting} min{waiting === 1 ? '' : 's'}
           </span>
           {(order.status === 'pending' || order.status === 'confirmed') && (
-            <Button size="sm" onClick={() => onAdvance(order._id, 'preparing')}>
+            <button className={cn('h-8 rounded-lg px-3 text-sm font-medium transition-colors', t.btn)} onClick={() => onAdvance(order._id, 'preparing')}>
               Start preparing
-            </Button>
+            </button>
           )}
           {order.status === 'preparing' && (
-            <Button size="sm" onClick={() => onAdvance(order._id, 'ready')}>
+            <button className={cn('h-8 rounded-lg px-3 text-sm font-medium transition-colors', t.btn)} onClick={() => onAdvance(order._id, 'ready')}>
               Mark ready
-            </Button>
+            </button>
           )}
           {order.status === 'ready' && (
-            <Button size="sm" variant="secondary" onClick={() => onAdvance(order._id, 'served')}>
+            <button className={cn('h-8 rounded-lg px-3 text-sm font-medium transition-colors', t.btn)} onClick={() => onAdvance(order._id, 'served')}>
               Mark served
-            </Button>
+            </button>
           )}
         </div>
-      </Card>
+      </div>
     </motion.div>
   );
 }

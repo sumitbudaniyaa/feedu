@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, ChefHat, Clock, CookingPot, PartyPopper, Receipt } from 'lucide-react';
+import { Check, ChefHat, Clock, CookingPot, PartyPopper, Receipt, Sparkles } from 'lucide-react';
 import { Button, Card, Skeleton, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { OrderStatus } from '@feedo/types';
@@ -40,6 +40,18 @@ export function TrackPage() {
           {cancelled ? 'Order cancelled' : order.status === 'completed' ? 'All done — enjoy!' : 'Tracking your order'}
         </h1>
       </div>
+
+      {order.loyaltyPointsEarned > 0 && (
+        <Card className="mb-4 flex items-center gap-3 border-accent/30 bg-accent/5 p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15">
+            <Sparkles className="h-4 w-4 text-accent" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">You earned {order.loyaltyPointsEarned} reward points</p>
+            <p className="text-xs text-muted-foreground">Saved to your mobile number for next time.</p>
+          </div>
+        </Card>
+      )}
 
       {!cancelled && (
         <Card className="p-5">

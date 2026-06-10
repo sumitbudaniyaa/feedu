@@ -9,8 +9,10 @@ import tableRoutes from '../modules/tables/tables.routes.js';
 import staffRoutes from '../modules/staff/staff.routes.js';
 import restaurantRoutes from '../modules/restaurants/restaurants.routes.js';
 import analyticsRoutes from '../modules/analytics/analytics.routes.js';
+import customerRoutes from '../modules/customers/customers.routes.js';
 import platformRoutes from '../modules/platform/platform.routes.js';
 import publicRoutes from '../modules/public/public.routes.js';
+import uploadRoutes from '../modules/uploads/uploads.routes.js';
 
 const router = Router();
 
@@ -31,7 +33,9 @@ router.use('/orders', orderRoutes);
 router.use('/loyalty', loyaltyRoutes);
 router.use('/tables', tableRoutes);
 router.use('/staff', staffRoutes);
+router.use('/customers', customerRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/uploads', uploadRoutes);
 
 // Platform (super admin) — cross-tenant
 router.use('/platform', platformRoutes);

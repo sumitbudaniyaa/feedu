@@ -92,6 +92,25 @@ export class ApiClient {
     return this.refreshing;
   }
 
+  /** Multipart upload (FormData). Lets the browser set the multipart boundary. */
+  async upload<T>(path: string, file: File, field = 'file'): Promise<T> {
+    const form = new FormData();
+    form.append(field, file);
+    const headers: Record<string, string> = {};
+    const token = this.opts.getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const restaurantId = this.opts.getRestaurantId?.();
+    if (restaurantId) headers['x-restaurant-id'] = restaurantId;
+
+    const res = await fetch(`${this.opts.baseUrl}${path}`, { method: 'POST', headers, body: form });
+    const json = (await res.json().catch(() => null)) as ApiResponse<T> | null;
+    if (!res.ok || !json || json.success === false) {
+      const err = json && json.success === false ? json.error : undefined;
+      throw new ApiError(res.status, err?.code ?? 'UNKNOWN', err?.message ?? 'Upload failed', err?.details);
+    }
+    return json.data;
+  }
+
   get<T>(path: string) {
     return this.raw<T>('GET', path);
   }

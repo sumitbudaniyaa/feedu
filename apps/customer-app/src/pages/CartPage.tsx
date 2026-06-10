@@ -150,7 +150,7 @@ export function CartPage() {
 
       {/* Sticky pay bar — opens the details drawer. */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-border bg-background/95 p-4 backdrop-blur">
-        <Button className="h-12 w-full justify-between rounded-xl" onClick={() => setDrawerOpen(true)}>
+        <Button variant="accent" className="h-12 w-full justify-between rounded-xl" onClick={() => setDrawerOpen(true)}>
           <span>Proceed to pay</span>
           <span>{formatCurrency(totals.total)}</span>
         </Button>

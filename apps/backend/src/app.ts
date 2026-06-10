@@ -8,6 +8,7 @@ import morgan from 'morgan';
 import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import { authLimiter, globalLimiter, orderLimiter } from './middleware/security.js';
+import { UPLOADS_DIR } from './modules/uploads/uploads.routes.js';
 import apiRoutes from './routes/index.js';
 
 export function createApp() {
@@ -44,6 +45,15 @@ export function createApp() {
 
   app.use(compression());
   if (!env.isProd) app.use(morgan('dev'));
+
+  // Serve uploaded images. CORP cross-origin so the frontends (other ports) can load them.
+  app.use(
+    '/uploads',
+    express.static(UPLOADS_DIR, {
+      maxAge: '7d',
+      setHeaders: (res) => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'),
+    }),
+  );
 
   // Rate limiting (targeted limiters first, then a global ceiling).
   app.use('/api/auth', authLimiter);

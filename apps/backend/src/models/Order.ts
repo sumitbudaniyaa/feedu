@@ -4,6 +4,7 @@ const orderItemSchema = new Schema(
   {
     productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
     name: { type: String, required: true },
+    isVeg: Boolean,
     variantLabel: String,
     addons: { type: [{ label: String, price: Number }], default: [] },
     unitPrice: { type: Number, required: true },

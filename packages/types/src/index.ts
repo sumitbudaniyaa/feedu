@@ -13,6 +13,7 @@ export * from './entities/product.js';
 export * from './entities/table.js';
 export * from './entities/order.js';
 export * from './entities/loyalty.js';
+export * from './entities/customer.js';
 export * from './entities/section.js';
 export * from './entities/payment.js';
 export * from './entities/notification.js';

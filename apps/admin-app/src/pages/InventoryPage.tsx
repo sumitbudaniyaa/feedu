@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
+import { Boxes, Image as ImageIcon, Pencil, Plus, Tag, Trash2, Upload } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -20,7 +20,7 @@ import {
 } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Category, Product } from '@feedo/types';
-import { categories as categoriesApi, products as productsApi } from '../lib/api.js';
+import { categories as categoriesApi, products as productsApi, uploadImage } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 export function InventoryPage() {
@@ -70,8 +70,12 @@ export function InventoryPage() {
         <Card className="divide-y divide-border">
           {products.map((p) => (
             <div key={p._id} className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-sm font-medium">
-                {p.name[0]}
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-sm font-medium">
+                {p.image?.url ? (
+                  <img src={p.image.url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  p.name[0]
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -140,13 +144,31 @@ function ProductDialog({
   const pending = create.isPending || update.isPending;
 
   const [form, setForm] = useState(() => initial(product, categories));
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   // Reset form whenever the dialog target changes.
   const key = product?._id ?? 'new';
   const [lastKey, setLastKey] = useState(key);
   if (key !== lastKey) {
     setLastKey(key);
     setForm(initial(product, categories));
+    setUploadError(null);
   }
+
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setForm((f) => ({ ...f, imageUrl: url }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +180,7 @@ function ProductDialog({
       isVeg: form.isVeg,
       isAvailable: form.isAvailable,
       stock: form.trackStock ? Number(form.stock) : null,
+      image: form.imageUrl ? { url: form.imageUrl } : undefined,
     };
     const onDone = { onSuccess: () => onOpenChange(false) };
     if (product) update.mutate({ id: product._id, body }, onDone);
@@ -171,6 +194,32 @@ function ProductDialog({
           <DialogTitle>{product ? 'Edit product' : 'New product'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Product image</Label>
+            <div className="flex items-center gap-3">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-secondary">
+                {form.imageUrl ? (
+                  <img src={form.imageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-secondary">
+                  <Upload className="h-4 w-4" />
+                  {uploading ? 'Uploading…' : form.imageUrl ? 'Replace' : 'Upload image'}
+                  <input type="file" accept="image/*" className="hidden" onChange={onPickImage} disabled={uploading} />
+                </label>
+                {form.imageUrl && (
+                  <button type="button" className="ml-2 text-xs text-destructive" onClick={() => setForm({ ...form, imageUrl: '' })}>
+                    Remove
+                  </button>
+                )}
+                {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+                <p className="text-xs text-muted-foreground">JPG, PNG or WebP · up to 5MB</p>
+              </div>
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -240,6 +289,7 @@ function initial(product: Product | null, categories: Category[]) {
     isAvailable: product?.isAvailable ?? true,
     trackStock: product?.stock != null,
     stock: product?.stock != null ? String(product.stock) : '0',
+    imageUrl: product?.image?.url ?? '',
   };
 }
 

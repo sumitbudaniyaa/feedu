@@ -114,7 +114,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
       {count > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="fixed inset-x-0 bottom-5 z-30 mx-auto max-w-md px-5">
-          <Button className="h-12 w-full justify-between rounded-xl shadow-elevated" onClick={() => navigate('/cart')}>
+          <Button variant="accent" className="h-12 w-full justify-between rounded-xl shadow-elevated" onClick={() => navigate('/cart')}>
             <span className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" /> {count} item{count > 1 ? 's' : ''} · {formatCurrency(subtotal)}
             </span>
@@ -149,7 +149,11 @@ function ProductCard({
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.3) }}>
       <Card className="flex h-full flex-col overflow-hidden">
         <div className="relative flex aspect-square items-center justify-center bg-secondary text-2xl font-semibold text-muted-foreground">
-          {product.name[0]}
+          {product.image?.url ? (
+            <img src={product.image.url} alt={product.name} className="h-full w-full object-cover" />
+          ) : (
+            product.name[0]
+          )}
           {product.isVeg !== undefined && (
             <span
               className={cn(

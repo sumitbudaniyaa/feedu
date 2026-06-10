@@ -32,6 +32,9 @@ logs/
 # Testing
 coverage/
 
+# Uploaded media (dev local storage)
+apps/backend/uploads/
+
 # Misc
 *.pem
 .cache/
