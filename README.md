@@ -37,16 +37,19 @@ npm run seed
 npm run dev
 ```
 
-Running `npm run dev` shows a menu:
+Running `npm run dev` shows an arrow-key menu — use **↑/↓** to move, **enter** to run,
+**q** to quit:
 
 ```
   Feedo  — what do you want to run?
 
-  1  Run all apps
-  2  Run admin + backend
-  3  Run user (customer) + backend
-  4  Run kitchen + backend
-  5  Run company (super admin) + backend
+  ❯ Run all apps
+    Run admin + backend
+    Run user (customer) + backend
+    Run kitchen + backend
+    Run company (super admin) + backend
+
+  ↑/↓ to move · enter to run · q to quit
 ```
 
 ### Direct scripts (skip the menu)
