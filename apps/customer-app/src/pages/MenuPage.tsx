@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Minus, Plus, Search, ShoppingBag, Star, UtensilsCrossed } from 'lucide-react';
+import { Minus, Plus, Search, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { Button, Card, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
@@ -185,11 +185,6 @@ function ProductCard({
 
         <div className="flex flex-1 flex-col p-3">
           <p className="line-clamp-2 text-sm font-medium leading-snug">{product.name}</p>
-          {product.ratingCount > 0 && (
-            <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-              <Star className="h-3 w-3 fill-warning text-warning" /> {product.rating} ({product.ratingCount})
-            </span>
-          )}
 
           <div className="mt-auto flex items-center justify-between pt-3">
             <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
