@@ -1,0 +1,21 @@
+{
+  "name": "@feedo/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tailwind": "./tailwind.preset.cjs",
+    "./postcss": "./postcss.config.cjs",
+    "./tsconfig.base": "./tsconfig.base.json",
+    "./tokens": "./src/tokens.ts"
+  },
+  "files": ["src", "tailwind.preset.cjs", "postcss.config.cjs", "tsconfig.base.json"],
+  "dependencies": {
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.13",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47"
+  }
+}

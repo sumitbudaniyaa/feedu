@@ -1,0 +1,10 @@
+{
+  "extends": "@feedo/config/tsconfig.base",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "rootDir": "src",
+    "noEmit": true,
+    "types": ["react"]
+  },
+  "include": ["src"]
+}

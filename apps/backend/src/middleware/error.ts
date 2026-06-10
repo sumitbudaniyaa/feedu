@@ -1,0 +1,31 @@
+import type { NextFunction, Request, Response } from 'express';
+import { ApiError } from '../utils/ApiError.js';
+import { logger } from '../utils/logger.js';
+
+export function notFound(req: Request, _res: Response, next: NextFunction) {
+  next(ApiError.notFound(`Route not found: ${req.method} ${req.originalUrl}`));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+  if (err instanceof ApiError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: { code: err.code, message: err.message, details: err.details },
+    });
+  }
+
+  // Mongoose duplicate key
+  if (typeof err === 'object' && err && 'code' in err && (err as { code: number }).code === 11000) {
+    return res.status(409).json({
+      success: false,
+      error: { code: 'CONFLICT', message: 'Resource already exists' },
+    });
+  }
+
+  logger.error('Unhandled error', err);
+  return res.status(500).json({
+    success: false,
+    error: { code: 'INTERNAL', message: 'Internal server error' },
+  });
+}
