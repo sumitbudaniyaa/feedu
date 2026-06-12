@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Clock, Sparkles } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -60,6 +61,21 @@ export function ProductSheet({
 
         {product.description && (
           <p className="text-sm text-muted-foreground">{product.description}</p>
+        )}
+
+        {((product.prepTimeMinutes ?? 0) > 0 || (product.loyaltyPoints ?? 0) > 0) && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {(product.prepTimeMinutes ?? 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> ~{product.prepTimeMinutes} min prep
+              </span>
+            )}
+            {(product.loyaltyPoints ?? 0) > 0 && (
+              <span className="flex items-center gap-1 text-accent">
+                <Sparkles className="h-3.5 w-3.5" /> Earn {product.loyaltyPoints} pts each
+              </span>
+            )}
+          </div>
         )}
 
         {product.variants.length > 0 && (

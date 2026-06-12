@@ -1,6 +1,25 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import type { Category, CreateOrderInput, Order, Product, Restaurant, Section, Table } from '@feedo/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  Category,
+  CreateOrderInput,
+  Customer,
+  LoyaltyReward,
+  Order,
+  Product,
+  Redemption,
+  Restaurant,
+  Section,
+  Table,
+} from '@feedo/types';
 import type { ApiClient } from '../client.js';
+
+/** Diner self-service account payload (wallet + history + catalog). */
+export interface AccountPayload {
+  customer: Customer | null;
+  orders: Order[];
+  rewards: LoyaltyReward[];
+  redemptions: Redemption[];
+}
 
 export interface CheckoutResult {
   order: Order;
@@ -87,6 +106,23 @@ export function createPublicHooks(client: ApiClient) {
       return useMutation({
         mutationFn: ({ orderId, ...body }: PayInput & { orderId: string }) =>
           client.post<Order>(`/public/orders/${orderId}/pay`, body),
+      });
+    },
+    /** Diner account by mobile number: wallet, past orders, rewards, claims. */
+    useAccount(slug?: string, phone?: string) {
+      return useQuery({
+        queryKey: ['public', 'account', slug, phone],
+        queryFn: () => client.get<AccountPayload>(`/public/r/${slug}/account?phone=${phone}`),
+        enabled: Boolean(slug && phone && /^\d{10}$/.test(phone)),
+      });
+    },
+    /** Claim a reward — deducts points and returns the claim code. */
+    useRedeem(slug: string) {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (body: { phone: string; rewardId: string }) =>
+          client.post<{ redemption: Redemption; points: number }>(`/public/r/${slug}/redeem`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'account'] }),
       });
     },
   };

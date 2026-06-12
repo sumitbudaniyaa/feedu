@@ -1,8 +1,19 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema } from '@feedo/types';
-import { Category, Order, Product, Restaurant, Section, Table } from '../../models/index.js';
+import {
+  Category,
+  Customer,
+  LoyaltyReward,
+  Order,
+  Product,
+  Redemption,
+  Restaurant,
+  Section,
+  Table,
+} from '../../models/index.js';
 import { isValidObjectId } from 'mongoose';
+import { randomToken } from '@feedo/utils';
 import { validate } from '../../middleware/validate.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
@@ -120,6 +131,83 @@ router.post(
 
     const order = await orders.markPaid(req.params.id!, razorpayPaymentId);
     return ok(res, order);
+  }),
+);
+
+// ─── Diner account: wallet, past orders, rewards, claims ─────────────────
+async function findLiveRestaurant(slug: string) {
+  const restaurant = await Restaurant.findOne({ slug, isLive: true }).lean();
+  if (!restaurant) throw ApiError.notFound('Restaurant not found');
+  return restaurant;
+}
+
+/**
+ * Self-service diner account, keyed by mobile number: loyalty wallet,
+ * past orders, the rewards catalog, and previous claims.
+ */
+router.get(
+  '/r/:slug/account',
+  asyncHandler(async (req, res) => {
+    const phone = phoneSchema.safeParse(req.query.phone);
+    if (!phone.success) throw ApiError.badRequest('Enter a valid 10-digit mobile number');
+    const restaurant = await findLiveRestaurant(req.params.slug!);
+    const restaurantId = restaurant._id;
+
+    const [customer, orders, rewards, redemptions] = await Promise.all([
+      Customer.findOne({ restaurantId, phone: phone.data }).lean(),
+      Order.find({ restaurantId, customerPhone: phone.data })
+        .sort({ placedAt: -1 })
+        .limit(15)
+        .lean(),
+      LoyaltyReward.find({ restaurantId, isActive: true }).sort({ pointsCost: 1 }).lean(),
+      Redemption.find({ restaurantId, customerPhone: phone.data })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(),
+    ]);
+
+    return ok(res, { customer, orders, rewards, redemptions });
+  }),
+);
+
+const redeemSchema = z.object({
+  phone: phoneSchema,
+  rewardId: z.string(),
+});
+
+/** Claim a reward: atomically deduct points and issue a claim code. */
+router.post(
+  '/r/:slug/redeem',
+  validate(redeemSchema),
+  asyncHandler(async (req, res) => {
+    const { phone, rewardId } = req.body as { phone: string; rewardId: string };
+    if (!isValidObjectId(rewardId)) throw ApiError.badRequest('Invalid reward');
+    const restaurant = await findLiveRestaurant(req.params.slug!);
+    const restaurantId = restaurant._id;
+
+    const reward = await LoyaltyReward.findOne({ _id: rewardId, restaurantId, isActive: true }).lean();
+    if (!reward) throw ApiError.notFound('Reward not found');
+
+    // Atomic conditional deduction — prevents double-spends and negative wallets.
+    const customer = await Customer.findOneAndUpdate(
+      { restaurantId, phone, points: { $gte: reward.pointsCost } },
+      { $inc: { points: -reward.pointsCost } },
+      { new: true },
+    );
+    if (!customer) throw ApiError.badRequest('Not enough points for this reward');
+
+    const redemption = await Redemption.create({
+      restaurantId,
+      customerPhone: phone,
+      customerName: customer.name,
+      rewardId: reward._id,
+      rewardTitle: reward.title,
+      pointsCost: reward.pointsCost,
+      code: randomToken(3).toUpperCase(),
+      status: 'pending',
+    });
+
+    return ok(res, { redemption: redemption.toObject(), points: customer.points }, 201);
   }),
 );
 

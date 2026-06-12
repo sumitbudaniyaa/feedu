@@ -26,6 +26,8 @@ const productSchema = new Schema(
     addons: { type: [addonSchema], default: [] },
     isVeg: Boolean,
     tags: { type: [String], default: [] },
+    prepTimeMinutes: { type: Number, min: 0 },
+    loyaltyPoints: { type: Number, min: 0 },
     stock: { type: Number, default: null },
     lowStockThreshold: { type: Number, default: 5 },
     isAvailable: { type: Boolean, default: true },

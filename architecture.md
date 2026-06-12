@@ -130,6 +130,17 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
 never trusted from the client.
 
+### Loyalty & rewards
+Two layers: **earning** and **claiming**. Products may define `loyaltyPoints` (per unit) —
+summed into `order.loyaltyPointsEarned` at creation and credited to the guest's `Customer`
+record (keyed `restaurantId + phone`) when the order is paid; a points `LoyaltyProgram`
+(pts per ₹) acts as the fallback when items don't define points. Claiming: admins manage a
+`LoyaltyReward` catalog (title + `pointsCost`); diners hit
+`GET /public/r/:slug/account?phone=` (wallet + past orders + catalog + claims) and
+`POST /public/r/:slug/redeem`, which deducts points via an atomic conditional update
+(`points: { $gte: cost }` + `$inc`) and issues a `Redemption` with a short claim code.
+Staff fulfil/cancel pending claims via `/rewards/redemptions`.
+
 ### Payments (Razorpay)
 Customer checkout is pay-first: `POST /public/r/:slug/checkout` captures name + mobile,
 creates a **pending, silent** order (not shown to the kitchen yet) and a matching Razorpay

@@ -3,6 +3,7 @@ import type {
   DashboardStats,
   Order,
   OrderStatus,
+  Redemption,
   Restaurant,
   CreateOrderInput,
 } from '@feedo/types';
@@ -61,6 +62,22 @@ export function createDomainHooks(client: ApiClient) {
       return useMutation({
         mutationFn: (body: CreateOrderInput) => client.post<Order>('/orders', body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+      });
+    },
+
+    // ---- Reward redemptions (staff side) ----
+    useRedemptions() {
+      return useQuery({
+        queryKey: ['redemptions'],
+        queryFn: () => client.get<Redemption[]>('/rewards/redemptions'),
+      });
+    },
+    useUpdateRedemption() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, status }: { id: string; status: 'fulfilled' | 'cancelled' }) =>
+          client.patch<Redemption>(`/rewards/redemptions/${id}`, { status }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['redemptions'] }),
       });
     },
   };

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button, Input, Label } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
+import { useGuest } from '../store/guest.js';
 
 interface CheckoutDrawerProps {
   open: boolean;
@@ -14,8 +15,9 @@ interface CheckoutDrawerProps {
 
 /** Bottom sheet that collects guest details, then initiates payment. */
 export function CheckoutDrawer({ open, total, submitting, error, onClose, onProceed }: CheckoutDrawerProps) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const guest = useGuest();
+  const [name, setName] = useState(guest.name);
+  const [phone, setPhone] = useState(guest.phone);
   const [touched, setTouched] = useState(false);
 
   const nameValid = name.trim().length >= 2;
@@ -26,6 +28,8 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
     e.preventDefault();
     setTouched(true);
     if (!canProceed) return;
+    // Remember the guest so rewards & past orders auto-load next time.
+    guest.save(name.trim(), phone);
     onProceed({ name: name.trim(), phone });
   };
 

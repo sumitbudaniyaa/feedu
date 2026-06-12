@@ -75,6 +75,14 @@
 ---
 
 ## Recently added
+- [x] Loyalty rewards system end-to-end: admin rewards catalog ("Free Coffee · 50 pts"),
+      per-product loyalty points + prep time, customer Rewards page (wallet, eligibility
+      progress, claim → code, atomic point deduction), admin claims list with fulfil/cancel
+- [x] Customer past orders by mobile number (auto-remembered from checkout)
+- [x] Menu CMS fixed + redesigned: sections now actually render in the customer app
+      (carousel / hero / grid); admin page got edit, up/down reorder, product chips
+- [x] Customer UI polish: spring micro-interactions, animated cart pill, count pops,
+      prep-time/points chips on cards, animated claim-success dialog
 - [x] Product image upload (multer + local static serving, ApiClient.upload); shown in
       admin inventory + customer cards/sheet
 - [x] Kitchen cards: veg/non-veg marker per item; status-colored cards (new=black,

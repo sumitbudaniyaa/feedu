@@ -6,7 +6,16 @@ import {
   createResource,
   createSocket,
 } from '@feedo/api';
-import type { Category, Customer, LoyaltyProgram, Product, Section, Table, User } from '@feedo/types';
+import type {
+  Category,
+  Customer,
+  LoyaltyProgram,
+  LoyaltyReward,
+  Product,
+  Section,
+  Table,
+  User,
+} from '@feedo/types';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 const socketUrl = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:4000';
@@ -37,6 +46,8 @@ export const {
   useDashboard,
   useOrders,
   useUpdateOrderStatus,
+  useRedemptions,
+  useUpdateRedemption,
 } = domain;
 
 /** Upload an image and get back its absolute URL. */
@@ -49,6 +60,7 @@ export const products = createResource<Product>(apiClient, 'products', '/product
 export const categories = createResource<Category>(apiClient, 'categories', '/categories');
 export const sections = createResource<Section>(apiClient, 'sections', '/sections');
 export const loyalty = createResource<LoyaltyProgram>(apiClient, 'loyalty', '/loyalty');
+export const rewards = createResource<LoyaltyReward>(apiClient, 'rewards', '/rewards');
 export const tables = createResource<Table>(apiClient, 'tables', '/tables');
 export const staff = createResource<User>(apiClient, 'staff', '/staff');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers');

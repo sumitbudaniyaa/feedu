@@ -27,6 +27,10 @@ export const productSchema = z.object({
   addons: z.array(addonSchema).default([]),
   isVeg: z.boolean().optional(),
   tags: z.array(z.string()).default([]),
+  /** Approx preparation time shown to diners (minutes). */
+  prepTimeMinutes: z.number().int().min(0).optional(),
+  /** Loyalty points a diner earns per unit ordered. */
+  loyaltyPoints: z.number().int().min(0).optional(),
   /** Inventory-tracked stock; null = not tracked (always available). */
   stock: z.number().int().nullable().default(null),
   lowStockThreshold: z.number().int().min(0).default(5),
@@ -51,6 +55,8 @@ export const createProductSchema = z.object({
   addons: z.array(addonSchema).optional(),
   isVeg: z.boolean().optional(),
   tags: z.array(z.string()).optional(),
+  prepTimeMinutes: z.number().int().min(0).optional(),
+  loyaltyPoints: z.number().int().min(0).optional(),
   stock: z.number().int().nullable().optional(),
   lowStockThreshold: z.number().int().min(0).optional(),
   isAvailable: z.boolean().optional(),

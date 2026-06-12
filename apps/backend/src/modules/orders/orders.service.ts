@@ -116,6 +116,12 @@ export async function createOrder({
     inclusive: restaurant.tax?.inclusive ?? false,
   });
 
+  // Per-item loyalty points (admin sets points per product). Credited on payment.
+  const earnablePoints = input.items.reduce((sum, cartItem) => {
+    const product = byId.get(cartItem.productId);
+    return sum + (product?.loyaltyPoints ?? 0) * cartItem.quantity;
+  }, 0);
+
   // Persist order (retry once on duplicate order number race).
   let order;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -134,6 +140,7 @@ export async function createOrder({
         taxAmount: totals.taxAmount,
         discountAmount: totals.discount,
         total: totals.total,
+        loyaltyPointsEarned: earnablePoints,
         notes: input.notes,
         paymentStatus: 'unpaid',
         paymentMethod,
@@ -266,6 +273,8 @@ export async function markPaid(orderId: string, providerRef?: string) {
       phone: order.customerPhone,
       name: order.customerName ?? undefined,
       total: order.total,
+      // Per-item points (set at order creation) win; fall back to the points program.
+      points: order.loyaltyPointsEarned > 0 ? order.loyaltyPointsEarned : undefined,
     });
     order.loyaltyPointsEarned = earned;
   }
@@ -289,16 +298,19 @@ export async function markPaid(orderId: string, providerRef?: string) {
 /** Upsert a guest customer (by phone) and award loyalty points. Returns points earned. */
 async function accrueCustomer(
   restaurantId: string,
-  { phone, name, total }: { phone: string; name?: string; total: number },
+  { phone, name, total, points }: { phone: string; name?: string; total: number; points?: number },
 ): Promise<number> {
-  const program = await LoyaltyProgram.findOne({
-    restaurantId,
-    type: 'points',
-    isActive: true,
-  }).lean();
-  const earned = program?.conditions?.pointsPerCurrency
-    ? Math.floor(total * program.conditions.pointsPerCurrency)
-    : 0;
+  let earned = points ?? 0;
+  if (points === undefined) {
+    const program = await LoyaltyProgram.findOne({
+      restaurantId,
+      type: 'points',
+      isActive: true,
+    }).lean();
+    earned = program?.conditions?.pointsPerCurrency
+      ? Math.floor(total * program.conditions.pointsPerCurrency)
+      : 0;
+  }
 
   await Customer.updateOne(
     { restaurantId, phone },

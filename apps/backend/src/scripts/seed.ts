@@ -3,6 +3,7 @@ import { connectDatabase, disconnectDatabase } from '../config/db.js';
 import {
   Category,
   LoyaltyProgram,
+  LoyaltyReward,
   Product,
   Restaurant,
   Section,
@@ -92,6 +93,8 @@ async function seed() {
           { label: 'Full', price: 540 },
         ],
         addons: [{ label: 'Extra gravy', price: 40, maxQty: 2 }],
+        prepTimeMinutes: 25,
+        loyaltyPoints: 30,
         rating: 4.7,
         ratingCount: 213,
       },
@@ -102,6 +105,8 @@ async function seed() {
         description: 'Char-grilled paneer in a rich, smoky masala.',
         basePrice: 280,
         isVeg: true,
+        prepTimeMinutes: 20,
+        loyaltyPoints: 25,
         rating: 4.6,
         ratingCount: 121,
       },
@@ -114,6 +119,8 @@ async function seed() {
         isVeg: true,
         stock: 25,
         lowStockThreshold: 5,
+        prepTimeMinutes: 15,
+        loyaltyPoints: 20,
         rating: 4.5,
         ratingCount: 88,
       },
@@ -124,6 +131,8 @@ async function seed() {
         description: 'Slow-brewed with whole spices.',
         basePrice: 60,
         isVeg: true,
+        prepTimeMinutes: 5,
+        loyaltyPoints: 5,
         rating: 4.9,
         ratingCount: 540,
       },
@@ -134,6 +143,8 @@ async function seed() {
         description: 'Warm, two pieces, in saffron syrup.',
         basePrice: 90,
         isVeg: true,
+        prepTimeMinutes: 8,
+        loyaltyPoints: 10,
         rating: 4.8,
         ratingCount: 167,
       },
@@ -157,6 +168,26 @@ async function seed() {
       conditions: { pointsPerCurrency: 0.1, pointsToRedeem: 200 },
       rewardDescription: 'Earn 10 points per ₹100 spent — redeem for a free dessert.',
     });
+
+    // Claimable rewards catalog (visible in the customer Rewards page).
+    await LoyaltyReward.create([
+      {
+        restaurantId: restaurant._id,
+        title: 'Free Masala Chai',
+        description: 'A hot cup on the house.',
+        pointsCost: 50,
+        productId: products[3]!._id,
+        isActive: true,
+      },
+      {
+        restaurantId: restaurant._id,
+        title: 'Free Gulab Jamun',
+        description: 'Two warm pieces in saffron syrup.',
+        pointsCost: 100,
+        productId: products[4]!._id,
+        isActive: true,
+      },
+    ]);
 
     await Table.insertMany(
       Array.from({ length: 6 }, (_, i) => ({

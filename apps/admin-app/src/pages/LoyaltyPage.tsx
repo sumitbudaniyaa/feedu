@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Sparkles, Trash2 } from 'lucide-react';
+import { BadgeCheck, Coins, Gift, Plus, Sparkles, Ticket, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -16,8 +16,15 @@ import {
   Skeleton,
   Switch,
 } from '@feedo/ui';
-import type { LoyaltyRewardType } from '@feedo/types';
-import { loyalty as loyaltyApi } from '../lib/api.js';
+import { formatRelativeTime } from '@feedo/utils';
+import type { LoyaltyReward, LoyaltyRewardType, Product } from '@feedo/types';
+import {
+  loyalty as loyaltyApi,
+  products as productsApi,
+  rewards as rewardsApi,
+  useRedemptions,
+  useUpdateRedemption,
+} from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 const TYPE_LABEL: Record<LoyaltyRewardType, string> = {
@@ -29,68 +36,319 @@ const TYPE_LABEL: Record<LoyaltyRewardType, string> = {
 
 export function LoyaltyPage() {
   const { data: programs, isLoading } = loyaltyApi.useList();
-  const update = loyaltyApi.useUpdate();
-  const remove = loyaltyApi.useRemove();
-  const [open, setOpen] = useState(false);
+  const { data: rewardList, isLoading: rewardsLoading } = rewardsApi.useList();
+  const { data: products } = productsApi.useList();
+  const updateProgram = loyaltyApi.useUpdate();
+  const removeProgram = loyaltyApi.useRemove();
+  const updateReward = rewardsApi.useUpdate();
+  const removeReward = rewardsApi.useRemove();
+
+  const [programOpen, setProgramOpen] = useState(false);
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [editingReward, setEditingReward] = useState<LoyaltyReward | null>(null);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <PageHeader
         title="Loyalty"
-        description="Reward repeat customers with points, freebies and visit-based perks."
+        description="How diners earn points, and what they can claim with them."
         action={
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" /> New reward
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setProgramOpen(true)}>
+              <Coins className="h-4 w-4" /> Earning rule
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingReward(null);
+                setRewardOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> New reward
+            </Button>
+          </div>
         }
       />
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
-          ))}
-        </div>
-      ) : programs && programs.length > 0 ? (
-        <div className="space-y-3">
-          {programs.map((p) => (
-            <Card key={p._id} className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
-                <Sparkles className="h-4 w-4 text-accent" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-medium">{p.title}</p>
-                  <Badge variant="outline">{TYPE_LABEL[p.type]}</Badge>
+      {/* Rewards catalog */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Gift className="h-4 w-4" /> Rewards catalog
+        </h2>
+        {rewardsLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 rounded-xl" />
+            ))}
+          </div>
+        ) : rewardList && rewardList.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {rewardList.map((r) => (
+              <Card key={r._id} className="flex flex-col p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15">
+                    <Gift className="h-4 w-4 text-accent" />
+                  </div>
+                  <Badge variant="accent">{r.pointsCost} pts</Badge>
                 </div>
-                {p.rewardDescription && (
-                  <p className="truncate text-xs text-muted-foreground">{p.rewardDescription}</p>
+                <p className="mt-3 font-medium">{r.title}</p>
+                {r.description && (
+                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{r.description}</p>
                 )}
-              </div>
-              <Switch
-                checked={p.isActive}
-                onCheckedChange={(v) => update.mutate({ id: p._id, body: { isActive: v } })}
-              />
-              <Button size="icon" variant="ghost" onClick={() => remove.mutate(p._id)}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={Sparkles}
-          title="No loyalty rewards yet"
-          description="Create your first reward — e.g. 10 points per ₹100 spent."
-        />
-      )}
+                <div className="mt-auto flex items-center justify-between pt-4">
+                  <Switch
+                    checked={r.isActive}
+                    onCheckedChange={(v) => updateReward.mutate({ id: r._id, body: { isActive: v } })}
+                  />
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingReward(r);
+                        setRewardOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => removeReward.mutate(r._id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Gift}
+            title="No rewards yet"
+            description='Create one — e.g. "Free Coffee" for 50 points. Diners see it instantly with their eligibility.'
+          />
+        )}
+      </section>
 
-      <RewardDialog open={open} onOpenChange={setOpen} />
+      {/* Redemptions */}
+      <RedemptionsSection />
+
+      {/* Earning rules */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Coins className="h-4 w-4" /> Earning rules
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          Tip: set points per item in Inventory for precise control. These rules apply when items
+          don&apos;t define their own points.
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-20 rounded-xl" />
+        ) : programs && programs.length > 0 ? (
+          <div className="space-y-3">
+            {programs.map((p) => (
+              <Card key={p._id} className="flex items-center gap-4 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                  <Sparkles className="h-4 w-4 text-accent" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">{p.title}</p>
+                    <Badge variant="outline">{TYPE_LABEL[p.type]}</Badge>
+                  </div>
+                  {p.rewardDescription && (
+                    <p className="truncate text-xs text-muted-foreground">{p.rewardDescription}</p>
+                  )}
+                </div>
+                <Switch
+                  checked={p.isActive}
+                  onCheckedChange={(v) => updateProgram.mutate({ id: p._id, body: { isActive: v } })}
+                />
+                <Button size="icon" variant="ghost" onClick={() => removeProgram.mutate(p._id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="border-dashed p-4 text-sm text-muted-foreground">
+            No fallback earning rule. Items without their own points won&apos;t accrue any.
+          </Card>
+        )}
+      </section>
+
+      <RewardDialog
+        open={rewardOpen}
+        onOpenChange={setRewardOpen}
+        reward={editingReward}
+        products={products ?? []}
+      />
+      <ProgramDialog open={programOpen} onOpenChange={setProgramOpen} />
     </div>
   );
 }
 
-function RewardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function RedemptionsSection() {
+  const { data: redemptions, isLoading } = useRedemptions();
+  const update = useUpdateRedemption();
+
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <Ticket className="h-4 w-4" /> Claims
+      </h2>
+      {isLoading ? (
+        <Skeleton className="h-20 rounded-xl" />
+      ) : redemptions && redemptions.length > 0 ? (
+        <Card className="divide-y divide-border">
+          {redemptions.map((r) => (
+            <div key={r._id} className="flex flex-wrap items-center gap-3 p-4">
+              <code className="rounded-md bg-secondary px-2 py-1 font-mono text-sm font-bold tracking-widest">
+                {r.code}
+              </code>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{r.rewardTitle}</p>
+                <p className="text-xs text-muted-foreground">
+                  {r.customerName || 'Guest'} · {r.customerPhone} · {r.pointsCost} pts ·{' '}
+                  {formatRelativeTime(r.createdAt)}
+                </p>
+              </div>
+              {r.status === 'pending' ? (
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => update.mutate({ id: r._id, status: 'fulfilled' })}>
+                    <BadgeCheck className="h-4 w-4" /> Fulfil
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => update.mutate({ id: r._id, status: 'cancelled' })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Badge variant={r.status === 'fulfilled' ? 'success' : 'destructive'} className="capitalize">
+                  {r.status}
+                </Badge>
+              )}
+            </div>
+          ))}
+        </Card>
+      ) : (
+        <Card className="border-dashed p-4 text-sm text-muted-foreground">
+          No claims yet. When a diner redeems a reward, it shows here with a claim code.
+        </Card>
+      )}
+    </section>
+  );
+}
+
+function RewardDialog({
+  open,
+  onOpenChange,
+  reward,
+  products,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  reward: LoyaltyReward | null;
+  products: Product[];
+}) {
+  const create = rewardsApi.useCreate();
+  const update = rewardsApi.useUpdate();
+  const pending = create.isPending || update.isPending;
+
+  const [form, setForm] = useState(() => initialReward(reward));
+  const key = reward?._id ?? 'new';
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setForm(initialReward(reward));
+  }
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const body = {
+      title: form.title,
+      description: form.description || undefined,
+      pointsCost: Number(form.pointsCost),
+      productId: form.productId || null,
+      isActive: true,
+    };
+    const onDone = { onSuccess: () => onOpenChange(false) };
+    if (reward) update.mutate({ id: reward._id, body }, onDone);
+    else create.mutate(body, onDone);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{reward ? 'Edit reward' : 'New reward'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Title</Label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Free Coffee"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Points cost</Label>
+              <Input
+                type="number"
+                min="1"
+                value={form.pointsCost}
+                onChange={(e) => setForm({ ...form, pointsCost: e.target.value })}
+                placeholder="50"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Linked item (optional)</Label>
+              <Select value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
+                <option value="">None</option>
+                {products.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Input
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Any regular hot coffee, on us."
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending || !form.title || !form.pointsCost}>
+              {pending ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function initialReward(reward: LoyaltyReward | null) {
+  return {
+    title: reward?.title ?? '',
+    description: reward?.description ?? '',
+    pointsCost: reward ? String(reward.pointsCost) : '',
+    productId: reward?.productId ?? '',
+  };
+}
+
+function ProgramDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const create = loyaltyApi.useCreate();
   const [title, setTitle] = useState('');
   const [type, setType] = useState<LoyaltyRewardType>('points');
@@ -122,12 +380,12 @@ function RewardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New loyalty reward</DialogTitle>
+          <DialogTitle>New earning rule</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Coffee club" required />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Copper Rewards" required />
           </div>
           <div className="space-y-1.5">
             <Label>Type</Label>
@@ -152,8 +410,8 @@ function RewardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>Reward description</Label>
-            <Input value={rewardDescription} onChange={(e) => setReward(e.target.value)} placeholder="Free dessert" />
+            <Label>Description</Label>
+            <Input value={rewardDescription} onChange={(e) => setReward(e.target.value)} placeholder="Earn 10 pts per ₹100" />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

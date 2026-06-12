@@ -181,6 +181,8 @@ function ProductDialog({
       isAvailable: form.isAvailable,
       stock: form.trackStock ? Number(form.stock) : null,
       image: form.imageUrl ? { url: form.imageUrl } : undefined,
+      prepTimeMinutes: form.prepTime ? Number(form.prepTime) : undefined,
+      loyaltyPoints: form.loyaltyPoints ? Number(form.loyaltyPoints) : undefined,
     };
     const onDone = { onSuccess: () => onOpenChange(false) };
     if (product) update.mutate({ id: product._id, body }, onDone);
@@ -244,6 +246,28 @@ function ProductDialog({
             <Label>Description</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Prep time (mins)</Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="e.g. 15"
+                value={form.prepTime}
+                onChange={(e) => setForm({ ...form, prepTime: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Loyalty points / unit</Label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="e.g. 10"
+                value={form.loyaltyPoints}
+                onChange={(e) => setForm({ ...form, loyaltyPoints: e.target.value })}
+              />
+            </div>
+          </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <div>
               <p className="text-sm font-medium">Track stock</p>
@@ -290,6 +314,8 @@ function initial(product: Product | null, categories: Category[]) {
     trackStock: product?.stock != null,
     stock: product?.stock != null ? String(product.stock) : '0',
     imageUrl: product?.image?.url ?? '',
+    prepTime: product?.prepTimeMinutes != null ? String(product.prepTimeMinutes) : '',
+    loyaltyPoints: product?.loyaltyPoints != null ? String(product.loyaltyPoints) : '',
   };
 }
 
