@@ -10,6 +10,7 @@ import {
   Payment,
   Product,
   Restaurant,
+  Table,
 } from '../../models/index.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getIO } from '../../sockets/index.js';
@@ -123,6 +124,13 @@ export async function createOrder({
     return sum + (product?.loyaltyPoints ?? 0) * cartItem.quantity;
   }, 0);
 
+  // Snapshot the table name for invoices / KDS.
+  let tableName: string | undefined;
+  if (input.tableId) {
+    const table = await Table.findOne({ _id: input.tableId, restaurantId }).select('name').lean();
+    tableName = table?.name;
+  }
+
   // Persist order (retry once on duplicate order number race).
   let order;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -131,6 +139,7 @@ export async function createOrder({
         restaurantId,
         orderNumber: await nextOrderNumber(restaurantId),
         tableId: input.tableId ?? null,
+        tableName,
         customerId: customerId ?? null,
         customerName: customer?.name,
         customerPhone: customer?.phone,

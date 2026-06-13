@@ -48,7 +48,11 @@ export const Invoice = forwardRef<HTMLDivElement, { order: Order; restaurant?: R
           </div>
           <div className="text-right">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-400">Details</p>
-            <p className="mt-1 text-xs capitalize text-neutral-600">{order.type.replace('_', '-')}</p>
+            <p className="mt-1 text-xs capitalize text-neutral-600">
+              {order.type === 'dine_in'
+                ? `Dine-in${order.tableName ? ` · ${order.tableName}` : ''}`
+                : 'Takeaway'}
+            </p>
             <p className="text-xs capitalize text-neutral-600">
               Payment: {order.paymentStatus}
               {order.paymentMethod ? ` (${order.paymentMethod})` : ''}

@@ -52,7 +52,14 @@ export const InvoiceTicket = forwardRef<HTMLDivElement, { order: TrackedOrder }>
 
           <Row k="Bill No" v={`#${order.orderNumber}`} />
           <Row k="Date" v={`${formatDate(order.placedAt)} ${formatTime(order.placedAt)}`} />
-          <Row k="Type" v={order.type === 'dine_in' ? 'Dine-in' : 'Takeaway'} />
+          <Row
+            k="Type"
+            v={
+              order.type === 'dine_in'
+                ? `Dine-in${order.tableName ? ` · ${order.tableName}` : ''}`
+                : 'Takeaway'
+            }
+          />
           {order.customerName && <Row k="Guest" v={order.customerName} />}
           {order.customerPhone && <Row k="Mobile" v={order.customerPhone} />}
 

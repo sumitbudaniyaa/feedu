@@ -28,6 +28,7 @@ export const orderSchema = z.object({
   restaurantId: objectIdSchema,
   orderNumber: z.string(), // human-friendly, daily-resetting per restaurant
   tableId: objectIdSchema.nullable().optional(),
+  tableName: z.string().optional(), // snapshot for invoices/KDS
   customerId: objectIdSchema.nullable().optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),

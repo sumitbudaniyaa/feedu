@@ -2,11 +2,12 @@ import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { motion } from 'framer-motion';
-import { ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
+import { ChefHat, Clock, CookingPot, Download, Home, PartyPopper, Sparkles, XCircle } from 'lucide-react';
 import { Button, Skeleton } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
 import type { Order } from '@feedo/types';
 import { useTrackOrder } from '../lib/api.js';
+import { useCart } from '../store/cart.js';
 import { InvoiceTicket } from '../components/InvoiceTicket.js';
 
 /** Friendly ETA in minutes: the longest item prep time + a small buffer. */
@@ -18,9 +19,12 @@ function etaMinutes(order: Order): number {
 export function TrackPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const menuPath = useCart((s) => s.menuPath);
   const { data: order, isLoading } = useTrackOrder(orderId);
   const ticketRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+
+  const goToMenu = () => navigate(menuPath ?? '/');
 
   const downloadInvoice = async () => {
     if (!ticketRef.current) return;
@@ -51,6 +55,16 @@ export function TrackPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background p-5 pb-10">
+      <div className="mb-4 flex items-center justify-between">
+        <button
+          onClick={goToMenu}
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <Home className="h-4 w-4" /> Menu
+        </button>
+        <span className="text-xs text-muted-foreground">Order #{order.orderNumber}</span>
+      </div>
+
       <PreparingHero order={order} />
 
       {order.loyaltyPointsEarned > 0 && (
@@ -81,7 +95,7 @@ export function TrackPage() {
         <InvoiceTicket ref={ticketRef} order={order} />
       </div>
 
-      <Button variant="outline" className="mt-6 w-full" onClick={() => navigate(-1)}>
+      <Button variant="outline" className="mt-6 w-full" onClick={goToMenu}>
         Back to menu
       </Button>
     </div>

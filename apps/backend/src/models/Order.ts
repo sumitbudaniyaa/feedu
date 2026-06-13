@@ -21,6 +21,7 @@ const orderSchema = new Schema(
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     orderNumber: { type: String, required: true },
     tableId: { type: Schema.Types.ObjectId, ref: 'Table', default: null },
+    tableName: { type: String },
     customerId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     // Guest contact captured at checkout (orders can be placed anonymously).
     customerName: { type: String },
