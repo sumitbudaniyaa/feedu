@@ -1,21 +1,10 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Gift, PartyPopper, ReceiptText, Sparkles } from 'lucide-react';
-import {
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Skeleton,
-  cn,
-} from '@feedo/ui';
+import { motion } from 'framer-motion';
+import { ArrowLeft, ChevronRight, Gift, ReceiptText, Sparkles } from 'lucide-react';
+import { Badge, Button, Card, Skeleton, cn } from '@feedo/ui';
 import { formatCurrency, formatRelativeTime } from '@feedo/utils';
 import type { LoyaltyReward, Redemption } from '@feedo/types';
-import { useAccount, useAuth, useRedeem } from '../lib/api.js';
+import { useAccount, useAuth } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { useGuest } from '../store/guest.js';
 import { OtpLogin } from '../components/OtpLogin.js';
@@ -115,17 +104,18 @@ export function RewardsPage() {
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 <Gift className="h-4 w-4" /> Claim with points
               </h2>
-              {data.rewards.length > 0 ? (
+              {data.rewards.filter((r) => r.productId).length > 0 ? (
                 <div className="space-y-3">
-                  {data.rewards.map((reward, i) => (
-                    <RewardCard
-                      key={reward._id}
-                      reward={reward}
-                      points={data.customer?.points ?? 0}
-                      slug={restaurant.slug}
-                      index={i}
-                    />
-                  ))}
+                  {data.rewards
+                    .filter((r) => r.productId)
+                    .map((reward, i) => (
+                      <RewardCard
+                        key={reward._id}
+                        reward={reward}
+                        points={data.customer?.points ?? 0}
+                        index={i}
+                      />
+                    ))}
                 </div>
               ) : (
                 <Card className="border-dashed p-4 text-sm text-muted-foreground">
@@ -192,46 +182,18 @@ export function RewardsPage() {
   );
 }
 
-function RewardCard({
-  reward,
-  points,
-  slug,
-  index,
-}: {
-  reward: LoyaltyReward;
-  points: number;
-  slug: string;
-  index: number;
-}) {
+function RewardCard({ reward, points, index }: { reward: LoyaltyReward; points: number; index: number }) {
   const navigate = useNavigate();
-  const tableId = useCart((s) => s.tableId);
   const setReward = useCart((s) => s.setReward);
-  const redeem = useRedeem(slug);
-  const [confirming, setConfirming] = useState(false);
-  const [claimed, setClaimed] = useState<Redemption | null>(null);
 
   const eligible = points >= reward.pointsCost;
   const progress = Math.min(100, Math.round((points / reward.pointsCost) * 100));
-  const linked = Boolean(reward.productId);
 
-  // Linked reward → add it to the cart and head to checkout (free item on the order).
+  // Add the reward to the cart as a free item and head to checkout.
   const addToOrder = () => {
     setReward({ rewardId: reward._id, title: reward.title, pointsCost: reward.pointsCost });
     navigate('/cart');
   };
-
-  // Non-linked reward → fall back to a claim code.
-  const claim = () =>
-    redeem.mutate(
-      { rewardId: reward._id, tableId: tableId ?? undefined },
-      {
-        onSuccess: ({ order, redemption }) => {
-          setConfirming(false);
-          if (order) navigate(`/order/${order._id}`);
-          else setClaimed(redemption);
-        },
-      },
-    );
 
   return (
     <motion.div
@@ -269,85 +231,15 @@ function RewardCard({
             </div>
             <div className="mt-2 flex items-center justify-between">
               <p className="text-[11px] text-muted-foreground">
-                {eligible
-                  ? 'You can claim this now'
-                  : `${reward.pointsCost - points} more points to go`}
+                {eligible ? 'Free with your order' : `${reward.pointsCost - points} more points to go`}
               </p>
-              <Button
-                size="sm"
-                disabled={!eligible || redeem.isPending}
-                onClick={linked ? addToOrder : () => setConfirming(true)}
-              >
-                {linked ? 'Add to order' : redeem.isPending ? 'Claiming…' : 'Claim'}
+              <Button size="sm" disabled={!eligible} onClick={addToOrder}>
+                Add to order
               </Button>
             </div>
           </div>
         </div>
       </Card>
-
-      {/* Confirm + success dialog */}
-      <Dialog
-        open={confirming || Boolean(claimed)}
-        onOpenChange={(v) => {
-          if (!v) {
-            setConfirming(false);
-            setClaimed(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-xs">
-          <AnimatePresence mode="wait">
-            {claimed ? (
-              <motion.div
-                key="success"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center py-2 text-center"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.1 }}
-                  className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/15"
-                >
-                  <PartyPopper className="h-6 w-6 text-accent" />
-                </motion.div>
-                <h3 className="mt-4 font-semibold">{claimed.rewardTitle} claimed!</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Show this code to the staff:</p>
-                <p className="mt-3 rounded-xl border-2 border-dashed border-accent/50 bg-accent/5 px-6 py-3 font-mono text-2xl font-bold tracking-[0.3em] text-accent">
-                  {claimed.code}
-                </p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {claimed.pointsCost} points were deducted from your wallet.
-                </p>
-              </motion.div>
-            ) : (
-              <motion.div key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <DialogHeader>
-                  <DialogTitle>Claim {reward.title}?</DialogTitle>
-                </DialogHeader>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {reward.pointsCost} points will be deducted and we&apos;ll send this to the
-                  kitchen as a free order — no charge.
-                </p>
-                {redeem.error && (
-                  <p className="mt-2 text-sm text-destructive">
-                    {redeem.error instanceof Error ? redeem.error.message : 'Could not claim'}
-                  </p>
-                )}
-                <div className="mt-4 flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => setConfirming(false)}>
-                    Cancel
-                  </Button>
-                  <Button className="flex-1" disabled={redeem.isPending} onClick={claim}>
-                    {redeem.isPending ? 'Claiming…' : 'Confirm'}
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </DialogContent>
-      </Dialog>
     </motion.div>
   );
 }

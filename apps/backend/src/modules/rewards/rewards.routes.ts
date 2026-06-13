@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createLoyaltyRewardSchema } from '@feedo/types';
+import { createLoyaltyRewardSchema, objectIdSchema } from '@feedo/types';
 import { LoyaltyReward, Redemption } from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
@@ -8,10 +8,13 @@ import { ApiError } from '../../utils/ApiError.js';
 import { crud } from '../../utils/crud.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
+// A reward must be tied to a menu item so it can be ordered for free in-app.
+const createSchema = createLoyaltyRewardSchema.extend({ productId: objectIdSchema });
+
 const handlers = crud({
   model: LoyaltyReward,
-  createSchema: createLoyaltyRewardSchema,
-  updateSchema: createLoyaltyRewardSchema.partial(),
+  createSchema,
+  updateSchema: createSchema.partial(),
   defaultSort: { pointsCost: 1 },
 });
 

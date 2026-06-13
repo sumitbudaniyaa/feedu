@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gift, Minus, Plus, Sparkles, ShoppingBag, Trash2, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Gift, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Badge, Button, Card, EmptyState } from '@feedo/ui';
 import { computeTotals, formatCurrency } from '@feedo/utils';
 import { useCart } from '../store/cart.js';
@@ -180,28 +181,42 @@ export function CartPage() {
 
         {/* Add a reward with points */}
         {isAuthed && !appliedReward && eligibleRewards.length > 0 && (
-          <Card className="space-y-2 p-4">
-            <p className="flex items-center gap-1.5 text-sm font-semibold">
-              <Sparkles className="h-4 w-4 text-accent" /> Use your {points} points
-            </p>
-            {eligibleRewards.map((rw) => (
-              <div key={rw._id} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{rw.title}</p>
-                  <p className="text-xs text-muted-foreground">{rw.pointsCost} pts · free item</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setReward({ rewardId: rw._id, title: rw.title, pointsCost: rw.pointsCost })
-                  }
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card
+              className="space-y-2 overflow-hidden border-accent/30 p-4"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--accent) / 0.10), hsl(var(--accent) / 0.03))' }}
+            >
+              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                <motion.span
+                  animate={{ scale: [1, 1.15, 1], rotate: [0, -8, 8, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="text-accent"
                 >
-                  <Plus className="h-4 w-4" /> Add free
-                </Button>
-              </div>
-            ))}
-          </Card>
+                  <Gift className="h-4 w-4" />
+                </motion.span>
+                Use your {points} points — free reward available
+              </p>
+              {eligibleRewards.map((rw) => (
+                <div
+                  key={rw._id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-background/70 p-2.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{rw.title}</p>
+                    <p className="text-xs text-muted-foreground">{rw.pointsCost} pts · free item</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      setReward({ rewardId: rw._id, title: rw.title, pointsCost: rw.pointsCost })
+                    }
+                  >
+                    <Plus className="h-4 w-4" /> Add free
+                  </Button>
+                </div>
+              ))}
+            </Card>
+          </motion.div>
         )}
 
         {!isAuthed && (

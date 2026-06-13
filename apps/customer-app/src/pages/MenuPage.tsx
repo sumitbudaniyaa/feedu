@@ -5,11 +5,12 @@ import { Gift, Search, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { Button, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
-import { useMenuByQr, useMenuBySlug } from '../lib/api.js';
+import { useAccount, useAuth, useMenuByQr, useMenuBySlug } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { ProductSheet } from '../components/ProductSheet.js';
 import { ProductCard } from '../components/ProductCard.js';
 import { SectionsBlock } from '../components/SectionsBlock.js';
+import { ClaimBanner } from '../components/ClaimBanner.js';
 
 export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const params = useParams();
@@ -23,6 +24,14 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const setContext = useCart((s) => s.setContext);
   const count = useCart((s) => s.count());
   const subtotal = useCart((s) => s.subtotal());
+
+  // Reward availability nudge (signed-in diners only).
+  const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
+  const slug = data?.restaurant.slug;
+  const { data: account } = useAccount(slug, isAuthed);
+  const claimable = (account?.rewards ?? []).filter(
+    (rw) => rw.productId && rw.pointsCost <= (account?.customer?.points ?? 0),
+  ).length;
 
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState<string>('all');
@@ -130,6 +139,11 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       </header>
 
       <main className="space-y-7 px-5 pt-6">
+        {/* Free-reward nudge */}
+        {browsing && claimable > 0 && (
+          <ClaimBanner count={claimable} onClick={() => navigate('/rewards')} />
+        )}
+
         {/* Curated sections from the Menu CMS */}
         {browsing && sections.length > 0 && (
           <SectionsBlock sections={sections} products={products} onCustomise={setSelected} />

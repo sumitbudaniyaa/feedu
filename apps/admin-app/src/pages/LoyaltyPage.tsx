@@ -306,9 +306,15 @@ function RewardDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Linked item (optional)</Label>
-              <Select value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
-                <option value="">None</option>
+              <Label>Free item</Label>
+              <Select
+                value={form.productId}
+                onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                required
+              >
+                <option value="" disabled>
+                  Select an item…
+                </option>
                 {products.map((p) => (
                   <option key={p._id} value={p._id}>
                     {p.name}
@@ -317,6 +323,12 @@ function RewardDialog({
               </Select>
             </div>
           </div>
+          <p className="-mt-1 text-xs text-muted-foreground">
+            Diners add this item to their order for free using points — it goes straight to the kitchen.
+          </p>
+          {products.length === 0 && (
+            <p className="text-xs text-destructive">Add a product in Inventory first.</p>
+          )}
           <div className="space-y-1.5">
             <Label>Description</Label>
             <Input
@@ -329,7 +341,7 @@ function RewardDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || !form.title || !form.pointsCost}>
+            <Button type="submit" disabled={pending || !form.title || !form.pointsCost || !form.productId}>
               {pending ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
