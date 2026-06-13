@@ -206,16 +206,19 @@ export async function updateStatus(restaurantId: string, orderId: string, status
     throw ApiError.badRequest(`Cannot move order from ${order.status} to ${status}`);
   }
 
-  order.status = status;
-  if (status === 'ready') order.readyAt = new Date();
-  if (status === 'completed' || status === 'served') order.completedAt ??= new Date();
+  // Serving an order completes it — there's no separate "complete" step.
+  const finalStatus: OrderStatus = status === 'served' ? 'completed' : status;
+
+  order.status = finalStatus;
+  if (finalStatus === 'ready') order.readyAt = new Date();
+  if (finalStatus === 'completed') order.completedAt ??= new Date();
   await order.save();
 
   const obj = order.toObject();
   emit(SOCKET_EVENTS.ORDER_UPDATED, restaurantId, obj);
   getIO()
     .to(rooms.order(orderId))
-    .emit(SOCKET_EVENTS.ORDER_STATUS_CHANGED, { orderId, status });
+    .emit(SOCKET_EVENTS.ORDER_STATUS_CHANGED, { orderId, status: finalStatus });
   return obj;
 }
 

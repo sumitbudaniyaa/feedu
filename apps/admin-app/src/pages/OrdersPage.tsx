@@ -33,13 +33,12 @@ const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning
   refunded: 'destructive',
 };
 
-// Next action offered per status.
+// Next action offered per status. "Mark served" auto-completes the order (no separate step).
 const NEXT: Partial<Record<OrderStatus, { to: OrderStatus; label: string }>> = {
   pending: { to: 'confirmed', label: 'Confirm' },
   confirmed: { to: 'preparing', label: 'Start preparing' },
   preparing: { to: 'ready', label: 'Mark ready' },
   ready: { to: 'served', label: 'Mark served' },
-  served: { to: 'completed', label: 'Complete' },
 };
 
 export function OrdersPage() {

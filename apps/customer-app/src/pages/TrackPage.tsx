@@ -2,32 +2,12 @@ import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { motion } from 'framer-motion';
-import {
-  Check,
-  ChefHat,
-  Clock,
-  CookingPot,
-  Download,
-  PartyPopper,
-  Receipt,
-  Sparkles,
-  XCircle,
-} from 'lucide-react';
-import { Button, Card, Skeleton, cn } from '@feedo/ui';
+import { ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
+import { Button, Skeleton } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
-import type { Order, OrderStatus } from '@feedo/types';
+import type { Order } from '@feedo/types';
 import { useTrackOrder } from '../lib/api.js';
 import { InvoiceTicket } from '../components/InvoiceTicket.js';
-
-const STEPS: { status: OrderStatus; label: string; icon: typeof Clock }[] = [
-  { status: 'pending', label: 'Order placed', icon: Receipt },
-  { status: 'confirmed', label: 'Confirmed', icon: Check },
-  { status: 'preparing', label: 'Preparing', icon: CookingPot },
-  { status: 'ready', label: 'Ready', icon: ChefHat },
-  { status: 'served', label: 'Served', icon: PartyPopper },
-];
-
-const ORDER: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'served', 'completed'];
 
 /** Friendly ETA in minutes: the longest item prep time + a small buffer. */
 function etaMinutes(order: Order): number {
@@ -69,9 +49,6 @@ export function TrackPage() {
     );
   }
 
-  const cancelled = order.status === 'cancelled' || order.status === 'refunded';
-  const currentIdx = ORDER.indexOf(order.status);
-
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background p-5 pb-10">
       <PreparingHero order={order} />
@@ -91,41 +68,6 @@ export function TrackPage() {
             <p className="text-xs text-muted-foreground">Saved to your number for next time.</p>
           </div>
         </motion.div>
-      )}
-
-      {/* Timeline */}
-      {!cancelled && (
-        <Card className="mt-4 p-5">
-          <div className="space-y-1">
-            {STEPS.map((step, i) => {
-              const done = currentIdx >= ORDER.indexOf(step.status);
-              const active = order.status === step.status;
-              const Icon = step.icon;
-              return (
-                <div key={step.status} className="flex items-center gap-3">
-                  <div className="flex flex-col items-center">
-                    <motion.div
-                      animate={active ? { scale: [1, 1.12, 1] } : { scale: 1 }}
-                      transition={active ? { duration: 1.6, repeat: Infinity } : {}}
-                      className={cn(
-                        'flex h-9 w-9 items-center justify-center rounded-full border transition-colors',
-                        done ? 'border-accent bg-accent text-accent-foreground' : 'border-border text-muted-foreground',
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </motion.div>
-                    {i < STEPS.length - 1 && (
-                      <div className={cn('h-6 w-px', done ? 'bg-accent' : 'bg-border')} />
-                    )}
-                  </div>
-                  <span className={cn('text-sm font-medium', done ? 'text-foreground' : 'text-muted-foreground')}>
-                    {step.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
       )}
 
       {/* Invoice */}
