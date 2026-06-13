@@ -32,7 +32,7 @@ export function TrackPage() {
     try {
       const dataUrl = await toPng(ticketRef.current, {
         pixelRatio: 2,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F7F7F8',
         cacheBust: true,
       });
       const link = document.createElement('a');
