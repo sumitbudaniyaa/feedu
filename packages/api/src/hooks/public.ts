@@ -108,21 +108,38 @@ export function createPublicHooks(client: ApiClient) {
           client.post<Order>(`/public/orders/${orderId}/pay`, body),
       });
     },
-    /** Diner account by mobile number: wallet, past orders, rewards, claims. */
-    useAccount(slug?: string, phone?: string) {
+    /** Diner account (wallet, past orders, rewards, claims). Uses the OTP token. */
+    useAccount(slug?: string, isAuthed?: boolean) {
       return useQuery({
-        queryKey: ['public', 'account', slug, phone],
-        queryFn: () => client.get<AccountPayload>(`/public/r/${slug}/account?phone=${phone}`),
-        enabled: Boolean(slug && phone && /^\d{10}$/.test(phone)),
+        queryKey: ['public', 'account', slug],
+        queryFn: () => client.get<AccountPayload>(`/public/r/${slug}/account`),
+        enabled: Boolean(slug && isAuthed),
       });
     },
     /** Claim a reward — deducts points and returns the claim code. */
     useRedeem(slug: string) {
       const qc = useQueryClient();
       return useMutation({
-        mutationFn: (body: { phone: string; rewardId: string }) =>
+        mutationFn: (body: { rewardId: string }) =>
           client.post<{ redemption: Redemption; points: number }>(`/public/r/${slug}/redeem`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'account'] }),
+      });
+    },
+    /** Request an OTP for a mobile number (dev returns the code). */
+    useRequestOtp() {
+      return useMutation({
+        mutationFn: (body: { phone: string; name?: string }) =>
+          client.post<{ sent: boolean; devCode?: string }>('/public/auth/otp/request', body),
+      });
+    },
+    /** Verify an OTP → returns a customer session token. */
+    useVerifyOtp() {
+      return useMutation({
+        mutationFn: (body: { phone: string; code: string }) =>
+          client.post<{ token: string; phone: string; name: string | null }>(
+            '/public/auth/otp/verify',
+            body,
+          ),
       });
     },
   };

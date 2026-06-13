@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Gift, PartyPopper, Phone, ReceiptText, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Gift, PartyPopper, ReceiptText, Sparkles } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -10,15 +10,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Input,
   Skeleton,
   cn,
 } from '@feedo/ui';
 import { formatCurrency, formatRelativeTime } from '@feedo/utils';
 import type { LoyaltyReward, Redemption } from '@feedo/types';
-import { useAccount, useRedeem } from '../lib/api.js';
+import { useAccount, useAuth, useRedeem } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { useGuest } from '../store/guest.js';
+import { OtpLogin } from '../components/OtpLogin.js';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'default' | 'accent'> = {
   pending: 'warning',
@@ -35,12 +35,17 @@ export function RewardsPage() {
   const navigate = useNavigate();
   const { restaurant, menuPath } = useCart();
   const guest = useGuest();
-  const [phoneInput, setPhoneInput] = useState('');
+  const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
+  const clearTokens = useAuth((s) => s.clear);
 
   const phone = guest.phone;
-  const { data, isLoading } = useAccount(restaurant?.slug, phone);
+  const { data, isLoading } = useAccount(restaurant?.slug, isAuthed);
 
   const goBack = () => navigate(menuPath ?? '/');
+  const signOut = () => {
+    clearTokens();
+    guest.clear();
+  };
 
   if (!restaurant) {
     // No restaurant context — send them to scan/enter first.
@@ -58,12 +63,8 @@ export function RewardsPage() {
       </header>
 
       <main className="space-y-6 px-5 pt-2">
-        {!phone ? (
-          <PhoneGate
-            value={phoneInput}
-            onChange={setPhoneInput}
-            onSubmit={() => guest.save(guest.name, phoneInput)}
-          />
+        {!isAuthed ? (
+          <OtpLogin />
         ) : isLoading || !data ? (
           <div className="space-y-4">
             <Skeleton className="h-36 rounded-2xl" />
@@ -102,7 +103,7 @@ export function RewardsPage() {
                 <div className="text-right text-xs text-white/80">
                   <p>{data.customer?.name || guest.name || 'Guest'}</p>
                   <p>{phone}</p>
-                  <button onClick={() => guest.clear()} className="mt-1 underline underline-offset-2">
+                  <button onClick={signOut} className="mt-1 underline underline-offset-2">
                     Switch number
                   </button>
                 </div>
@@ -121,7 +122,6 @@ export function RewardsPage() {
                       key={reward._id}
                       reward={reward}
                       points={data.customer?.points ?? 0}
-                      phone={phone}
                       slug={restaurant.slug}
                       index={i}
                     />
@@ -192,60 +192,14 @@ export function RewardsPage() {
   );
 }
 
-function PhoneGate({
-  value,
-  onChange,
-  onSubmit,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onSubmit: () => void;
-}) {
-  const valid = /^\d{10}$/.test(value);
-  return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className="flex flex-col items-center p-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
-          <Phone className="h-5 w-5 text-accent" />
-        </div>
-        <h2 className="mt-4 font-semibold">Find your rewards</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Enter the mobile number you order with to see your points, claims and past orders.
-        </p>
-        <form
-          className="mt-5 flex w-full gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (valid) onSubmit();
-          }}
-        >
-          <Input
-            type="tel"
-            inputMode="numeric"
-            maxLength={10}
-            placeholder="10-digit mobile number"
-            value={value}
-            onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 10))}
-          />
-          <Button type="submit" disabled={!valid}>
-            View
-          </Button>
-        </form>
-      </Card>
-    </motion.div>
-  );
-}
-
 function RewardCard({
   reward,
   points,
-  phone,
   slug,
   index,
 }: {
   reward: LoyaltyReward;
   points: number;
-  phone: string;
   slug: string;
   index: number;
 }) {
@@ -363,7 +317,7 @@ function RewardCard({
                     disabled={redeem.isPending}
                     onClick={() =>
                       redeem.mutate(
-                        { phone, rewardId: reward._id },
+                        { rewardId: reward._id },
                         {
                           onSuccess: ({ redemption }) => {
                             setConfirming(false);

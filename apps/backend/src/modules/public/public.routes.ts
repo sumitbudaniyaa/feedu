@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema } from '@feedo/types';
+import bcrypt from 'bcryptjs';
 import {
   Category,
   Customer,
   LoyaltyReward,
   Order,
+  Otp,
   Product,
   Redemption,
   Restaurant,
@@ -15,12 +17,59 @@ import {
 import { isValidObjectId } from 'mongoose';
 import { randomToken } from '@feedo/utils';
 import { validate } from '../../middleware/validate.js';
+import { optionalCustomerAuth, requireCustomer } from '../../middleware/customer.js';
+import { otpLimiter } from '../../middleware/security.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { signCustomerToken } from '../../utils/jwt.js';
 import { asyncHandler, ok } from '../../utils/http.js';
+import { logger } from '../../utils/logger.js';
+import { env } from '../../config/env.js';
 import * as orders from '../orders/orders.service.js';
 import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../payments/payments.service.js';
 
 const router = Router();
+
+// ─── Customer OTP login ──────────────────────────────────────────────────
+router.post(
+  '/auth/otp/request',
+  otpLimiter,
+  validate(z.object({ phone: phoneSchema, name: z.string().optional() })),
+  asyncHandler(async (req, res) => {
+    const { phone, name } = req.body as { phone: string; name?: string };
+    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+    const codeHash = await bcrypt.hash(code, 8);
+    await Otp.findOneAndUpdate(
+      { phone },
+      { phone, codeHash, name, attempts: 0, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+      { upsert: true },
+    );
+
+    // No SMS provider wired — log it, and in non-prod return it so the flow is testable.
+    logger.info(`OTP for ${phone}: ${code}`);
+    return ok(res, { sent: true, ...(env.isProd ? {} : { devCode: code }) });
+  }),
+);
+
+router.post(
+  '/auth/otp/verify',
+  validate(z.object({ phone: phoneSchema, code: z.string().length(6) })),
+  asyncHandler(async (req, res) => {
+    const { phone, code } = req.body as { phone: string; code: string };
+    const otp = await Otp.findOne({ phone });
+    if (!otp) throw ApiError.badRequest('Request a new code');
+    if (otp.attempts >= 5) throw ApiError.badRequest('Too many attempts — request a new code');
+
+    const valid = await bcrypt.compare(code, otp.codeHash);
+    if (!valid) {
+      await Otp.updateOne({ _id: otp._id }, { $inc: { attempts: 1 } });
+      throw ApiError.badRequest('Incorrect code');
+    }
+    await Otp.deleteOne({ _id: otp._id });
+
+    const token = signCustomerToken(phone, otp.name ?? undefined);
+    return ok(res, { token, phone, name: otp.name ?? null });
+  }),
+);
 
 async function loadMenu(restaurantId: string) {
   const [categories, products, sections] = await Promise.all([
@@ -147,40 +196,35 @@ async function findLiveRestaurant(slug: string) {
  */
 router.get(
   '/r/:slug/account',
+  optionalCustomerAuth,
+  requireCustomer,
   asyncHandler(async (req, res) => {
-    const phone = phoneSchema.safeParse(req.query.phone);
-    if (!phone.success) throw ApiError.badRequest('Enter a valid 10-digit mobile number');
+    const phone = req.customerPhone!; // verified via OTP token
     const restaurant = await findLiveRestaurant(req.params.slug!);
     const restaurantId = restaurant._id;
 
     const [customer, orders, rewards, redemptions] = await Promise.all([
-      Customer.findOne({ restaurantId, phone: phone.data }).lean(),
-      Order.find({ restaurantId, customerPhone: phone.data })
-        .sort({ placedAt: -1 })
-        .limit(15)
-        .lean(),
+      Customer.findOne({ restaurantId, phone }).lean(),
+      Order.find({ restaurantId, customerPhone: phone }).sort({ placedAt: -1 }).limit(15).lean(),
       LoyaltyReward.find({ restaurantId, isActive: true }).sort({ pointsCost: 1 }).lean(),
-      Redemption.find({ restaurantId, customerPhone: phone.data })
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .lean(),
+      Redemption.find({ restaurantId, customerPhone: phone }).sort({ createdAt: -1 }).limit(10).lean(),
     ]);
 
     return ok(res, { customer, orders, rewards, redemptions });
   }),
 );
 
-const redeemSchema = z.object({
-  phone: phoneSchema,
-  rewardId: z.string(),
-});
+const redeemSchema = z.object({ rewardId: z.string() });
 
-/** Claim a reward: atomically deduct points and issue a claim code. */
+/** Claim a reward: atomically deduct points and issue a claim code. Requires OTP login. */
 router.post(
   '/r/:slug/redeem',
+  optionalCustomerAuth,
+  requireCustomer,
   validate(redeemSchema),
   asyncHandler(async (req, res) => {
-    const { phone, rewardId } = req.body as { phone: string; rewardId: string };
+    const phone = req.customerPhone!; // verified via OTP token — can't drain someone else's points
+    const { rewardId } = req.body as { rewardId: string };
     if (!isValidObjectId(rewardId)) throw ApiError.badRequest('Invalid reward');
     const restaurant = await findLiveRestaurant(req.params.slug!);
     const restaurantId = restaurant._id;

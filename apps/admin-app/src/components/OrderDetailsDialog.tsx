@@ -1,5 +1,9 @@
+import { useRef, useState } from 'react';
+import { toPng } from 'html-to-image';
+import { Download } from 'lucide-react';
 import {
   Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -9,6 +13,8 @@ import {
 } from '@feedo/ui';
 import { formatCurrency, formatDate, formatTime } from '@feedo/utils';
 import type { Order } from '@feedo/types';
+import { useRestaurant } from '../lib/api.js';
+import { Invoice } from './Invoice.js';
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
   pending: 'warning',
@@ -31,6 +37,28 @@ export function OrderDetailsDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const { data: restaurant } = useRestaurant();
+  const invoiceRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadInvoice = async () => {
+    if (!invoiceRef.current) return;
+    setDownloading(true);
+    try {
+      const dataUrl = await toPng(invoiceRef.current, {
+        pixelRatio: 2,
+        backgroundColor: '#FFFFFF',
+        cacheBust: true,
+      });
+      const link = document.createElement('a');
+      link.download = `invoice-${order?.orderNumber ?? 'order'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -121,6 +149,15 @@ export function OrderDetailsDialog({
                 {order.notes}
               </p>
             )}
+
+            <Button variant="outline" className="w-full" onClick={downloadInvoice} disabled={downloading}>
+              <Download className="h-4 w-4" /> {downloading ? 'Generating…' : 'Download invoice'}
+            </Button>
+
+            {/* Off-screen invoice used for PNG generation. */}
+            <div className="pointer-events-none fixed left-[-9999px] top-0">
+              <Invoice ref={invoiceRef} order={order} restaurant={restaurant} />
+            </div>
           </>
         )}
       </DialogContent>

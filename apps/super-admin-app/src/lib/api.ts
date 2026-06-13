@@ -15,4 +15,14 @@ export const apiClient = new ApiClient({
 export const { useLogin, useLogout, useMe } = createAuthHooks({ client: apiClient, useAuth });
 
 const platform = createPlatformHooks(apiClient);
-export const { useStats, useRestaurants, useUpdateSubscription, useToggleLive } = platform;
+export const {
+  useStats,
+  useAnalytics,
+  useRestaurants,
+  useRestaurantDetail,
+  useUsers,
+  useAllOrders,
+  useAllCustomers,
+  useUpdateSubscription,
+  useToggleLive,
+} = platform;

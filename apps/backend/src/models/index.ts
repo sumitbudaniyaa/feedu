@@ -7,6 +7,7 @@ export { Order } from './Order.js';
 export { LoyaltyProgram, CustomerLoyalty } from './Loyalty.js';
 export { LoyaltyReward, Redemption } from './Reward.js';
 export { Customer } from './Customer.js';
+export { Otp } from './Otp.js';
 export { Section } from './Section.js';
 export { Payment } from './Payment.js';
 export { Notification } from './Notification.js';

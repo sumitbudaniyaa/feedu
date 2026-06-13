@@ -100,6 +100,7 @@ export async function createOrder({
       productId: product._id,
       name: product.name,
       isVeg: product.isVeg,
+      prepTimeMinutes: product.prepTimeMinutes,
       variantLabel: cartItem.variantLabel,
       addons,
       unitPrice,

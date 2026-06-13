@@ -11,6 +11,7 @@ export const orderItemSchema = z.object({
   productId: objectIdSchema,
   name: z.string(), // snapshot at order time
   isVeg: z.boolean().optional(), // snapshot for kitchen display
+  prepTimeMinutes: z.number().int().min(0).optional(), // snapshot for ETA
   variantLabel: z.string().optional(),
   addons: z
     .array(z.object({ label: z.string(), price: moneySchema }))

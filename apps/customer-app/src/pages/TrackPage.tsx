@@ -1,9 +1,21 @@
 import { useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
-import { Check, ChefHat, Clock, CookingPot, Download, PartyPopper, Receipt, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  Check,
+  ChefHat,
+  Clock,
+  CookingPot,
+  Download,
+  PartyPopper,
+  Receipt,
+  Sparkles,
+  XCircle,
+} from 'lucide-react';
 import { Button, Card, Skeleton, cn } from '@feedo/ui';
-import type { OrderStatus } from '@feedo/types';
+import { minutesSince } from '@feedo/utils';
+import type { Order, OrderStatus } from '@feedo/types';
 import { useTrackOrder } from '../lib/api.js';
 import { InvoiceTicket } from '../components/InvoiceTicket.js';
 
@@ -16,6 +28,12 @@ const STEPS: { status: OrderStatus; label: string; icon: typeof Clock }[] = [
 ];
 
 const ORDER: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'served', 'completed'];
+
+/** Friendly ETA in minutes: the longest item prep time + a small buffer. */
+function etaMinutes(order: Order): number {
+  const maxPrep = Math.max(0, ...order.items.map((i) => i.prepTimeMinutes ?? 0));
+  return Math.max(10, maxPrep + 3);
+}
 
 export function TrackPage() {
   const { orderId } = useParams();
@@ -45,8 +63,8 @@ export function TrackPage() {
   if (isLoading || !order) {
     return (
       <div className="mx-auto max-w-md space-y-4 p-6">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-40 rounded-xl" />
       </div>
     );
   }
@@ -55,28 +73,29 @@ export function TrackPage() {
   const currentIdx = ORDER.indexOf(order.status);
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-background p-6">
-      <div className="mb-6 text-center">
-        <p className="text-sm text-muted-foreground">Order #{order.orderNumber}</p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">
-          {cancelled ? 'Order cancelled' : order.status === 'completed' ? 'All done — enjoy!' : 'Tracking your order'}
-        </h1>
-      </div>
+    <div className="mx-auto min-h-screen max-w-md bg-background p-5 pb-10">
+      <PreparingHero order={order} />
 
       {order.loyaltyPointsEarned > 0 && (
-        <Card className="mb-4 flex items-center gap-3 border-accent/30 bg-accent/5 p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-4 flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 p-4"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15">
             <Sparkles className="h-4 w-4 text-accent" />
           </div>
           <div>
             <p className="text-sm font-medium">You earned {order.loyaltyPointsEarned} reward points</p>
-            <p className="text-xs text-muted-foreground">Saved to your mobile number for next time.</p>
+            <p className="text-xs text-muted-foreground">Saved to your number for next time.</p>
           </div>
-        </Card>
+        </motion.div>
       )}
 
+      {/* Timeline */}
       {!cancelled && (
-        <Card className="p-5">
+        <Card className="mt-4 p-5">
           <div className="space-y-1">
             {STEPS.map((step, i) => {
               const done = currentIdx >= ORDER.indexOf(step.status);
@@ -85,16 +104,19 @@ export function TrackPage() {
               return (
                 <div key={step.status} className="flex items-center gap-3">
                   <div className="flex flex-col items-center">
-                    <div
+                    <motion.div
+                      animate={active ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+                      transition={active ? { duration: 1.6, repeat: Infinity } : {}}
                       className={cn(
                         'flex h-9 w-9 items-center justify-center rounded-full border transition-colors',
                         done ? 'border-accent bg-accent text-accent-foreground' : 'border-border text-muted-foreground',
-                        active && 'ring-4 ring-accent/20',
                       )}
                     >
                       <Icon className="h-4 w-4" />
-                    </div>
-                    {i < STEPS.length - 1 && <div className={cn('h-6 w-px', done ? 'bg-accent' : 'bg-border')} />}
+                    </motion.div>
+                    {i < STEPS.length - 1 && (
+                      <div className={cn('h-6 w-px', done ? 'bg-accent' : 'bg-border')} />
+                    )}
                   </div>
                   <span className={cn('text-sm font-medium', done ? 'text-foreground' : 'text-muted-foreground')}>
                     {step.label}
@@ -106,7 +128,7 @@ export function TrackPage() {
         </Card>
       )}
 
-      {/* Invoice — vintage bus-ticket style */}
+      {/* Invoice */}
       <div className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-medium">Invoice</p>
@@ -121,5 +143,123 @@ export function TrackPage() {
         Back to menu
       </Button>
     </div>
+  );
+}
+
+function PreparingHero({ order }: { order: Order }) {
+  const cancelled = order.status === 'cancelled' || order.status === 'refunded';
+  const done = order.status === 'served' || order.status === 'completed';
+  const ready = order.status === 'ready';
+  const cooking = !cancelled && !done && !ready;
+
+  const eta = etaMinutes(order);
+  const elapsed = minutesSince(order.placedAt);
+  const remaining = Math.max(0, eta - elapsed);
+  const progress = Math.min(100, Math.round((elapsed / eta) * 100));
+
+  const headline = cancelled
+    ? 'Order cancelled'
+    : done
+      ? 'Enjoy your meal!'
+      : ready
+        ? 'Your order is ready!'
+        : order.status === 'preparing'
+          ? 'Cooking your order'
+          : 'Order received';
+
+  const sub = cancelled
+    ? 'This order was cancelled.'
+    : done
+      ? 'Thanks for ordering with us.'
+      : ready
+        ? 'Please collect it from the counter.'
+        : remaining > 0
+          ? `Ready in about ${remaining} min`
+          : 'Almost ready…';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="relative overflow-hidden rounded-2xl p-6 text-white"
+      style={{
+        background: cancelled
+          ? 'linear-gradient(150deg, hsl(var(--destructive)), hsl(var(--destructive) / 0.7))'
+          : 'linear-gradient(150deg, hsl(var(--accent)), hsl(var(--accent) / 0.72) 65%, hsl(var(--accent) / 0.55))',
+      }}
+    >
+      <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+      <p className="text-xs font-medium uppercase tracking-widest text-white/80">Order #{order.orderNumber}</p>
+
+      <div className="mt-5 flex flex-col items-center text-center">
+        {/* Animated status icon */}
+        <div className="relative flex h-24 w-24 items-center justify-center">
+          {cooking && (
+            <>
+              {/* pulsing ring */}
+              <motion.span
+                className="absolute inset-0 rounded-full border-2 border-white/40"
+                animate={{ scale: [1, 1.25, 1], opacity: [0.6, 0, 0.6] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+              />
+              {/* steam */}
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="absolute h-2 w-2 rounded-full bg-white/70"
+                  style={{ top: 8, left: 30 + i * 16 }}
+                  animate={{ y: [-2, -16], opacity: [0, 0.9, 0] }}
+                  transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.35, ease: 'easeOut' }}
+                />
+              ))}
+            </>
+          )}
+          <motion.div
+            animate={ready ? { rotate: [0, -8, 8, -8, 0] } : cooking ? { y: [0, -4, 0] } : {}}
+            transition={
+              ready
+                ? { duration: 0.6, repeat: 2 }
+                : cooking
+                  ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+                  : {}
+            }
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-white/15 backdrop-blur"
+          >
+            {cancelled ? (
+              <XCircle className="h-8 w-8" />
+            ) : done ? (
+              <PartyPopper className="h-8 w-8" />
+            ) : ready ? (
+              <ChefHat className="h-8 w-8" />
+            ) : (
+              <CookingPot className="h-8 w-8" />
+            )}
+          </motion.div>
+        </div>
+
+        <h1 className="mt-4 text-xl font-bold tracking-tight">{headline}</h1>
+        <p className="mt-1 text-sm text-white/85">{sub}</p>
+
+        {cooking && (
+          <div className="mt-5 w-full">
+            <div className="h-2 overflow-hidden rounded-full bg-white/20">
+              <motion.div
+                className="h-full rounded-full bg-white"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-white/80">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" /> {elapsed} min elapsed
+              </span>
+              <span>ETA ~{eta} min</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 }

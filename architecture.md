@@ -130,6 +130,22 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
 never trusted from the client.
 
+### Customer auth (mobile OTP)
+Diners sign in with a mobile OTP: `POST /public/auth/otp/request` generates a 6-digit code
+(bcrypt-hashed, stored in the TTL-indexed `Otp` collection, rate-limited; dev also returns it
+in the response + logs it — no SMS provider is wired). `POST /public/auth/otp/verify` checks
+the code and issues a 30-day **customer JWT** (`{ sub: phone, kind: 'customer' }`, signed with
+the access secret). `optionalCustomerAuth` reads that token on public routes → `req.customerPhone`;
+`requireCustomer` gates the account + redeem endpoints so a diner can only ever see/spend their
+own wallet. The customer app stores the token in its auth store; `ApiClient` sends it as a bearer.
+
+### Platform (super-admin)
+`/platform/*` is super-admin-only and cross-tenant: `stats` (GMV, MRR, live/total restaurants,
+orders, customers), `analytics` (14-day GMV series + top restaurants), `users`, `orders`,
+`customers`, and `restaurants/:id` (full detail: revenue, staff, products, recent orders).
+The console is a sidebar app (Overview / Restaurants / Orders / Customers / Users) and can edit
+subscriptions and suspend/reactivate restaurants.
+
 ### Loyalty & rewards
 Two layers: **earning** and **claiming**. Products may define `loyaltyPoints` (per unit) —
 summed into `order.loyaltyPointsEarned` at creation and credited to the guest's `Customer`

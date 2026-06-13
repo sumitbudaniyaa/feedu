@@ -75,6 +75,18 @@
 ---
 
 ## Recently added
+- [x] Customer mobile OTP login (request/verify, 6-digit, bcrypt-hashed, TTL, rate-limited);
+      account + reward redemption now require the verified customer token (no more spoofing
+      by typing someone's phone). Dev returns the code in the response + server log.
+- [x] Live Razorpay (test keys in .env) — checkout creates real Razorpay orders, signature
+      verified on confirm; verified end-to-end (real order id, not demo mode).
+- [x] Animated "preparing" page after checkout: cooking animation, live ETA from per-item
+      prep times, progress bar, ready/served states.
+- [x] Super-admin = full enterprise console: sidebar layout + Overview (GMV chart, top
+      restaurants, platform KPIs), Restaurants list + detail (revenue/staff/orders/products,
+      subscription editor, suspend/reactivate), Users, Orders (all-restaurant feed + details),
+      Customers — all backed by new /platform endpoints.
+- [x] Admin order details: downloadable business invoice (PNG); per-item prep time snapshot.
 - [x] Loyalty rewards system end-to-end: admin rewards catalog ("Free Coffee · 50 pts"),
       per-product loyalty points + prep time, customer Rewards page (wallet, eligibility
       progress, claim → code, atomic point deduction), admin claims list with fulfil/cancel

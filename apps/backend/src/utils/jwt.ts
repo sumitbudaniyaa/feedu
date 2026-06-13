@@ -21,3 +21,14 @@ export function verifyAccessToken(token: string): JwtPayload {
 export function verifyRefreshToken(token: string): { sub: string } {
   return jwt.verify(token, env.JWT_REFRESH_SECRET) as { sub: string };
 }
+
+/** Customer session token — `sub` is the verified mobile number. */
+export function signCustomerToken(phone: string, name?: string): string {
+  return jwt.sign({ sub: phone, kind: 'customer', name }, env.JWT_ACCESS_SECRET, {
+    expiresIn: '30d',
+  } as SignOptions);
+}
+
+export function verifyCustomerToken(token: string): { sub: string; kind: string; name?: string } {
+  return jwt.verify(token, env.JWT_ACCESS_SECRET) as { sub: string; kind: string; name?: string };
+}
