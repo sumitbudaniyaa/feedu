@@ -34,7 +34,13 @@ router.post(
   authorize('owner', 'manager', 'waiter'),
   validate(createOrderSchema),
   asyncHandler(async (req, res) => {
-    const order = await orders.createOrder({ restaurantId: req.restaurantId!, input: req.body });
+    // Staff orders are taken in person → confirmed immediately (payment collected at counter).
+    const order = await orders.createOrder({
+      restaurantId: req.restaurantId!,
+      input: req.body,
+      autoConfirm: true,
+      paymentMethod: 'cash',
+    });
     return ok(res, order, 201);
   }),
 );

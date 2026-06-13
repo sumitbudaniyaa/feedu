@@ -1,7 +1,6 @@
 import type { CreateOrderInput, OrderStatus } from '@feedo/types';
 import { rooms, SOCKET_EVENTS } from '@feedo/types';
 import { computeTotals } from '@feedo/utils';
-import mongoose from 'mongoose';
 import {
   Customer,
   CustomerLoyalty,
@@ -50,6 +49,8 @@ interface CreateContext {
   paymentMethod?: 'cash' | 'card' | 'upi' | 'razorpay' | 'stripe';
   /** Suppress the create emit (used for pay-first flows; emit happens on markPaid). */
   silent?: boolean;
+  /** Mark the order confirmed immediately (staff-placed counter orders). */
+  autoConfirm?: boolean;
 }
 
 /**
@@ -63,6 +64,7 @@ export async function createOrder({
   customer,
   paymentMethod,
   silent,
+  autoConfirm,
 }: CreateContext) {
   const restaurant = await Restaurant.findById(restaurantId).lean();
   if (!restaurant) throw ApiError.notFound('Restaurant not found');
@@ -144,7 +146,7 @@ export async function createOrder({
         customerName: customer?.name,
         customerPhone: customer?.phone,
         type: input.type,
-        status: 'pending',
+        status: autoConfirm ? 'confirmed' : 'pending',
         items,
         subtotal: totals.subtotal,
         taxAmount: totals.taxAmount,
@@ -249,19 +251,20 @@ export async function listOrders(
   restaurantId: string,
   opts: { status?: string; page?: number; limit?: number; active?: boolean },
 ) {
-  const filter: mongoose.RootFilterQuery<typeof Order> = { restaurantId };
-  if (opts.status) (filter as Record<string, unknown>).status = opts.status;
+  const filter = { restaurantId } as Record<string, unknown>;
+  if (opts.status) filter.status = opts.status;
   if (opts.active) {
-    (filter as Record<string, unknown>).status = {
-      $in: ['pending', 'confirmed', 'preparing', 'ready'],
-    };
+    filter.status = { $in: ['pending', 'confirmed', 'preparing', 'ready'] };
   }
+  // Hide orders that are still awaiting online payment (created at checkout,
+  // not yet paid) — they should never reach staff until payment confirms.
+  filter.$nor = [{ status: 'pending', paymentStatus: 'unpaid' }];
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
 
   const [items, total] = await Promise.all([
-    Order.find(filter).sort({ placedAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-    Order.countDocuments(filter),
+    Order.find(filter as never).sort({ placedAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Order.countDocuments(filter as never),
   ]);
   return { items, page, limit, total, totalPages: Math.ceil(total / limit) };
 }
