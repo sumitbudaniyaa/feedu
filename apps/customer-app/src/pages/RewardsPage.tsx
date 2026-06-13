@@ -205,22 +205,30 @@ function RewardCard({
 }) {
   const navigate = useNavigate();
   const tableId = useCart((s) => s.tableId);
+  const setReward = useCart((s) => s.setReward);
   const redeem = useRedeem(slug);
   const [confirming, setConfirming] = useState(false);
   const [claimed, setClaimed] = useState<Redemption | null>(null);
 
   const eligible = points >= reward.pointsCost;
   const progress = Math.min(100, Math.round((points / reward.pointsCost) * 100));
+  const linked = Boolean(reward.productId);
 
+  // Linked reward → add it to the cart and head to checkout (free item on the order).
+  const addToOrder = () => {
+    setReward({ rewardId: reward._id, title: reward.title, pointsCost: reward.pointsCost });
+    navigate('/cart');
+  };
+
+  // Non-linked reward → fall back to a claim code.
   const claim = () =>
     redeem.mutate(
       { rewardId: reward._id, tableId: tableId ?? undefined },
       {
         onSuccess: ({ order, redemption }) => {
           setConfirming(false);
-          // Linked-item reward → a free order was placed; go track it like any order.
           if (order) navigate(`/order/${order._id}`);
-          else setClaimed(redemption); // code-only reward
+          else setClaimed(redemption);
         },
       },
     );
@@ -265,8 +273,12 @@ function RewardCard({
                   ? 'You can claim this now'
                   : `${reward.pointsCost - points} more points to go`}
               </p>
-              <Button size="sm" disabled={!eligible || redeem.isPending} onClick={() => setConfirming(true)}>
-                {redeem.isPending ? 'Claiming…' : 'Claim'}
+              <Button
+                size="sm"
+                disabled={!eligible || redeem.isPending}
+                onClick={linked ? addToOrder : () => setConfirming(true)}
+              >
+                {linked ? 'Add to order' : redeem.isPending ? 'Claiming…' : 'Claim'}
               </Button>
             </div>
           </div>

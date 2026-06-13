@@ -20,13 +20,22 @@ export interface CartRestaurant {
   accent?: string;
 }
 
+/** A loyalty reward applied to the order — a free item, paid for with points. */
+export interface AppliedReward {
+  rewardId: string;
+  title: string;
+  pointsCost: number;
+}
+
 interface CartState {
   restaurant: CartRestaurant | null;
   tableId: string | null;
   /** Path to return to the menu (slug or QR entry). */
   menuPath: string | null;
   lines: CartLine[];
+  appliedReward: AppliedReward | null;
   setContext: (restaurant: CartRestaurant, tableId: string | null, menuPath: string) => void;
+  setReward: (reward: AppliedReward | null) => void;
   add: (line: Omit<CartLine, 'key' | 'quantity'>, qty?: number) => void;
   setQty: (key: string, qty: number) => void;
   /** Net quantity of a product across all its variant/addon lines. */
@@ -50,10 +59,14 @@ export const useCart = create<CartState>()(
       tableId: null,
       menuPath: null,
       lines: [],
+      appliedReward: null,
       setContext: (restaurant, tableId, menuPath) => {
-        if (get().restaurant && get().restaurant?.slug !== restaurant.slug) set({ lines: [] });
+        // Switching restaurants clears the cart + any applied reward.
+        if (get().restaurant && get().restaurant?.slug !== restaurant.slug)
+          set({ lines: [], appliedReward: null });
         set({ restaurant, tableId, menuPath });
       },
+      setReward: (reward) => set({ appliedReward: reward }),
       add: (line, qty = 1) => {
         const key = lineKey(line);
         set((state) => {
@@ -85,7 +98,7 @@ export const useCart = create<CartState>()(
         const existing = get().lines.find((l) => l.key === key);
         if (existing) get().setQty(key, existing.quantity - 1);
       },
-      clear: () => set({ lines: [] }),
+      clear: () => set({ lines: [], appliedReward: null }),
       count: () => get().lines.reduce((s, l) => s + l.quantity, 0),
       subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
     }),

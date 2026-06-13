@@ -123,37 +123,74 @@ router.post(
 const checkoutSchema = z.object({
   type: orderTypeSchema,
   tableId: z.string().optional(),
-  items: z.array(cartItemSchema).min(1),
+  items: z.array(cartItemSchema).default([]), // may be empty for a reward-only order
   notes: z.string().optional(),
   customer: z.object({
     name: z.string().min(2),
     phone: phoneSchema,
   }),
+  /** Optional loyalty reward applied to the order (free ₹0 item, points spent). */
+  rewardId: z.string().optional(),
 });
 
 /**
- * Create a pending order (server computes the authoritative total) and, if
- * Razorpay is configured, a matching Razorpay order. The order is NOT surfaced
- * to the kitchen until payment is confirmed.
+ * Create a pending order (server computes the authoritative total) and, if there's
+ * a payable amount, a matching Razorpay order. A ₹0 order (e.g. reward-only) is
+ * confirmed immediately. The order is NOT surfaced to the kitchen until paid.
  */
 router.post(
   '/r/:slug/checkout',
+  optionalCustomerAuth,
   validate(checkoutSchema),
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findOne({ slug: req.params.slug, isLive: true }).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    const restaurantId = String(restaurant._id);
 
-    const { customer, ...orderInput } = req.body;
+    const { customer, rewardId, ...orderInput } = req.body as {
+      customer: { name: string; phone: string };
+      rewardId?: string;
+      type: 'dine_in' | 'takeaway';
+      tableId?: string;
+      items: unknown[];
+      notes?: string;
+    };
+
+    // Validate an applied reward against the signed-in customer's wallet.
+    let reward: { rewardId: string; productId: string; pointsCost: number } | undefined;
+    if (rewardId) {
+      if (!req.customerPhone) throw ApiError.unauthorized('Sign in to use a reward');
+      if (!isValidObjectId(rewardId)) throw ApiError.badRequest('Invalid reward');
+      const rw = await LoyaltyReward.findOne({ _id: rewardId, restaurantId, isActive: true }).lean();
+      if (!rw) throw ApiError.notFound('Reward not found');
+      if (!rw.productId) throw ApiError.badRequest('This reward can’t be added to an order');
+      const wallet = await Customer.findOne({ restaurantId, phone: req.customerPhone }).lean();
+      if (!wallet || wallet.points < rw.pointsCost) throw ApiError.badRequest('Not enough points');
+      reward = { rewardId: String(rw._id), productId: String(rw.productId), pointsCost: rw.pointsCost };
+    }
+
+    if (!orderInput.items.length && !reward) throw ApiError.badRequest('Your cart is empty');
+
+    // Reward orders are tied to the verified phone.
+    const orderCustomer = reward ? { name: customer.name, phone: req.customerPhone! } : customer;
+
     const order = await orders.createOrder({
-      restaurantId: String(restaurant._id),
-      input: orderInput,
-      customer,
+      restaurantId,
+      input: orderInput as never,
+      customer: orderCustomer,
+      reward,
       paymentMethod: 'razorpay',
       silent: true,
     });
 
+    // Nothing payable (reward-only / all free) → confirm immediately, no Razorpay.
+    if (order.total <= 0) {
+      const finalized = await orders.markPaid(String(order._id));
+      return ok(res, { order: finalized, razorpay: null, demo: isDemoMode(), free: true }, 201);
+    }
+
     const razorpay = await createRazorpayOrder(order.total, String(order._id));
-    return ok(res, { order, razorpay, demo: isDemoMode() }, 201);
+    return ok(res, { order, razorpay, demo: isDemoMode(), free: false }, 201);
   }),
 );
 

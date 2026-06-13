@@ -50,6 +50,8 @@ const orderSchema = new Schema(
     loyaltyPointsEarned: { type: Number, default: 0 },
     loyaltyRewardApplied: { type: Schema.Types.ObjectId, ref: 'LoyaltyReward', default: null },
     isReward: { type: Boolean, default: false },
+    rewardPointsSpent: { type: Number, default: 0 },
+    rewardDeducted: { type: Boolean, default: false },
     paymentStatus: {
       type: String,
       enum: ['unpaid', 'paid', 'refunded', 'failed'],

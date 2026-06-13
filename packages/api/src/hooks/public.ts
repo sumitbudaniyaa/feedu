@@ -25,10 +25,14 @@ export interface CheckoutResult {
   order: Order;
   razorpay: { orderId: string; amount: number; currency: string; keyId: string } | null;
   demo: boolean;
+  /** True when nothing was payable (e.g. reward-only) — order already confirmed. */
+  free: boolean;
 }
 
 export interface CheckoutInput extends CreateOrderInput {
   customer: { name: string; phone: string };
+  /** Loyalty reward applied to the order (requires the customer to be signed in). */
+  rewardId?: string;
 }
 
 export interface PayInput {

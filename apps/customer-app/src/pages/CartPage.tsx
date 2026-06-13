@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
-import { Button, Card, EmptyState } from '@feedo/ui';
+import { ArrowLeft, Gift, Minus, Plus, Sparkles, ShoppingBag, Trash2, X } from 'lucide-react';
+import { Badge, Button, Card, EmptyState } from '@feedo/ui';
 import { computeTotals, formatCurrency } from '@feedo/utils';
 import { useCart } from '../store/cart.js';
-import { useCheckout, usePayOrder } from '../lib/api.js';
+import { useAccount, useAuth, useCheckout, usePayOrder } from '../lib/api.js';
 import { loadRazorpay, openRazorpay } from '../lib/razorpay.js';
 import { CheckoutDrawer } from '../components/CheckoutDrawer.js';
 
 export function CartPage() {
   const navigate = useNavigate();
-  const { restaurant, tableId, menuPath, lines, setQty, subtotal, clear } = useCart();
+  const { restaurant, tableId, menuPath, lines, appliedReward, setQty, setReward, subtotal, clear } =
+    useCart();
+  const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
   const checkout = useCheckout(restaurant?.slug ?? '');
   const payOrder = usePayOrder();
+  const { data: account } = useAccount(restaurant?.slug, isAuthed);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +23,18 @@ export function CartPage() {
 
   const goBack = () => navigate(menuPath ?? '/');
 
-  if (!restaurant || lines.length === 0) {
+  // A reward needs a signed-in wallet — drop it if the session is gone.
+  useEffect(() => {
+    if (appliedReward && !isAuthed) setReward(null);
+  }, [appliedReward, isAuthed, setReward]);
+
+  const points = account?.customer?.points ?? 0;
+  // Linked, affordable rewards the diner could add (excluding the one already applied).
+  const eligibleRewards = (account?.rewards ?? []).filter(
+    (rw) => rw.productId && rw.pointsCost <= points && rw._id !== appliedReward?.rewardId,
+  );
+
+  if (!restaurant || (lines.length === 0 && !appliedReward)) {
     return (
       <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background">
         <Header onBack={goBack} />
@@ -52,7 +66,7 @@ export function CartPage() {
     setError(null);
     setPaying(true);
     try {
-      const { order, razorpay, demo } = await checkout.mutateAsync({
+      const { order, razorpay, demo, free } = await checkout.mutateAsync({
         type: tableId ? 'dine_in' : 'takeaway',
         tableId: tableId ?? undefined,
         items: lines.map((l) => ({
@@ -62,7 +76,14 @@ export function CartPage() {
           quantity: l.quantity,
         })),
         customer: { name, phone },
+        rewardId: appliedReward?.rewardId,
       });
+
+      // Nothing payable (e.g. reward-only) — order is already confirmed.
+      if (free) {
+        finish(order._id);
+        return;
+      }
 
       // Demo mode (no Razorpay keys) — confirm directly so the flow is usable.
       if (demo || !razorpay) {
@@ -114,33 +135,99 @@ export function CartPage() {
       <Header onBack={goBack} />
 
       <main className="space-y-5 px-5 pt-2">
-        <Card className="divide-y divide-border">
-          {lines.map((l) => (
-            <div key={l.key} className="flex items-center gap-3 p-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{l.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[l.variantLabel, ...l.addonLabels].filter(Boolean).join(' · ') || 'Regular'}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{formatCurrency(l.unitPrice)} each</p>
+        {lines.length > 0 && (
+          <Card className="divide-y divide-border">
+            {lines.map((l) => (
+              <div key={l.key} className="flex items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{l.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[l.variantLabel, ...l.addonLabels].filter(Boolean).join(' · ') || 'Regular'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{formatCurrency(l.unitPrice)} each</p>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-border px-1.5 py-1">
+                  <button onClick={() => setQty(l.key, l.quantity - 1)} className="px-1">
+                    {l.quantity === 1 ? <Trash2 className="h-3.5 w-3.5 text-destructive" /> : <Minus className="h-3.5 w-3.5" />}
+                  </button>
+                  <span className="w-5 text-center text-sm font-semibold tabular-nums">{l.quantity}</span>
+                  <button onClick={() => setQty(l.key, l.quantity + 1)} className="px-1">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <span className="w-16 text-right text-sm font-semibold">{formatCurrency(l.unitPrice * l.quantity)}</span>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-border px-1.5 py-1">
-                <button onClick={() => setQty(l.key, l.quantity - 1)} className="px-1">
-                  {l.quantity === 1 ? <Trash2 className="h-3.5 w-3.5 text-destructive" /> : <Minus className="h-3.5 w-3.5" />}
-                </button>
-                <span className="w-5 text-center text-sm font-semibold tabular-nums">{l.quantity}</span>
-                <button onClick={() => setQty(l.key, l.quantity + 1)} className="px-1">
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <span className="w-16 text-right text-sm font-semibold">{formatCurrency(l.unitPrice * l.quantity)}</span>
+            ))}
+          </Card>
+        )}
+
+        {/* Applied reward — a free item paid for with points */}
+        {appliedReward && (
+          <Card className="flex items-center gap-3 border-accent/40 bg-accent/5 p-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15">
+              <Gift className="h-4 w-4 text-accent" />
             </div>
-          ))}
-        </Card>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{appliedReward.title}</p>
+              <p className="text-xs text-muted-foreground">Reward · {appliedReward.pointsCost} pts</p>
+            </div>
+            <Badge variant="accent">FREE</Badge>
+            <button onClick={() => setReward(null)} className="rounded-md p-1 hover:bg-secondary" aria-label="Remove reward">
+              <X className="h-4 w-4" />
+            </button>
+          </Card>
+        )}
+
+        {/* Add a reward with points */}
+        {isAuthed && !appliedReward && eligibleRewards.length > 0 && (
+          <Card className="space-y-2 p-4">
+            <p className="flex items-center gap-1.5 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 text-accent" /> Use your {points} points
+            </p>
+            {eligibleRewards.map((rw) => (
+              <div key={rw._id} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{rw.title}</p>
+                  <p className="text-xs text-muted-foreground">{rw.pointsCost} pts · free item</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setReward({ rewardId: rw._id, title: rw.title, pointsCost: rw.pointsCost })
+                  }
+                >
+                  <Plus className="h-4 w-4" /> Add free
+                </Button>
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {!isAuthed && (
+          <button
+            onClick={() => navigate('/rewards')}
+            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3 text-left transition-colors hover:bg-secondary/40"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15">
+              <Gift className="h-4 w-4 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">Sign in to use reward points</p>
+              <p className="text-xs text-muted-foreground">Redeem a free item with your points.</p>
+            </div>
+          </button>
+        )}
 
         <Card className="space-y-1.5 p-4 text-sm">
           <Row label="Subtotal" value={formatCurrency(totals.subtotal)} />
           <Row label={`Tax (GST ${restaurant.gstPercent}%)`} value={formatCurrency(totals.taxAmount)} />
+          {appliedReward && (
+            <div className="flex justify-between text-accent">
+              <span>{appliedReward.title}</span>
+              <span>Free · {appliedReward.pointsCost} pts</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
             <span>To pay</span>
             <span>{formatCurrency(totals.total)}</span>
@@ -151,7 +238,7 @@ export function CartPage() {
       {/* Sticky pay bar — opens the details drawer. */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md border-t border-border bg-background/95 p-4 backdrop-blur">
         <Button variant="success" className="h-12 w-full justify-between rounded-xl" onClick={() => setDrawerOpen(true)}>
-          <span>Proceed to pay</span>
+          <span>{totals.total > 0 ? 'Proceed to pay' : 'Place free order'}</span>
           <span>{formatCurrency(totals.total)}</span>
         </Button>
       </div>

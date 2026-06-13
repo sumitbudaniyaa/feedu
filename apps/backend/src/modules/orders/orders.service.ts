@@ -51,6 +51,8 @@ interface CreateContext {
   silent?: boolean;
   /** Mark the order confirmed immediately (staff-placed counter orders). */
   autoConfirm?: boolean;
+  /** A loyalty reward applied to this order — added as a ₹0 line; points deducted on payment. */
+  reward?: { rewardId: string; productId: string; pointsCost: number };
 }
 
 /**
@@ -65,6 +67,7 @@ export async function createOrder({
   paymentMethod,
   silent,
   autoConfirm,
+  reward,
 }: CreateContext) {
   const restaurant = await Restaurant.findById(restaurantId).lean();
   if (!restaurant) throw ApiError.notFound('Restaurant not found');
@@ -113,6 +116,24 @@ export async function createOrder({
     };
   });
 
+  // A claimed reward rides along as a ₹0 line (doesn't affect the payable total).
+  if (reward) {
+    const rp = await Product.findOne({ _id: reward.productId, restaurantId }).lean();
+    if (!rp) throw ApiError.badRequest('Reward item is unavailable');
+    items.push({
+      productId: rp._id,
+      name: rp.name,
+      isVeg: rp.isVeg,
+      prepTimeMinutes: rp.prepTimeMinutes,
+      variantLabel: undefined,
+      addons: [],
+      unitPrice: 0,
+      quantity: 1,
+      notes: '🎁 Reward',
+      lineTotal: 0,
+    });
+  }
+
   const subtotal = items.reduce((s, i) => s + i.lineTotal, 0);
   const totals = computeTotals({
     subtotal,
@@ -153,6 +174,8 @@ export async function createOrder({
         discountAmount: totals.discount,
         total: totals.total,
         loyaltyPointsEarned: earnablePoints,
+        loyaltyRewardApplied: reward?.rewardId ?? null,
+        rewardPointsSpent: reward?.pointsCost ?? 0,
         notes: input.notes,
         paymentStatus: 'unpaid',
         paymentMethod,
@@ -373,6 +396,15 @@ export async function markPaid(orderId: string, providerRef?: string) {
       points: order.loyaltyPointsEarned > 0 ? order.loyaltyPointsEarned : undefined,
     });
     order.loyaltyPointsEarned = earned;
+
+    // Spend points for a reward applied to this order (once, when it's confirmed).
+    if (order.loyaltyRewardApplied && order.rewardPointsSpent > 0 && !order.rewardDeducted) {
+      await Customer.updateOne(
+        { restaurantId, phone: order.customerPhone, points: { $gte: order.rewardPointsSpent } },
+        { $inc: { points: -order.rewardPointsSpent } },
+      );
+      order.rewardDeducted = true;
+    }
   }
   await order.save();
 
