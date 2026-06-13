@@ -58,13 +58,11 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
 
 function Carousel({ items, onCustomise }: { items: Product[]; onCustomise: (p: Product) => void }) {
   return (
-    // Bleed to the screen edges, but pad so the first/last card line up with the page gutter.
-    <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2">
+    // First card sits at the page gutter; bleed only to the right so cards peek off-screen.
+    <div className="no-scrollbar -mr-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pr-5 pb-2">
       {items.map((p) => (
         <CarouselCard key={p._id} product={p} onCustomise={() => onCustomise(p)} />
       ))}
-      {/* trailing spacer so the last card isn't flush against the edge */}
-      <div className="w-1 shrink-0" aria-hidden />
     </div>
   );
 }

@@ -92,22 +92,15 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         <div className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
 
         <div className="relative flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25 backdrop-blur">
-              {restaurant.logo?.url ? (
-                <img src={restaurant.logo.url} alt="" className="h-full w-full object-cover" />
-              ) : (
-                restaurant.name[0]
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-xl font-bold leading-tight tracking-tight">
-                {restaurant.name}
-              </h1>
-              {restaurant.cuisineType && restaurant.cuisineType.length > 0 && (
-                <p className="truncate text-xs text-white/80">{restaurant.cuisineType.join(' · ')}</p>
-              )}
-            </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold leading-tight tracking-tight">
+              {restaurant.name}
+            </h1>
+            {restaurant.cuisineType && restaurant.cuisineType.length > 0 && (
+              <p className="mt-0.5 truncate text-sm text-white/80">
+                {restaurant.cuisineType.join(' · ')}
+              </p>
+            )}
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
