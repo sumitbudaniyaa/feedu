@@ -7,7 +7,24 @@ console. Built as a Turborepo monorepo.
 ## Stack
 
 React · Vite · TypeScript · Tailwind · shadcn-style UI · Framer Motion · Zustand ·
-TanStack Query · Recharts · Node · Express · MongoDB · Mongoose · Socket.IO · Zod.
+TanStack Query · Recharts · Node · Express · MongoDB · Mongoose · Socket.IO · Zod ·
+Razorpay · JWT.
+
+## What it does
+
+- **Admin** — dashboard analytics (revenue/orders/AOV/peak hours), live orders, inventory
+  (with image upload, stock, prep time, per-item loyalty points), Menu CMS (carousel/hero/grid
+  sections), loyalty rewards catalog + claims, tables & downloadable QR codes, staff, customers,
+  settings (branding/tax/go-live), and downloadable invoices.
+- **Customer (mobile)** — QR/slug ordering, variants/add-ons, cart, **mobile-OTP login**,
+  **Razorpay checkout**, a loyalty wallet with **in-app free-reward orders** (₹0 line, points
+  spent), animated "preparing" tracking with ETA, and a downloadable vintage-ticket invoice.
+- **Kitchen** — real-time KDS, veg/non-veg markers, status-colored cards, one-tap status flow.
+- **Super-admin** — cross-tenant console: platform GMV/MRR, restaurants (+ detail), all orders,
+  customers, users, subscription management, suspend/reactivate.
+- **Realtime** — Socket.IO pushes new/updated orders to kitchen + admin instantly.
+- **Multi-tenant + secure** — every resource scoped by `restaurantId`; rate limiting, NoSQL-injection
+  sanitization, HPP, helmet/CSP, RBAC, bcrypt, JWT.
 
 ## Apps & ports
 
@@ -26,16 +43,27 @@ TanStack Query · Recharts · Node · Express · MongoDB · Mongoose · Socket.I
 npm install
 
 # 2. Configure env
-cp .env.example .env      # set MONGODB_URI + JWT secrets
+cp .env.example .env      # set MONGODB_URI + JWT secrets (+ optional Razorpay keys)
 
 # 3. Seed demo data (needs MongoDB running)
 npm run seed
-#   super@feedo.app / password123   (super admin)
-#   owner@feedo.app / password123   (demo restaurant owner)
+#   super@feedo.app   / password123   (super admin · :5176)
+#   owner@feedo.app   / password123   (demo restaurant owner · :5173)
+#   kitchen@feedo.app / password123   (kitchen staff · :5175)
 
 # 4. Run — interactive launcher (pick what to start; backend is always included)
 npm run dev
 ```
+
+> **Customer app** has no password login — open `/r/the-copper-kitchen` (or scan a table QR
+> from the admin Tables page), and sign in with any 10-digit mobile via OTP (the code is shown
+> on screen + logged in dev, since no SMS provider is wired).
+
+### Payments (Razorpay)
+
+Set `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend) and `VITE_RAZORPAY_KEY_ID` (customer app)
+in `.env` for live test payments. Leave them blank to run in **demo mode** (checkout auto-confirms).
+Free reward-only orders skip payment entirely (₹0).
 
 Running `npm run dev` shows an arrow-key menu — use **↑/↓** to move, **enter** to run,
 **q** to quit:

@@ -57,7 +57,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 | App | Audience | Purpose | Default accent |
 |-----|----------|---------|----------------|
 | `admin-app` | Restaurant owner / manager | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings, onboarding | violet |
-| `customer-app` | Diners (mobile) | QR ordering, browsing, cart, checkout, loyalty, order tracking | violet |
+| `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login, loyalty wallet + in-app reward orders, live order tracking (light-mode only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers (dark-optimized KDS) | emerald |
 | `super-admin-app` | Feedo internal | Restaurant management, subscriptions, platform analytics, feature toggles | blue |
 
@@ -73,10 +73,14 @@ Packages never import from apps. `types` is the lowest-level shared package.
 - **@feedo/utils** — `cn` (clsx + tailwind-merge), currency/date/number formatters,
   `pricing` (authoritative order math shared by backend + cart preview), misc helpers.
 - **@feedo/ui** — `ThemeProvider`/`useTheme`/`ThemeToggle` + a shadcn-style component
-  set (Button, Card, Input, Label, Badge, Skeleton, Spinner, Avatar, Separator, Switch,
-  Dialog, Tabs, DropdownMenu, Tooltip, EmptyState) and `styles/globals.css`.
-- **@feedo/api** — `ApiClient` (fetch + auto refresh), `createAuthStore` (Zustand +
-  persist, namespaced per app), `createAuthHooks` (TanStack Query), `createSocket`.
+  set (Button — incl. `accent`/`success` variants, Card, Input, Textarea, Select, Label,
+  Badge, Skeleton, Spinner, Avatar, Separator, Switch, Dialog, Tabs, DropdownMenu, Tooltip,
+  EmptyState) and `styles/globals.css`.
+- **@feedo/api** — `ApiClient` (fetch + auto refresh + multipart `upload`), `createAuthStore`
+  (Zustand + persist, namespaced per app), and hook factories: `createAuthHooks`,
+  `createDomainHooks` (restaurant/dashboard/orders/redemptions), `createResource` (generic
+  CRUD), `createPublicHooks` (menu/checkout/account/OTP/redeem), `createPlatformHooks`,
+  `createSocket`.
 
 ---
 
@@ -119,13 +123,18 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 ### API surface (modules)
 - `/auth` — register / login / refresh / me
 - `/restaurants` — profile, settings, onboarding state, go-live (tenant)
-- `/categories`, `/products`, `/sections`, `/loyalty`, `/tables`, `/staff` — tenant-scoped CRUD
-  (most via a shared `crud()` factory that auto-scopes every query to `req.restaurantId`)
-- `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime)
+- `/categories`, `/products`, `/sections`, `/loyalty`, `/rewards`, `/tables`, `/staff`,
+  `/customers` — tenant-scoped CRUD/lists (most via a shared `crud()` factory that auto-scopes
+  every query to `req.restaurantId`). `/rewards` also exposes `/redemptions` (list + fulfil/cancel).
+- `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
+  "served" auto-completes; unpaid online orders excluded from staff lists)
 - `/analytics/dashboard` — revenue series, top products, peak hours, AOV, repeat % (aggregations)
-- `/platform/*` — super-admin, cross-tenant (stats, restaurants, subscriptions)
-- `/public/*` — customer, no auth: `/r/:slug`, `/qr/:qrToken`, `checkout`, `orders/:id/pay`,
-  track order
+- `/uploads` — authenticated image upload (multer → local `/uploads` static, CORP cross-origin)
+- `/platform/*` — super-admin, cross-tenant: `stats`, `analytics`, `users`, `orders`,
+  `customers`, `restaurants`, `restaurants/:id` (detail), subscription + suspend/reactivate
+- `/public/*` — customer, no staff auth: `/r/:slug` (menu), `/qr/:qrToken`, `checkout`,
+  `orders/:id/pay`, `orders/:id` (track), `auth/otp/request`, `auth/otp/verify`,
+  `r/:slug/account` + `r/:slug/redeem` (OTP-token gated)
 
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
 never trusted from the client.
@@ -147,25 +156,40 @@ The console is a sidebar app (Overview / Restaurants / Orders / Customers / User
 subscriptions and suspend/reactivate restaurants.
 
 ### Loyalty & rewards
-Two layers: **earning** and **claiming**. Products may define `loyaltyPoints` (per unit) —
-summed into `order.loyaltyPointsEarned` at creation and credited to the guest's `Customer`
-record (keyed `restaurantId + phone`) when the order is paid; a points `LoyaltyProgram`
-(pts per ₹) acts as the fallback when items don't define points. Claiming: admins manage a
-`LoyaltyReward` catalog (title + `pointsCost`); diners hit
-`GET /public/r/:slug/account?phone=` (wallet + past orders + catalog + claims) and
-`POST /public/r/:slug/redeem`, which deducts points via an atomic conditional update
-(`points: { $gte: cost }` + `$inc`) and issues a `Redemption` with a short claim code.
-Staff fulfil/cancel pending claims via `/rewards/redemptions`.
+Two layers: **earning** and **claiming/ordering**.
+
+**Earning** — products may define `loyaltyPoints` (per unit), summed into
+`order.loyaltyPointsEarned` at creation and credited to the guest's `Customer` record
+(keyed `restaurantId + phone`) when the order is paid. A points `LoyaltyProgram` (pts per ₹)
+is the fallback when items don't define their own points.
+
+**Rewards are ordered in-app, never a counter code.** Admins manage a `LoyaltyReward`
+catalog where each reward **must link a menu item** (enforced in the admin form + the
+`/rewards` create schema). A diner (OTP-signed-in) adds a reward to their cart — it becomes a
+**₹0 line** on the order:
+- `POST /public/r/:slug/checkout` accepts an optional `rewardId`. It validates the signed-in
+  wallet (`points ≥ cost`), appends the reward's product as a ₹0 item, and sets
+  `loyaltyRewardApplied` + `rewardPointsSpent` on the order. Payable total excludes the ₹0 item.
+- Points are spent **once**, atomically, when the order is confirmed: in `markPaid` after a
+  Razorpay payment, or immediately for a ₹0 / reward-only order (no Razorpay step). A
+  `rewardDeducted` flag guards against double-spend; points are refunded if placement fails.
+- The free item flows to the kitchen/admin like any order (flagged `isReward`), and the diner
+  tracks it normally.
+
+`GET /public/r/:slug/account` (OTP-token gated) returns the wallet, past orders, the catalog,
+and any legacy claims. `POST /public/r/:slug/redeem` still exists (direct claim / non-linked
+fallback), but the primary UX is the cart flow above.
 
 ### Payments (Razorpay)
-Customer checkout is pay-first: `POST /public/r/:slug/checkout` captures name + mobile,
-creates a **pending, silent** order (not shown to the kitchen yet) and a matching Razorpay
-order. The client opens Razorpay Checkout; on success `POST /public/orders/:id/pay` verifies
-the HMAC `sha256(order_id|payment_id, key_secret)` signature, marks the order paid +
-confirmed, records a `Payment`, and emits it to the kitchen/admin. When Razorpay keys are
-unset the backend runs in **demo mode** (signature check skipped) so the flow is usable
-locally. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend), `VITE_RAZORPAY_KEY_ID`
-(customer app). Aggregations cast `restaurantId` to `ObjectId` explicitly
+Customer checkout is pay-first: `POST /public/r/:slug/checkout` captures name + mobile and
+creates a **pending, silent** order (hidden from the kitchen until paid) plus a matching
+Razorpay order. The client opens Razorpay Checkout; on success `POST /public/orders/:id/pay`
+verifies the HMAC `sha256(order_id|payment_id, key_secret)` signature, marks the order paid +
+confirmed, records a `Payment`, and emits it to the kitchen/admin. A **₹0 order** (reward-only
+/ fully free) skips Razorpay and is confirmed immediately at checkout. With Razorpay keys unset
+the backend runs in **demo mode** (signature check skipped) for local use; real test keys are
+configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
+`VITE_RAZORPAY_KEY_ID` (customer app). Aggregations cast `restaurantId` to `ObjectId` explicitly
 (aggregation does not auto-cast like `find`).
 
 ### Security (enterprise)
@@ -219,14 +243,20 @@ locally. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend), `VITE_RAZORP
 ## 8. Database Overview
 
 Collections: **User, Restaurant, Category, Product, Table, Order, LoyaltyProgram,
-CustomerLoyalty, Section, Payment, Notification, Subscription**.
+CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment, Notification,
+Subscription, Otp**.
 
 Key indexes:
 - `User`: `{ email, restaurantId }` unique; `role`, `restaurantId`.
 - `Order`: `{ restaurantId, status, placedAt }`, `{ restaurantId, createdAt }`,
-  `{ restaurantId, orderNumber }` unique.
-- `Product`: `{ restaurantId, categoryId }`, text index on `name`/`tags`.
-- `Table`: `qrToken` unique. `CustomerLoyalty`: `{ restaurantId, customerId }` unique.
+  `{ restaurantId, orderNumber }` unique. Carries snapshots (`tableName`, item `isVeg` /
+  `prepTimeMinutes`), `customerName/Phone`, and reward fields (`isReward`,
+  `loyaltyRewardApplied`, `rewardPointsSpent`, `rewardDeducted`).
+- `Product`: `{ restaurantId, categoryId }`, text index on `name`/`tags`; has
+  `prepTimeMinutes` + `loyaltyPoints`.
+- `Table`: `qrToken` unique. `Customer`: `{ restaurantId, phone }` unique (loyalty wallet).
+- `Redemption`: `{ restaurantId, code }` unique. `Otp`: TTL index on `expiresAt`
+  (auto-expiry), code stored bcrypt-hashed.
 
 Schemas mirror the Zod definitions in `@feedo/types`.
 
@@ -250,7 +280,10 @@ Schemas mirror the Zod definitions in `@feedo/types`.
   utilities to them. **Dark is primary** (#090909 / #111111 / #1A1A1A / #F5F5F5 / #9CA3AF).
 - `ThemeProvider` resolves `dark | light | system`, persists to localStorage, and sets
   `.dark` + `[data-accent]` on `<html>`. Six muted accents map to `[data-accent='…']`.
-- Per-restaurant branding (accent + theme mode) is stored on `Restaurant.branding`.
+- Per-restaurant branding (accent + theme mode) is stored on `Restaurant.branding`. The
+  customer app is **light-mode only** and applies the restaurant's accent as a gradient
+  header (overridden page background to a soft off-white so white cards lift); buttons there
+  are green (`success`) while the accent stays decorative.
 
 ---
 

@@ -2,7 +2,9 @@
 
 > Update immediately after every task. Keep tasks granular. Track blockers.
 
-**Current Phase:** Phases 1–5 core complete — every app runs on real API data (no mock/placeholder UI). Hardening + polish ongoing.
+**Current Phase:** Phases 1–5 complete — every app runs on real API data (no mock/placeholder UI),
+with customer OTP login, live Razorpay payments, an in-app loyalty-reward order flow, and a full
+super-admin console. Hardening + polish ongoing.
 
 ---
 
@@ -28,11 +30,6 @@
 - [x] super-admin-app — platform console shell (MRR/restaurants stats + list)
 - [x] `architecture.md` + `todo.md`
 - [x] Root dev launcher (`scripts/dev.mjs`) — arrow-key menu (↑/↓/enter, number fallback for non-TTY) + `dev:all`/`dev:admin`/`dev:user`/`dev:kitchen`/`dev:company`/`dev:backend` shortcuts (every option includes backend)
-
----
-
-## In Progress
-- [ ] (none — Phase 1 wrapped)
 
 ---
 
@@ -87,10 +84,19 @@
       subscription editor, suspend/reactivate), Users, Orders (all-restaurant feed + details),
       Customers — all backed by new /platform endpoints.
 - [x] Admin order details: downloadable business invoice (PNG); per-item prep time snapshot.
-- [x] Loyalty rewards system end-to-end: admin rewards catalog ("Free Coffee · 50 pts"),
-      per-product loyalty points + prep time, customer Rewards page (wallet, eligibility
-      progress, claim → code, atomic point deduction), admin claims list with fulfil/cancel
+- [x] Loyalty rewards system end-to-end: admin rewards catalog, per-product loyalty points,
+      customer Rewards page (wallet + eligibility progress), atomic point deduction
+- [x] Rewards are ordered IN-APP as a free ₹0 line (no counter code): a reward must be linked
+      to a menu item (admin form + backend enforce it); "Add to order" applies it to the cart,
+      checkout adds the ₹0 item and spends points at payment (markPaid) — or confirms
+      immediately for a ₹0/reward-only order. Points refunded if the order can't be placed.
+- [x] Customer mobile OTP login wired into Rewards/account/redeem (verified token gates the wallet)
+- [x] Live Razorpay payments (real test keys in `.env`) — real order create + HMAC verify
+- [x] Animated "preparing"/tracking page (ETA from per-item prep times); vintage bus-ticket
+      invoice with PNG download; admin downloadable business invoice
 - [x] Customer past orders by mobile number (auto-remembered from checkout)
+- [x] Super-admin = full enterprise console (Overview/Restaurants+detail/Orders/Customers/Users)
+- [x] Orders auto-complete on "served"; unpaid online orders hidden from staff until paid
 - [x] Menu CMS fixed + redesigned: sections now actually render in the customer app
       (carousel / hero / grid); admin page got edit, up/down reorder, product chips
 - [x] Customer UI polish: spring micro-interactions, animated cart pill, count pops,
@@ -105,13 +111,12 @@
 - [x] Strict 10-digit phone validation everywhere; staff "Password" (not temp)
 
 ## Pending / Next
-- [ ] Logo/banner upload in Settings (product images done; reuse the upload endpoint)
-- [ ] Sections drag-and-drop reorder UI (endpoint exists)
-- [ ] Loyalty redemption flow (points accrue; redeeming for rewards is next) + customer login
+- [ ] Logo/banner upload in Settings (product images done; reuse the `/uploads` endpoint)
+- [ ] Sections drag-and-drop reorder UI (reorder endpoint + up/down buttons exist)
 - [ ] Onboarding wizard (8 guided steps) — backend onboarding state ready
 - [ ] Kitchen sound notifications on new order
-- [ ] Add real Razorpay keys to .env (RAZORPAY_KEY_ID/SECRET + VITE_RAZORPAY_KEY_ID) to
-      switch from demo mode to live payments; Razorpay webhook for async capture
+- [ ] Razorpay webhook for async capture/refunds (server-verified callback works today)
+- [ ] Real SMS provider for OTP (dev returns the code in the response + logs)
 
 ## Bugs
 - (none open) — fixed during E2E: status state-machine blocked kitchen start; analytics
