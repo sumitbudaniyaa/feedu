@@ -116,12 +116,19 @@ export function createPublicHooks(client: ApiClient) {
         enabled: Boolean(slug && isAuthed),
       });
     },
-    /** Claim a reward — deducts points and returns the claim code. */
+    /**
+     * Claim a reward. If linked to a menu item it's placed as a free ₹0 order
+     * (returned as `order`) that flows to the kitchen; otherwise a claim code is
+     * issued. Deducts points either way.
+     */
     useRedeem(slug: string) {
       const qc = useQueryClient();
       return useMutation({
-        mutationFn: (body: { rewardId: string }) =>
-          client.post<{ redemption: Redemption; points: number }>(`/public/r/${slug}/redeem`, body),
+        mutationFn: (body: { rewardId: string; type?: 'dine_in' | 'takeaway'; tableId?: string }) =>
+          client.post<{ order?: Order; redemption: Redemption; points: number }>(
+            `/public/r/${slug}/redeem`,
+            body,
+          ),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'account'] }),
       });
     },

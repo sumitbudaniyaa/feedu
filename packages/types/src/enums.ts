@@ -41,7 +41,7 @@ export type OrderType = z.infer<typeof orderTypeSchema>;
 export const paymentStatusSchema = z.enum(['unpaid', 'paid', 'refunded', 'failed']);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
-export const paymentMethodSchema = z.enum(['cash', 'card', 'upi', 'razorpay', 'stripe']);
+export const paymentMethodSchema = z.enum(['cash', 'card', 'upi', 'razorpay', 'stripe', 'reward']);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 export const sectionLayoutSchema = z.enum(['carousel', 'hero', 'grid']);

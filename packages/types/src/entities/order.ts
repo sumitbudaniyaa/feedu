@@ -41,6 +41,8 @@ export const orderSchema = z.object({
   total: moneySchema,
   loyaltyPointsEarned: z.number().int().min(0).default(0),
   loyaltyRewardApplied: objectIdSchema.nullable().optional(),
+  /** True when the whole order is a free loyalty-reward claim (₹0). */
+  isReward: z.boolean().optional(),
   paymentStatus: paymentStatusSchema,
   paymentMethod: paymentMethodSchema.optional(),
   notes: z.string().optional(),

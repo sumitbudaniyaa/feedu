@@ -203,12 +203,27 @@ function RewardCard({
   slug: string;
   index: number;
 }) {
+  const navigate = useNavigate();
+  const tableId = useCart((s) => s.tableId);
   const redeem = useRedeem(slug);
   const [confirming, setConfirming] = useState(false);
   const [claimed, setClaimed] = useState<Redemption | null>(null);
 
   const eligible = points >= reward.pointsCost;
   const progress = Math.min(100, Math.round((points / reward.pointsCost) * 100));
+
+  const claim = () =>
+    redeem.mutate(
+      { rewardId: reward._id, tableId: tableId ?? undefined },
+      {
+        onSuccess: ({ order, redemption }) => {
+          setConfirming(false);
+          // Linked-item reward → a free order was placed; go track it like any order.
+          if (order) navigate(`/order/${order._id}`);
+          else setClaimed(redemption); // code-only reward
+        },
+      },
+    );
 
   return (
     <motion.div
@@ -300,8 +315,8 @@ function RewardCard({
                   <DialogTitle>Claim {reward.title}?</DialogTitle>
                 </DialogHeader>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {reward.pointsCost} points will be deducted from your wallet. You&apos;ll get a code
-                  to show the staff.
+                  {reward.pointsCost} points will be deducted and we&apos;ll send this to the
+                  kitchen as a free order — no charge.
                 </p>
                 {redeem.error && (
                   <p className="mt-2 text-sm text-destructive">
@@ -312,21 +327,7 @@ function RewardCard({
                   <Button variant="outline" className="flex-1" onClick={() => setConfirming(false)}>
                     Cancel
                   </Button>
-                  <Button
-                    className="flex-1"
-                    disabled={redeem.isPending}
-                    onClick={() =>
-                      redeem.mutate(
-                        { rewardId: reward._id },
-                        {
-                          onSuccess: ({ redemption }) => {
-                            setConfirming(false);
-                            setClaimed(redemption);
-                          },
-                        },
-                      )
-                    }
-                  >
+                  <Button className="flex-1" disabled={redeem.isPending} onClick={claim}>
                     {redeem.isPending ? 'Claiming…' : 'Confirm'}
                   </Button>
                 </div>

@@ -73,6 +73,7 @@ export function OrderDetailsDialog({
                 <Badge variant="outline" className="capitalize">
                   {order.type.replace('_', '-')}
                 </Badge>
+                {order.isReward && <Badge variant="accent">🎁 Reward</Badge>}
               </div>
             </DialogHeader>
 

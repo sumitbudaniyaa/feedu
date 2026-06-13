@@ -134,7 +134,14 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (id: string,
     <motion.div layout initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
       <div className={cn('overflow-hidden rounded-xl border shadow-card', t.card)}>
         <div className={cn('flex items-center justify-between border-b px-5 py-3', t.divide)}>
-          <span className="text-xl font-bold tracking-tight">#{order.orderNumber}</span>
+          <span className="flex items-center gap-2 text-xl font-bold tracking-tight">
+            #{order.orderNumber}
+            {order.isReward && (
+              <span className="rounded-full bg-black/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                🎁 Reward
+              </span>
+            )}
+          </span>
           <span className="rounded-full bg-black/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
             {order.status === 'pending' || order.status === 'confirmed' ? 'New' : order.status}
           </span>

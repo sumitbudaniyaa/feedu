@@ -214,9 +214,18 @@ router.get(
   }),
 );
 
-const redeemSchema = z.object({ rewardId: z.string() });
+const redeemSchema = z.object({
+  rewardId: z.string(),
+  type: orderTypeSchema.optional(),
+  tableId: z.string().optional(),
+});
 
-/** Claim a reward: atomically deduct points and issue a claim code. Requires OTP login. */
+/**
+ * Claim a reward. If the reward is linked to a menu item, it's placed as a real
+ * ₹0 order through the normal pipeline (kitchen/admin/tracking). Otherwise a
+ * claim code is issued for staff to fulfil manually. Points are deducted
+ * atomically either way. Requires OTP login.
+ */
 router.post(
   '/r/:slug/redeem',
   optionalCustomerAuth,
@@ -224,7 +233,11 @@ router.post(
   validate(redeemSchema),
   asyncHandler(async (req, res) => {
     const phone = req.customerPhone!; // verified via OTP token — can't drain someone else's points
-    const { rewardId } = req.body as { rewardId: string };
+    const { rewardId, type, tableId } = req.body as {
+      rewardId: string;
+      type?: 'dine_in' | 'takeaway';
+      tableId?: string;
+    };
     if (!isValidObjectId(rewardId)) throw ApiError.badRequest('Invalid reward');
     const restaurant = await findLiveRestaurant(req.params.slug!);
     const restaurantId = restaurant._id;
@@ -240,18 +253,48 @@ router.post(
     );
     if (!customer) throw ApiError.badRequest('Not enough points for this reward');
 
-    const redemption = await Redemption.create({
-      restaurantId,
-      customerPhone: phone,
-      customerName: customer.name,
-      rewardId: reward._id,
-      rewardTitle: reward.title,
-      pointsCost: reward.pointsCost,
-      code: randomToken(3).toUpperCase(),
-      status: 'pending',
-    });
+    try {
+      // Linked item → place a free order that flows to the kitchen and can be tracked.
+      if (reward.productId) {
+        const order = await orders.createRewardOrder({
+          restaurantId: String(restaurantId),
+          rewardId: String(reward._id),
+          rewardTitle: reward.title,
+          productId: String(reward.productId),
+          customer: { name: customer.name ?? undefined, phone },
+          type: type ?? (tableId ? 'dine_in' : 'takeaway'),
+          tableId: tableId && isValidObjectId(tableId) ? tableId : undefined,
+        });
+        const redemption = await Redemption.create({
+          restaurantId,
+          customerPhone: phone,
+          customerName: customer.name,
+          rewardId: reward._id,
+          rewardTitle: reward.title,
+          pointsCost: reward.pointsCost,
+          code: randomToken(3).toUpperCase(),
+          status: 'fulfilled', // fulfilment now happens through the order itself
+        });
+        return ok(res, { order, redemption: redemption.toObject(), points: customer.points }, 201);
+      }
 
-    return ok(res, { redemption: redemption.toObject(), points: customer.points }, 201);
+      // No linked item → fall back to a claim code for manual fulfilment.
+      const redemption = await Redemption.create({
+        restaurantId,
+        customerPhone: phone,
+        customerName: customer.name,
+        rewardId: reward._id,
+        rewardTitle: reward.title,
+        pointsCost: reward.pointsCost,
+        code: randomToken(3).toUpperCase(),
+        status: 'pending',
+      });
+      return ok(res, { redemption: redemption.toObject(), points: customer.points }, 201);
+    } catch (err) {
+      // Refund points if order placement failed, so the diner isn't charged for nothing.
+      await Customer.updateOne({ restaurantId, phone }, { $inc: { points: reward.pointsCost } });
+      throw err;
+    }
   }),
 );
 

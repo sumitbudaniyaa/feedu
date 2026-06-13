@@ -275,6 +275,86 @@ export async function getOrder(restaurantId: string, orderId: string) {
   return order;
 }
 
+interface RewardOrderContext {
+  restaurantId: string;
+  rewardId: string;
+  rewardTitle: string;
+  productId: string;
+  customer: { name?: string; phone: string };
+  type: 'dine_in' | 'takeaway';
+  tableId?: string;
+}
+
+/**
+ * Place a free (₹0) order for a claimed reward's product. Flows through the
+ * normal order pipeline (confirmed + paid) so it reaches the kitchen/admin and
+ * the diner can track it like any order.
+ */
+export async function createRewardOrder(ctx: RewardOrderContext) {
+  const product = await Product.findOne({ _id: ctx.productId, restaurantId: ctx.restaurantId }).lean();
+  if (!product) throw ApiError.badRequest('Reward item is unavailable');
+
+  let tableName: string | undefined;
+  if (ctx.tableId) {
+    const table = await Table.findOne({ _id: ctx.tableId, restaurantId: ctx.restaurantId })
+      .select('name')
+      .lean();
+    tableName = table?.name;
+  }
+
+  const item = {
+    productId: product._id,
+    name: product.name,
+    isVeg: product.isVeg,
+    prepTimeMinutes: product.prepTimeMinutes,
+    addons: [],
+    unitPrice: 0,
+    quantity: 1,
+    notes: `🎁 Reward: ${ctx.rewardTitle}`,
+    lineTotal: 0,
+  };
+
+  let order;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      order = await Order.create({
+        restaurantId: ctx.restaurantId,
+        orderNumber: await nextOrderNumber(ctx.restaurantId),
+        tableId: ctx.tableId ?? null,
+        tableName,
+        customerName: ctx.customer.name,
+        customerPhone: ctx.customer.phone,
+        type: ctx.type,
+        status: 'confirmed',
+        items: [item],
+        subtotal: 0,
+        taxAmount: 0,
+        discountAmount: 0,
+        total: 0,
+        isReward: true,
+        loyaltyRewardApplied: ctx.rewardId,
+        paymentStatus: 'paid',
+        paymentMethod: 'reward',
+      });
+      break;
+    } catch (err) {
+      if (attempt === 1) throw err;
+    }
+  }
+  if (!order) throw ApiError.internal('Could not place reward order');
+
+  // Decrement stock if the product tracks it.
+  if (product.stock != null) {
+    await Product.updateOne(
+      { _id: product._id, restaurantId: ctx.restaurantId },
+      { $inc: { stock: -1, soldCount: 1 } },
+    );
+  }
+
+  emit(SOCKET_EVENTS.ORDER_CREATED, ctx.restaurantId, order.toObject());
+  return order.toObject();
+}
+
 /** Mark an order paid and auto-confirm it (used after a verified payment). */
 export async function markPaid(orderId: string, providerRef?: string) {
   const order = await Order.findById(orderId);
