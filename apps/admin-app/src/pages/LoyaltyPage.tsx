@@ -94,6 +94,11 @@ export function LoyaltyPage() {
                 {r.description && (
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{r.description}</p>
                 )}
+                {!r.productId && (
+                  <p className="mt-1 text-xs font-medium text-warning">
+                    ⚠ Link an item so diners can order it
+                  </p>
+                )}
                 <div className="mt-auto flex items-center justify-between pt-4">
                   <Switch
                     checked={r.isActive}
