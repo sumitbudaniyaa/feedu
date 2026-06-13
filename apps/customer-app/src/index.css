@@ -1,1 +1,12 @@
 @import '@feedo/ui/styles/globals.css';
+
+/*
+  Customer app is light-only. Use a soft off-white page background (cards stay pure
+  white) so surfaces have depth instead of everything blending into flat white.
+*/
+:root {
+  --background: 240 6% 97%;
+  --secondary: 240 5% 94%;
+  --muted: 240 5% 94%;
+  --border: 240 6% 90%;
+}

@@ -80,19 +80,18 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background pb-24">
       {/* Brand-colored gradient hero — the restaurant's accent lives here, not on buttons. */}
-      <header className="relative overflow-hidden rounded-b-[2rem] px-5 pb-9 pt-8 text-white">
-        {/* layered gradient + soft glows for depth (not a flat block) */}
-        <div
-          className="absolute inset-0 -z-20"
-          style={{
-            background:
-              'linear-gradient(155deg, hsl(var(--accent)), hsl(var(--accent) / 0.7) 55%, hsl(var(--accent) / 0.5))',
-          }}
-        />
-        <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-60 w-60 rounded-full bg-white/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-12 -z-10 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
+      <header
+        className="relative isolate overflow-hidden rounded-b-[2rem] px-5 pb-9 pt-8 text-white"
+        style={{
+          background:
+            'linear-gradient(155deg, hsl(var(--accent)), hsl(var(--accent) / 0.72) 55%, hsl(var(--accent) / 0.55))',
+        }}
+      >
+        {/* soft glows for depth (above the gradient, below the content) */}
+        <div className="pointer-events-none absolute -right-16 -top-24 h-60 w-60 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="relative flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25 backdrop-blur">
               {restaurant.logo?.url ? (
