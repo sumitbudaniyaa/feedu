@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
-import { Card } from '@feedo/ui';
+import { Card, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product, Section } from '@feedo/types';
-import { AddControl, ProductCard, ProductImage } from './ProductCard.js';
+import { AddControl, ProductCard, ProductImage, useAddProduct } from './ProductCard.js';
 
 interface SectionsBlockProps {
   sections: Section[];
@@ -24,7 +24,7 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
   if (visible.length === 0) return null;
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
       {visible.map(({ section, items }, i) => (
         <motion.section
           key={section._id}
@@ -33,9 +33,12 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
           transition={{ duration: 0.3, delay: Math.min(i * 0.06, 0.3), ease: [0.16, 1, 0.3, 1] }}
           className="space-y-3"
         >
-          <div>
-            <h2 className="text-base font-semibold tracking-tight">{section.title}</h2>
-            {section.subtitle && <p className="text-xs text-muted-foreground">{section.subtitle}</p>}
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">{section.title}</h2>
+              {section.subtitle && <p className="text-xs text-muted-foreground">{section.subtitle}</p>}
+            </div>
+            <span className="text-xs text-muted-foreground">{items.length} items</span>
           </div>
 
           {section.layout === 'carousel' && <Carousel items={items} onCustomise={onCustomise} />}
@@ -55,20 +58,35 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
 
 function Carousel({ items, onCustomise }: { items: Product[]; onCustomise: (p: Product) => void }) {
   return (
-    <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1">
+    // Bleed to the screen edges, but pad so the first/last card line up with the page gutter.
+    <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2">
       {items.map((p) => (
-        <Card key={p._id} className="group w-36 shrink-0 snap-start overflow-hidden">
-          <ProductImage product={p} className="aspect-square" />
-          <div className="space-y-1.5 p-2.5">
-            <p className="truncate text-xs font-medium">{p.name}</p>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold">{formatCurrency(p.basePrice)}</span>
-              <AddControl product={p} onCustomise={() => onCustomise(p)} size="sm" />
-            </div>
-          </div>
-        </Card>
+        <CarouselCard key={p._id} product={p} onCustomise={() => onCustomise(p)} />
       ))}
+      {/* trailing spacer so the last card isn't flush against the edge */}
+      <div className="w-1 shrink-0" aria-hidden />
     </div>
+  );
+}
+
+function CarouselCard({ product, onCustomise }: { product: Product; onCustomise: () => void }) {
+  const { qty } = useAddProduct(product);
+  return (
+    <Card
+      className={cn(
+        'group w-40 shrink-0 snap-start overflow-hidden transition-shadow hover:shadow-card',
+        qty > 0 && 'ring-1 ring-foreground/15',
+      )}
+    >
+      <ProductImage product={product} className="aspect-[4/3]" />
+      <div className="space-y-2 p-3">
+        <p className="truncate text-sm font-medium leading-snug">{product.name}</p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
+          <AddControl product={product} onCustomise={onCustomise} size="sm" />
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -76,9 +94,9 @@ function Hero({ items, onCustomise }: { items: Product[]; onCustomise: (p: Produ
   const [feature, ...rest] = items;
   if (!feature) return null;
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Card className="group overflow-hidden">
-        <ProductImage product={feature} className="aspect-[2/1]" />
+        <ProductImage product={feature} className="aspect-[16/9]" />
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="min-w-0">
             <p className="truncate font-semibold">{feature.name}</p>

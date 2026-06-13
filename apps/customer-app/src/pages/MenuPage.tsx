@@ -80,59 +80,81 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   return (
     <div className="mx-auto min-h-screen max-w-md bg-background pb-24">
       {/* Brand-colored gradient hero — the restaurant's accent lives here, not on buttons. */}
-      <header
-        className="rounded-b-3xl px-5 pb-6 pt-9 text-white"
-        style={{
-          background:
-            'linear-gradient(160deg, hsl(var(--accent)), hsl(var(--accent) / 0.78) 60%, hsl(var(--accent) / 0.6))',
-        }}
-      >
+      <header className="relative overflow-hidden rounded-b-[2rem] px-5 pb-9 pt-8 text-white">
+        {/* layered gradient + soft glows for depth (not a flat block) */}
+        <div
+          className="absolute inset-0 -z-20"
+          style={{
+            background:
+              'linear-gradient(155deg, hsl(var(--accent)), hsl(var(--accent) / 0.7) 55%, hsl(var(--accent) / 0.5))',
+          }}
+        />
+        <div className="pointer-events-none absolute -right-16 -top-24 -z-10 h-60 w-60 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-12 -z-10 h-48 w-48 rounded-full bg-black/10 blur-3xl" />
+
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            {table && <p className="text-xs font-medium text-white/85">Dine-in · {table.name}</p>}
-            <h1 className="truncate text-2xl font-bold tracking-tight">{restaurant.name}</h1>
-            {restaurant.cuisineType && restaurant.cuisineType.length > 0 && (
-              <p className="mt-0.5 text-sm text-white/85">{restaurant.cuisineType.join(' · ')}</p>
-            )}
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25 backdrop-blur">
+              {restaurant.logo?.url ? (
+                <img src={restaurant.logo.url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                restaurant.name[0]
+              )}
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold leading-tight tracking-tight">
+                {restaurant.name}
+              </h1>
+              {restaurant.cuisineType && restaurant.cuisineType.length > 0 && (
+                <p className="truncate text-xs text-white/80">{restaurant.cuisineType.join(' · ')}</p>
+              )}
+            </div>
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => navigate('/rewards')}
             aria-label="Rewards & orders"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 backdrop-blur transition-colors hover:bg-white/25"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 backdrop-blur transition-colors hover:bg-white/25"
           >
             <Gift className="h-5 w-5" />
           </motion.button>
         </div>
+
+        {table && (
+          <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/15 backdrop-blur">
+            <UtensilsCrossed className="h-3.5 w-3.5" /> Dine-in · {table.name}
+          </span>
+        )}
+
         <div className="relative mt-4">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search dishes…"
-            className="h-11 border-0 bg-white pl-9 text-foreground shadow-soft"
+            className="h-12 rounded-xl border-0 bg-white pl-10 text-foreground shadow-elevated"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </header>
 
-      <main className="space-y-6 px-5 pt-5">
+      <main className="space-y-7 px-5 pt-6">
         {/* Curated sections from the Menu CMS */}
         {browsing && sections.length > 0 && (
           <SectionsBlock sections={sections} products={products} onCustomise={setSelected} />
         )}
 
         {categories.length > 0 && (
-          <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+          <div className="no-scrollbar sticky top-0 z-10 -mx-5 flex gap-2 overflow-x-auto border-b border-border/60 bg-background/85 px-5 py-2.5 backdrop-blur">
             {[{ _id: 'all', name: 'All' }, ...categories].map((c) => (
               <motion.button
                 key={c._id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveCat(c._id)}
                 className={cn(
-                  'whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
+                  'whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-all',
                   activeCat === c._id
-                    ? 'border-transparent bg-foreground text-background'
-                    : 'border-border text-muted-foreground',
+                    ? 'border-transparent bg-foreground text-background shadow-soft'
+                    : 'border-border text-muted-foreground hover:border-foreground/30',
                 )}
               >
                 {c.name}
@@ -143,7 +165,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
         <section className="space-y-3">
           {browsing && sections.length > 0 && (
-            <h2 className="text-base font-semibold tracking-tight">Full menu</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Full menu</h2>
           )}
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
