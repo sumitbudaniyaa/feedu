@@ -128,7 +128,7 @@ function PreparingHero({ order }: { order: Order }) {
     : done
       ? 'Thanks for ordering with us.'
       : ready
-        ? 'Your order is ready.'
+        ? ''
         : remaining > 0
           ? `Ready in about ${remaining} min`
           : 'Almost ready…';
@@ -195,7 +195,7 @@ function PreparingHero({ order }: { order: Order }) {
         </div>
 
         <h1 className="mt-4 text-xl font-bold tracking-tight">{headline}</h1>
-        <p className="mt-1 text-sm text-white/85">{sub}</p>
+        {sub && <p className="mt-1 text-sm text-white/85">{sub}</p>}
 
         {cooking && (
           <div className="mt-5 w-full">
