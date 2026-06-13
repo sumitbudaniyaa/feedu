@@ -128,7 +128,7 @@ function PreparingHero({ order }: { order: Order }) {
     : done
       ? 'Thanks for ordering with us.'
       : ready
-        ? 'Please collect it from the counter.'
+        ? 'Your order is ready.'
         : remaining > 0
           ? `Ready in about ${remaining} min`
           : 'Almost ready…';
