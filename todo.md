@@ -110,11 +110,16 @@ super-admin console. Hardening + polish ongoing.
 - [x] Branding accent reflected on customer CTAs (cart pill, pay, add)
 - [x] Strict 10-digit phone validation everywhere; staff "Password" (not temp)
 
+- [x] Kitchen sound on new order (Web Audio chime, primed on login) + mute toggle
+- [x] Confirmation dialogs for destructive actions (shared `ConfirmProvider`/`useConfirm`):
+      admin deletes (product/category/section/reward/program/table/staff) + order cancel,
+      super-admin suspend/reactivate
+- [x] Customer "Veg only" filter toggle in the menu
+
 ## Pending / Next
 - [ ] Logo/banner upload in Settings (product images done; reuse the `/uploads` endpoint)
 - [ ] Sections drag-and-drop reorder UI (reorder endpoint + up/down buttons exist)
 - [ ] Onboarding wizard (8 guided steps) — backend onboarding state ready
-- [ ] Kitchen sound notifications on new order
 - [ ] Razorpay webhook for async capture/refunds (server-verified callback works today)
 - [ ] Real SMS provider for OTP (dev returns the code in the response + logs)
 

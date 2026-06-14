@@ -9,6 +9,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  useConfirm,
 } from '@feedo/ui';
 import { formatCurrency, formatRelativeTime } from '@feedo/utils';
 import type { Order, OrderStatus } from '@feedo/types';
@@ -47,6 +48,7 @@ export function OrdersPage() {
     filter === 'active' ? { active: true } : filter === 'all' ? {} : { status: filter },
   );
   const updateStatus = useUpdateOrderStatus();
+  const confirm = useConfirm();
 
   return (
     <div className="space-y-6">
@@ -75,7 +77,18 @@ export function OrdersPage() {
               key={order._id}
               order={order}
               onAdvance={(to) => updateStatus.mutate({ id: order._id, status: to })}
-              onCancel={() => updateStatus.mutate({ id: order._id, status: 'cancelled' })}
+              onCancel={async () => {
+                if (
+                  await confirm({
+                    title: `Cancel order #${order.orderNumber}?`,
+                    description: 'This cannot be undone.',
+                    confirmText: 'Cancel order',
+                    cancelText: 'Keep',
+                    destructive: true,
+                  })
+                )
+                  updateStatus.mutate({ id: order._id, status: 'cancelled' });
+              }}
             />
           ))}
         </div>

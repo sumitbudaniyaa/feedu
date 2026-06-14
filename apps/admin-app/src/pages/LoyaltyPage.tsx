@@ -15,6 +15,7 @@ import {
   Select,
   Skeleton,
   Switch,
+  useConfirm,
 } from '@feedo/ui';
 import { formatRelativeTime } from '@feedo/utils';
 import type { LoyaltyReward, LoyaltyRewardType, Product } from '@feedo/types';
@@ -42,6 +43,7 @@ export function LoyaltyPage() {
   const removeProgram = loyaltyApi.useRemove();
   const updateReward = rewardsApi.useUpdate();
   const removeReward = rewardsApi.useRemove();
+  const confirm = useConfirm();
 
   const [programOpen, setProgramOpen] = useState(false);
   const [rewardOpen, setRewardOpen] = useState(false);
@@ -115,7 +117,14 @@ export function LoyaltyPage() {
                     >
                       Edit
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => removeReward.mutate(r._id)}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={async () => {
+                        if (await confirm({ title: `Delete "${r.title}"?`, confirmText: 'Delete', destructive: true }))
+                          removeReward.mutate(r._id);
+                      }}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -166,7 +175,14 @@ export function LoyaltyPage() {
                   checked={p.isActive}
                   onCheckedChange={(v) => updateProgram.mutate({ id: p._id, body: { isActive: v } })}
                 />
-                <Button size="icon" variant="ghost" onClick={() => removeProgram.mutate(p._id)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={async () => {
+                    if (await confirm({ title: `Delete "${p.title}"?`, confirmText: 'Delete', destructive: true }))
+                      removeProgram.mutate(p._id);
+                  }}
+                >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </Card>

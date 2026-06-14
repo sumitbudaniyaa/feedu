@@ -26,6 +26,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState<string>('all');
+  const [vegOnly, setVegOnly] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
 
   useEffect(() => {
@@ -70,11 +71,12 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   }
 
   const { restaurant, categories, products, sections, table } = data;
-  const browsing = activeCat === 'all' && !search;
+  const browsing = activeCat === 'all' && !search && !vegOnly;
   const filtered = products.filter((p) => {
     const matchesCat = activeCat === 'all' || p.categoryId === activeCat;
     const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
-    return matchesCat && matchesSearch;
+    const matchesVeg = !vegOnly || p.isVeg === true;
+    return matchesCat && matchesSearch && matchesVeg;
   });
 
   return (
@@ -135,9 +137,32 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           <SectionsBlock sections={sections} products={products} onCustomise={setSelected} />
         )}
 
-        {categories.length > 0 && (
-          <div className="no-scrollbar sticky top-0 z-10 -mx-5 flex gap-2 overflow-x-auto border-b border-border/60 bg-background/85 px-5 py-2.5 backdrop-blur">
-            {[{ _id: 'all', name: 'All' }, ...categories].map((c) => (
+        <div className="no-scrollbar sticky top-0 z-10 -mx-5 flex items-center gap-2 overflow-x-auto border-b border-border/60 bg-background/85 px-5 py-2.5 backdrop-blur">
+          {/* Veg-only filter */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setVegOnly((v) => !v)}
+            aria-pressed={vegOnly}
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-all',
+              vegOnly ? 'border-success bg-success/10 text-success' : 'border-border text-muted-foreground',
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-3.5 w-3.5 items-center justify-center rounded-sm border',
+                vegOnly ? 'border-success' : 'border-muted-foreground',
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', vegOnly ? 'bg-success' : 'bg-muted-foreground')} />
+            </span>
+            Veg only
+          </motion.button>
+
+          {categories.length > 0 && <span className="h-5 w-px shrink-0 bg-border" />}
+
+          {categories.length > 0 &&
+            [{ _id: 'all', name: 'All' }, ...categories].map((c) => (
               <motion.button
                 key={c._id}
                 whileTap={{ scale: 0.95 }}
@@ -152,8 +177,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
                 {c.name}
               </motion.button>
             ))}
-          </div>
-        )}
+        </div>
 
         <section className="space-y-3">
           {browsing && sections.length > 0 && (

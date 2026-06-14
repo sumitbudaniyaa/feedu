@@ -15,6 +15,7 @@ import {
   Label,
   Select,
   Skeleton,
+  useConfirm,
 } from '@feedo/ui';
 import { formatCurrency, formatDate } from '@feedo/utils';
 import type { SubscriptionPlan, SubscriptionStatus } from '@feedo/types';
@@ -27,7 +28,20 @@ const STATUSES: SubscriptionStatus[] = ['active', 'past_due', 'cancelled', 'tria
 export function RestaurantsPage() {
   const { data, isLoading } = useRestaurants();
   const toggleLive = useToggleLive();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<PlatformRestaurant | null>(null);
+
+  const toggle = async (r: PlatformRestaurant) => {
+    const ok = await confirm({
+      title: r.isLive ? `Suspend ${r.name}?` : `Reactivate ${r.name}?`,
+      description: r.isLive
+        ? 'Their customer ordering will go offline immediately.'
+        : 'Their restaurant will go live again.',
+      confirmText: r.isLive ? 'Suspend' : 'Reactivate',
+      destructive: r.isLive,
+    });
+    if (ok) toggleLive.mutate({ id: r._id, isLive: !r.isLive });
+  };
 
   return (
     <div className="space-y-6">
@@ -71,7 +85,7 @@ export function RestaurantsPage() {
                 size="icon"
                 variant="ghost"
                 title={r.isLive ? 'Suspend' : 'Reactivate'}
-                onClick={() => toggleLive.mutate({ id: r._id, isLive: !r.isLive })}
+                onClick={() => toggle(r)}
               >
                 <Power className="h-4 w-4" />
               </Button>

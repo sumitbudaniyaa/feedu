@@ -12,6 +12,7 @@ import {
   Input,
   Label,
   Skeleton,
+  useConfirm,
 } from '@feedo/ui';
 import type { Table } from '@feedo/types';
 import { apiClient, tables as tablesApi } from '../lib/api.js';
@@ -27,6 +28,7 @@ function qrImage(qrToken: string, size = 240) {
 export function TablesPage() {
   const { data: tables, isLoading } = tablesApi.useList();
   const remove = tablesApi.useRemove();
+  const confirm = useConfirm();
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [count, setCount] = useState('5');
@@ -90,7 +92,14 @@ export function TablesPage() {
                 <p className="truncate font-medium">{t.name}</p>
                 <p className="text-xs text-muted-foreground">{t.seats} seats</p>
               </div>
-              <Button size="icon" variant="ghost" onClick={() => remove.mutate(t._id)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={async () => {
+                  if (await confirm({ title: `Delete ${t.name}?`, description: 'Its QR code will stop working.', confirmText: 'Delete', destructive: true }))
+                    remove.mutate(t._id);
+                }}
+              >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </Card>

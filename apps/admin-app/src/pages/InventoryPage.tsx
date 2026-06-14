@@ -17,6 +17,7 @@ import {
   Skeleton,
   Switch,
   Textarea,
+  useConfirm,
 } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Category, Product } from '@feedo/types';
@@ -27,9 +28,15 @@ export function InventoryPage() {
   const { data: products, isLoading } = productsApi.useList();
   const { data: categories } = categoriesApi.useList();
   const remove = productsApi.useRemove();
+  const confirm = useConfirm();
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
+
+  const deleteProduct = async (p: Product) => {
+    if (await confirm({ title: `Delete ${p.name}?`, description: 'This removes the product permanently.', confirmText: 'Delete', destructive: true }))
+      remove.mutate(p._id);
+  };
 
   const catName = (id: string) => categories?.find((c) => c._id === id)?.name ?? '—';
 
@@ -99,11 +106,7 @@ export function InventoryPage() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => remove.mutate(p._id)}
-                >
+                <Button size="icon" variant="ghost" onClick={() => deleteProduct(p)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
@@ -322,7 +325,13 @@ function initial(product: Product | null, categories: Category[]) {
 function CategoryDialog({ categories }: { categories: Category[] }) {
   const create = categoriesApi.useCreate();
   const remove = categoriesApi.useRemove();
+  const confirm = useConfirm();
   const [name, setName] = useState('');
+
+  const deleteCategory = async (c: Category) => {
+    if (await confirm({ title: `Delete ${c.name}?`, description: 'Products keep their category id but it will no longer resolve.', confirmText: 'Delete', destructive: true }))
+      remove.mutate(c._id);
+  };
 
   return (
     <Dialog>
@@ -355,7 +364,7 @@ function CategoryDialog({ categories }: { categories: Category[] }) {
           {categories.map((c) => (
             <div key={c._id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
               <span className="text-sm">{c.name}</span>
-              <Button size="icon" variant="ghost" onClick={() => remove.mutate(c._id)}>
+              <Button size="icon" variant="ghost" onClick={() => deleteCategory(c)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>

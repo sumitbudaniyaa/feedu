@@ -27,6 +27,7 @@ import {
   Skeleton,
   Switch,
   cn,
+  useConfirm,
 } from '@feedo/ui';
 import type { Product, Section, SectionLayout } from '@feedo/types';
 import { apiClient, products as productsApi, sections as sectionsApi } from '../lib/api.js';
@@ -43,6 +44,7 @@ export function MenuPage() {
   const { data: products } = productsApi.useList();
   const update = sectionsApi.useUpdate();
   const remove = sectionsApi.useRemove();
+  const confirm = useConfirm();
   const qc = useQueryClient();
 
   const reorder = useMutation({
@@ -171,7 +173,21 @@ export function MenuPage() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => remove.mutate(s._id)}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: `Delete "${s.title}"?`,
+                              description: 'This section will be removed from the customer menu.',
+                              confirmText: 'Delete',
+                              destructive: true,
+                            })
+                          )
+                            remove.mutate(s._id);
+                        }}
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>

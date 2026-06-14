@@ -16,6 +16,7 @@ import {
   Label,
   Select,
   Skeleton,
+  useConfirm,
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import type { StaffRole } from '@feedo/types';
@@ -27,6 +28,7 @@ const ROLES: StaffRole[] = ['manager', 'kitchen', 'waiter'];
 export function StaffPage() {
   const { data: members, isLoading } = staffApi.useList();
   const remove = staffApi.useRemove();
+  const confirm = useConfirm();
   const me = useAuth((s) => s.user);
   const [open, setOpen] = useState(false);
 
@@ -63,7 +65,14 @@ export function StaffPage() {
                 {m.role}
               </Badge>
               {m.role !== 'owner' && m._id !== me?._id && (
-                <Button size="icon" variant="ghost" onClick={() => remove.mutate(m._id)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={async () => {
+                    if (await confirm({ title: `Remove ${m.name}?`, description: 'They will lose access immediately.', confirmText: 'Remove', destructive: true }))
+                      remove.mutate(m._id);
+                  }}
+                >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               )}

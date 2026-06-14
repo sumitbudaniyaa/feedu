@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Clock, LogOut } from 'lucide-react';
+import { Clock, LogOut, Volume2, VolumeX } from 'lucide-react';
 import { SOCKET_EVENTS } from '@feedo/types';
 import type { Order, OrderStatus } from '@feedo/types';
 import { Badge, Button, EmptyState, Skeleton, ThemeToggle, cn } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
 import { ChefHat } from 'lucide-react';
 import { socket, useAuth, useLogin, useLogout, useMe, useOrders, useUpdateOrderStatus } from './lib/api.js';
+import { playNewOrderChime, primeSound } from './lib/sound.js';
 
 export function App() {
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
@@ -20,6 +21,7 @@ function KitchenBoard() {
   const logout = useLogout();
   const restaurantId = useAuth((s) => s.user?.restaurantId);
   const qc = useQueryClient();
+  const [muted, setMuted] = useState(() => localStorage.getItem('feedo-kitchen-muted') === '1');
 
   // Keep the session user hydrated for restaurantId.
   useMe();
@@ -29,13 +31,26 @@ function KitchenBoard() {
     if (!socket.connected) socket.connect();
     socket.emit('join:restaurant', restaurantId);
     const refresh = () => qc.invalidateQueries({ queryKey: ['orders'] });
-    socket.on(SOCKET_EVENTS.ORDER_CREATED, refresh);
+    const onNew = () => {
+      refresh();
+      if (localStorage.getItem('feedo-kitchen-muted') !== '1') playNewOrderChime();
+    };
+    socket.on(SOCKET_EVENTS.ORDER_CREATED, onNew);
     socket.on(SOCKET_EVENTS.ORDER_UPDATED, refresh);
     return () => {
-      socket.off(SOCKET_EVENTS.ORDER_CREATED, refresh);
+      socket.off(SOCKET_EVENTS.ORDER_CREATED, onNew);
       socket.off(SOCKET_EVENTS.ORDER_UPDATED, refresh);
     };
   }, [restaurantId, qc]);
+
+  const toggleMute = () => {
+    setMuted((m) => {
+      const next = !m;
+      localStorage.setItem('feedo-kitchen-muted', next ? '1' : '0');
+      if (!next) playNewOrderChime(); // confirm sound when unmuting
+      return next;
+    });
+  };
 
   const advance = (id: string, status: OrderStatus) => updateStatus.mutate({ id, status });
 
@@ -50,6 +65,9 @@ function KitchenBoard() {
           <Badge variant="outline">{orders?.length ?? 0} active</Badge>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={toggleMute} title={muted ? 'Unmute new-order sound' : 'Mute new-order sound'}>
+            {muted ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4" />}
+          </Button>
           <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={logout}>
             <LogOut className="h-4 w-4" />
@@ -191,6 +209,7 @@ function KitchenLogin() {
         className="w-full max-w-sm space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
+          primeSound(); // unlock audio within this user gesture
           const fd = new FormData(e.currentTarget);
           login.mutate({ email: String(fd.get('email')), password: String(fd.get('password')) });
         }}
