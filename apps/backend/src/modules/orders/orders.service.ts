@@ -437,12 +437,26 @@ export function markPaid(orderId: string, providerRef?: string) {
   return finalizeOrder(orderId, { paid: true, method: 'razorpay', providerRef });
 }
 
-/** Mark a cash order's payment collected at the counter (admin action). */
-export async function markCashCollected(restaurantId: string, orderId: string) {
+/** Record a manual payment for an order (admin marks it paid, picking the method). */
+export async function recordPayment(
+  restaurantId: string,
+  orderId: string,
+  method: 'cash' | 'upi' | 'card' | 'zomato' | 'swiggy' | 'district',
+) {
   const order = await Order.findOne({ _id: orderId, restaurantId });
   if (!order) throw ApiError.notFound('Order not found');
   order.paymentStatus = 'paid';
+  order.paymentMethod = method;
   await order.save();
+
+  await Payment.create({
+    restaurantId,
+    orderId: order._id,
+    amount: order.total,
+    method,
+    status: 'paid',
+  }).catch(() => undefined);
+
   const obj = order.toObject();
   emit(SOCKET_EVENTS.ORDER_UPDATED, restaurantId, obj);
   return obj;

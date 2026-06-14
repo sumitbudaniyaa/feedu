@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
-import { Download } from 'lucide-react';
+import { BadgeCheck, Download } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -8,13 +8,23 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Select,
   Separator,
   cn,
 } from '@feedo/ui';
 import { formatCurrency, formatDate, formatTime } from '@feedo/utils';
 import type { Order } from '@feedo/types';
-import { useMarkCashPaid, useRestaurant } from '../lib/api.js';
+import { useRecordPayment, useRestaurant } from '../lib/api.js';
 import { Invoice } from './Invoice.js';
+
+const PAY_METHODS = [
+  { id: 'cash', label: 'Cash' },
+  { id: 'upi', label: 'UPI' },
+  { id: 'card', label: 'Card' },
+  { id: 'zomato', label: 'Zomato' },
+  { id: 'swiggy', label: 'Swiggy' },
+  { id: 'district', label: 'District' },
+] as const;
 
 const CHANNEL_LABEL: Record<string, string> = {
   app: 'App',
@@ -46,9 +56,10 @@ export function OrderDetailsDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { data: restaurant } = useRestaurant();
-  const markCashPaid = useMarkCashPaid();
+  const recordPayment = useRecordPayment();
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [method, setMethod] = useState<string>('cash');
 
   const downloadInvoice = async () => {
     if (!invoiceRef.current) return;
@@ -163,14 +174,34 @@ export function OrderDetailsDialog({
               </p>
             )}
 
-            {order.paymentMethod === 'cash' && order.paymentStatus === 'unpaid' && (
-              <Button
-                className="w-full"
-                onClick={() => markCashPaid.mutate(order._id)}
-                disabled={markCashPaid.isPending}
-              >
-                {markCashPaid.isPending ? 'Updating…' : 'Mark cash collected'}
-              </Button>
+            {/* Payment: mark unpaid orders paid with the method actually used. */}
+            {order.paymentStatus === 'unpaid' ? (
+              <div className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/5 p-3">
+                <p className="flex items-center justify-between text-sm font-medium">
+                  <span>Payment pending</span>
+                  <Badge variant="destructive">Unpaid</Badge>
+                </p>
+                <p className="text-xs text-muted-foreground">Collected the payment? Record it below.</p>
+                <div className="flex gap-2">
+                  <Select value={method} onChange={(e) => setMethod(e.target.value)} className="flex-1">
+                    {PAY_METHODS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    onClick={() => recordPayment.mutate({ id: order._id, method })}
+                    disabled={recordPayment.isPending}
+                  >
+                    {recordPayment.isPending ? 'Saving…' : 'Mark paid'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="flex items-center justify-center gap-1.5 text-sm text-success">
+                <BadgeCheck className="h-4 w-4" /> Paid{order.paymentMethod ? ` · ${order.paymentMethod}` : ''}
+              </p>
             )}
 
             <Button variant="outline" className="w-full" onClick={downloadInvoice} disabled={downloading}>

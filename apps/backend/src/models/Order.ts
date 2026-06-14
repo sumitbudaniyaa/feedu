@@ -63,7 +63,10 @@ const orderSchema = new Schema(
       enum: ['unpaid', 'paid', 'refunded', 'failed'],
       default: 'unpaid',
     },
-    paymentMethod: { type: String, enum: ['cash', 'card', 'upi', 'razorpay', 'stripe', 'reward'] },
+    paymentMethod: {
+      type: String,
+      enum: ['cash', 'card', 'upi', 'razorpay', 'stripe', 'reward', 'zomato', 'swiggy', 'district'],
+    },
     notes: String,
     placedAt: { type: Date, default: Date.now },
     readyAt: Date,

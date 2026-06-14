@@ -182,10 +182,14 @@ fallback), but the primary UX is the cart flow above.
 
 ### Payment methods & sales channels
 Checkout offers **online (Razorpay)** or **cash / pay-at-counter**. A cash order is
-confirmed immediately (goes to the kitchen) but left `paymentStatus: unpaid`; staff mark
-it collected via `PATCH /orders/:id/pay-cash`. Online and ₹0/reward-only orders are
-finalized as paid. `finalizeOrder()` centralizes confirm + loyalty accrual + reward-spend;
-`markPaid` (online) and the cash path both call it.
+confirmed immediately (goes to the kitchen) but left `paymentStatus: unpaid` — it never
+auto-pays. An admin records the payment via `PATCH /orders/:id/payment { method }`, choosing
+the method actually used (`cash | upi | card | zomato | swiggy | district`); this sets the
+order paid, stamps the method, and writes a `Payment`. Online and ₹0/reward-only orders are
+finalized as paid at checkout. `finalizeOrder()` centralizes confirm + loyalty accrual +
+reward-spend; `markPaid` (online) and the cash path both call it. The admin Orders page has
+two tabs (Active / All); each row shows a Paid/Unpaid badge and opens a details dialog with
+customer info + the mark-paid control.
 
 Every order records a **`channel`** (`app | counter | zomato | swiggy | district`): the
 customer app sets `app`, staff orders `counter`, and the aggregator webhook sets the

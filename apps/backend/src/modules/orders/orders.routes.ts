@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { createOrderSchema, updateOrderStatusSchema } from '@feedo/types';
+import { z } from 'zod';
+import { createOrderSchema, manualPaymentMethodSchema, updateOrderStatusSchema } from '@feedo/types';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { validate } from '../../middleware/validate.js';
@@ -52,13 +53,14 @@ router.get(
   asyncHandler(async (req, res) => ok(res, await orders.getOrder(req.restaurantId!, req.params.id!))),
 );
 
-// Mark a cash/counter order's payment collected.
+// Record a manual payment (admin marks an unpaid order paid, choosing the method).
 router.patch(
-  '/:id/pay-cash',
+  '/:id/payment',
   validateObjectId(),
   authorize('owner', 'manager', 'waiter'),
+  validate(z.object({ method: manualPaymentMethodSchema })),
   asyncHandler(async (req, res) => {
-    const order = await orders.markCashCollected(req.restaurantId!, req.params.id!);
+    const order = await orders.recordPayment(req.restaurantId!, req.params.id!, req.body.method);
     return ok(res, order);
   }),
 );

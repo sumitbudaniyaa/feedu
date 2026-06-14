@@ -15,12 +15,11 @@ import { formatCurrency, formatRelativeTime } from '@feedo/utils';
 import type { Order, OrderStatus } from '@feedo/types';
 import { useOrders, useUpdateOrderStatus } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
+import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
 
 const FILTERS: { value: string; label: string }[] = [
   { value: 'active', label: 'Active' },
   { value: 'all', label: 'All' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
@@ -49,6 +48,7 @@ export function OrdersPage() {
   );
   const updateStatus = useUpdateOrderStatus();
   const confirm = useConfirm();
+  const [selected, setSelected] = useState<Order | null>(null);
 
   return (
     <div className="space-y-6">
@@ -76,6 +76,7 @@ export function OrdersPage() {
             <OrderRow
               key={order._id}
               order={order}
+              onDetails={() => setSelected(order)}
               onAdvance={(to) => updateStatus.mutate({ id: order._id, status: to })}
               onCancel={async () => {
                 if (
@@ -95,6 +96,8 @@ export function OrdersPage() {
       ) : (
         <EmptyState icon={ShoppingBag} title="No orders here" description="New orders will appear automatically." />
       )}
+
+      <OrderDetailsDialog order={selected} open={Boolean(selected)} onOpenChange={(v) => !v && setSelected(null)} />
     </div>
   );
 }
@@ -103,19 +106,22 @@ function OrderRow({
   order,
   onAdvance,
   onCancel,
+  onDetails,
 }: {
   order: Order;
   onAdvance: (to: OrderStatus) => void;
   onCancel: () => void;
+  onDetails: () => void;
 }) {
   const next = NEXT[order.status];
   const terminal = ['completed', 'cancelled', 'refunded'].includes(order.status);
+  const unpaid = order.paymentStatus === 'unpaid';
 
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">#{order.orderNumber}</span>
             <Badge variant={STATUS_VARIANT[order.status]} className="capitalize">
               {order.status}
@@ -123,16 +129,24 @@ function OrderRow({
             <Badge variant="outline" className="capitalize">
               {order.type.replace('_', '-')}
             </Badge>
+            {order.channel && order.channel !== 'app' && (
+              <Badge variant="outline" className="capitalize">
+                {order.channel}
+              </Badge>
+            )}
+            {unpaid ? (
+              <Badge variant="destructive">Unpaid</Badge>
+            ) : (
+              <Badge variant="success">Paid</Badge>
+            )}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
+            {order.customerName ? `${order.customerName} · ` : ''}
             {formatRelativeTime(order.placedAt)} · {order.items.length} item
             {order.items.length > 1 ? 's' : ''}
           </p>
         </div>
-        <div className="text-right">
-          <p className="font-semibold">{formatCurrency(order.total)}</p>
-          <p className="text-xs capitalize text-muted-foreground">{order.paymentStatus}</p>
-        </div>
+        <p className="font-semibold">{formatCurrency(order.total)}</p>
       </div>
 
       <div className="mt-3 space-y-1 border-t border-border pt-3">
@@ -145,20 +159,21 @@ function OrderRow({
         ))}
       </div>
 
-      {!terminal && (
-        <div className="mt-3 flex gap-2">
-          {next && (
-            <Button size="sm" onClick={() => onAdvance(next.to)}>
-              {next.label}
-            </Button>
-          )}
-          {order.status !== 'served' && (
-            <Button size="sm" variant="ghost" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={onDetails}>
+          Details & payment
+        </Button>
+        {!terminal && next && (
+          <Button size="sm" onClick={() => onAdvance(next.to)}>
+            {next.label}
+          </Button>
+        )}
+        {!terminal && order.status !== 'served' && (
+          <Button size="sm" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }

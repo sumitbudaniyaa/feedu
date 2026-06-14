@@ -45,7 +45,19 @@ export type OrderChannel = z.infer<typeof orderChannelSchema>;
 export const paymentStatusSchema = z.enum(['unpaid', 'paid', 'refunded', 'failed']);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
-export const paymentMethodSchema = z.enum(['cash', 'card', 'upi', 'razorpay', 'stripe', 'reward']);
+export const paymentMethodSchema = z.enum([
+  'cash',
+  'card',
+  'upi',
+  'razorpay',
+  'stripe',
+  'reward',
+  'zomato',
+  'swiggy',
+  'district',
+]);
+/** Methods an admin can record a manual payment against. */
+export const manualPaymentMethodSchema = z.enum(['cash', 'upi', 'card', 'zomato', 'swiggy', 'district']);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
 export const sectionLayoutSchema = z.enum(['carousel', 'hero', 'grid']);

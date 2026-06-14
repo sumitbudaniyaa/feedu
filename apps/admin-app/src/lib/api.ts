@@ -46,7 +46,7 @@ export const {
   useDashboard,
   useOrders,
   useUpdateOrderStatus,
-  useMarkCashPaid,
+  useRecordPayment,
   useRedemptions,
   useUpdateRedemption,
 } = domain;
