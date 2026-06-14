@@ -21,9 +21,10 @@ export async function getDashboardStats(
   range: 'day' | 'week' | 'month' = 'week',
 ): Promise<DashboardStats> {
   const today = startOfDay();
-  const yesterday = new Date(today.getTime() - 86400000);
   const rangeDays = range === 'day' ? 1 : range === 'week' ? 7 : 30;
   const rangeStart = new Date(today.getTime() - (rangeDays - 1) * 86400000);
+  // Previous equivalent window, for the change %.
+  const prevStart = new Date(rangeStart.getTime() - rangeDays * 86400000);
 
   // Aggregation pipelines do NOT auto-cast — restaurantId must be a real ObjectId.
   const rid = new Types.ObjectId(restaurantId);
@@ -31,12 +32,14 @@ export async function getDashboardStats(
 
   const [todayAgg, yestAgg, series, topProducts, peakHours, lowStock, allTimeCustomers, channels] =
     await Promise.all([
+      // Current selected window (day / week / month).
       Order.aggregate([
-        { $match: { ...matchPaid, placedAt: { $gte: today } } },
+        { $match: { ...matchPaid, placedAt: { $gte: rangeStart } } },
         { $group: { _id: null, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
       ]),
+      // Previous equivalent window.
       Order.aggregate([
-        { $match: { ...matchPaid, placedAt: { $gte: yesterday, $lt: today } } },
+        { $match: { ...matchPaid, placedAt: { $gte: prevStart, $lt: rangeStart } } },
         { $group: { _id: null, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
       ]),
       Order.aggregate([
@@ -90,15 +93,15 @@ export async function getDashboardStats(
 
   const repeat = allTimeCustomers.filter((c) => c.orders > 1).length;
   const totalCustomers = allTimeCustomers.length;
-  const todayRevenue = todayAgg[0]?.revenue ?? 0;
-  const todayOrders = todayAgg[0]?.orders ?? 0;
+  const rangeRevenue = todayAgg[0]?.revenue ?? 0;
+  const rangeOrders = todayAgg[0]?.orders ?? 0;
 
   return {
-    revenueToday: todayRevenue,
-    revenueChangePct: pct(todayRevenue, yestAgg[0]?.revenue ?? 0),
-    ordersToday: todayOrders,
-    ordersChangePct: pct(todayOrders, yestAgg[0]?.orders ?? 0),
-    avgOrderValue: todayOrders ? Math.round(todayRevenue / todayOrders) : 0,
+    revenue: rangeRevenue,
+    revenueChangePct: pct(rangeRevenue, yestAgg[0]?.revenue ?? 0),
+    orders: rangeOrders,
+    ordersChangePct: pct(rangeOrders, yestAgg[0]?.orders ?? 0),
+    avgOrderValue: rangeOrders ? Math.round(rangeRevenue / rangeOrders) : 0,
     repeatCustomerPct: totalCustomers ? Math.round((repeat / totalCustomers) * 100) : 0,
     revenueSeries: series.map((s) => ({ date: s._id, revenue: s.revenue, orders: s.orders })),
     topProducts: topProducts.map((p) => ({

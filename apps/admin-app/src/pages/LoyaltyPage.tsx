@@ -388,6 +388,8 @@ function ProgramDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
   const [rewardDescription, setReward] = useState('');
   const [pointsPerCurrency, setPpc] = useState('0.1');
   const [everyNthOrder, setNth] = useState('5');
+  const [canExpire, setCanExpire] = useState(false);
+  const [expiryDays, setExpiryDays] = useState('90');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -398,7 +400,14 @@ function ProgramDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
           ? { everyNthOrder: Number(everyNthOrder) }
           : {};
     create.mutate(
-      { title, type, isActive: true, conditions, rewardDescription: rewardDescription || undefined },
+      {
+        title,
+        type,
+        isActive: true,
+        conditions,
+        rewardDescription: rewardDescription || undefined,
+        expiryDays: canExpire ? Number(expiryDays) : 0,
+      },
       {
         onSuccess: () => {
           onOpenChange(false);
@@ -446,6 +455,29 @@ function ProgramDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
             <Label>Description</Label>
             <Input value={rewardDescription} onChange={(e) => setReward(e.target.value)} placeholder="Earn 10 pts per ₹100" />
           </div>
+
+          {/* Points expiry */}
+          <div className="space-y-2 rounded-lg border border-border p-3">
+            <label className="flex items-center justify-between">
+              <span className="text-sm font-medium">Points can expire</span>
+              <Switch checked={canExpire} onCheckedChange={setCanExpire} />
+            </label>
+            {canExpire && (
+              <div className="space-y-1.5">
+                <Label>Expire after (days of inactivity)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={expiryDays}
+                  onChange={(e) => setExpiryDays(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  A diner&apos;s points reset to 0 if they don&apos;t order within this many days.
+                </p>
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

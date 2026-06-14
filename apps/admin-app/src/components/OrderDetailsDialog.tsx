@@ -191,7 +191,12 @@ export function OrderDetailsDialog({
                     ))}
                   </Select>
                   <Button
-                    onClick={() => recordPayment.mutate({ id: order._id, method })}
+                    onClick={() =>
+                      recordPayment.mutate(
+                        { id: order._id, method },
+                        { onSuccess: () => onOpenChange(false) },
+                      )
+                    }
                     disabled={recordPayment.isPending}
                   >
                     {recordPayment.isPending ? 'Saving…' : 'Mark paid'}

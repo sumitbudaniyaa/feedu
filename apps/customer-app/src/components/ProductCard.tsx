@@ -129,7 +129,11 @@ export function ProductCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="group flex h-full flex-col overflow-hidden">
+      {/* Tapping anywhere on the card opens the full product detail sheet. */}
+      <Card
+        onClick={onCustomise}
+        className="group flex h-full cursor-pointer flex-col overflow-hidden transition-shadow hover:shadow-card active:scale-[0.99]"
+      >
         <ProductImage product={product} className="aspect-square" />
         <div className="flex flex-1 flex-col p-3">
           <p className="line-clamp-2 text-sm font-medium leading-snug">{product.name}</p>
@@ -147,7 +151,10 @@ export function ProductCard({
           </div>
           <div className="mt-auto flex items-center justify-between pt-3">
             <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
-            <AddControl product={product} onCustomise={onCustomise} />
+            {/* Quick-add shouldn't trigger the card's open-sheet tap. */}
+            <span onClick={(e) => e.stopPropagation()}>
+              <AddControl product={product} onCustomise={onCustomise} />
+            </span>
           </div>
         </div>
       </Card>

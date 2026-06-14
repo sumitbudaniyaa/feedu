@@ -120,14 +120,36 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           </span>
         )}
 
-        <div className="relative mt-4">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search dishes…"
-            className="h-12 rounded-xl border-0 bg-white pl-10 text-foreground shadow-elevated"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="relative mt-4 flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search dishes…"
+              className="h-12 rounded-xl border-0 bg-white pl-10 text-foreground shadow-elevated"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {/* Veg-only filter, kept at the top for quick access. */}
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={() => setVegOnly((v) => !v)}
+            aria-pressed={vegOnly}
+            className={cn(
+              'flex h-12 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold shadow-elevated transition-colors',
+              vegOnly ? 'bg-success text-white' : 'bg-white text-foreground',
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-4 w-4 items-center justify-center rounded-sm border',
+                vegOnly ? 'border-white' : 'border-success',
+              )}
+            >
+              <span className={cn('h-2 w-2 rounded-full', vegOnly ? 'bg-white' : 'bg-success')} />
+            </span>
+            Veg
+          </motion.button>
         </div>
       </header>
 
@@ -137,32 +159,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           <SectionsBlock sections={sections} products={products} onCustomise={setSelected} />
         )}
 
-        <div className="no-scrollbar sticky top-0 z-10 -mx-5 flex items-center gap-2 overflow-x-auto border-b border-border/60 bg-background/85 px-5 py-2.5 backdrop-blur">
-          {/* Veg-only filter */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setVegOnly((v) => !v)}
-            aria-pressed={vegOnly}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-all',
-              vegOnly ? 'border-success bg-success/10 text-success' : 'border-border text-muted-foreground',
-            )}
-          >
-            <span
-              className={cn(
-                'flex h-3.5 w-3.5 items-center justify-center rounded-sm border',
-                vegOnly ? 'border-success' : 'border-muted-foreground',
-              )}
-            >
-              <span className={cn('h-1.5 w-1.5 rounded-full', vegOnly ? 'bg-success' : 'bg-muted-foreground')} />
-            </span>
-            Veg only
-          </motion.button>
-
-          {categories.length > 0 && <span className="h-5 w-px shrink-0 bg-border" />}
-
-          {categories.length > 0 &&
-            [{ _id: 'all', name: 'All' }, ...categories].map((c) => (
+        {categories.length > 0 && (
+          <div className="no-scrollbar sticky top-0 z-10 -mx-5 flex items-center gap-2 overflow-x-auto border-b border-border/60 bg-background/85 px-5 py-2.5 backdrop-blur">
+            {[{ _id: 'all', name: 'All' }, ...categories].map((c) => (
               <motion.button
                 key={c._id}
                 whileTap={{ scale: 0.95 }}
@@ -177,7 +176,8 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
                 {c.name}
               </motion.button>
             ))}
-        </div>
+          </div>
+        )}
 
         <section className="space-y-3">
           {browsing && sections.length > 0 && (

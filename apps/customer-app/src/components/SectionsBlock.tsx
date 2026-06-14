@@ -71,8 +71,9 @@ function CarouselCard({ product, onCustomise }: { product: Product; onCustomise:
   const { qty } = useAddProduct(product);
   return (
     <Card
+      onClick={onCustomise}
       className={cn(
-        'group w-40 shrink-0 snap-start overflow-hidden transition-shadow hover:shadow-card',
+        'group w-40 shrink-0 cursor-pointer snap-start overflow-hidden transition-shadow hover:shadow-card active:scale-[0.99]',
         qty > 0 && 'ring-1 ring-foreground/15',
       )}
     >
@@ -81,7 +82,9 @@ function CarouselCard({ product, onCustomise }: { product: Product; onCustomise:
         <p className="truncate text-sm font-medium leading-snug">{product.name}</p>
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
-          <AddControl product={product} onCustomise={onCustomise} size="sm" />
+          <span onClick={(e) => e.stopPropagation()}>
+            <AddControl product={product} onCustomise={onCustomise} size="sm" />
+          </span>
         </div>
       </div>
     </Card>
@@ -93,7 +96,10 @@ function Hero({ items, onCustomise }: { items: Product[]; onCustomise: (p: Produ
   if (!feature) return null;
   return (
     <div className="space-y-4">
-      <Card className="group overflow-hidden">
+      <Card
+        onClick={() => onCustomise(feature)}
+        className="group cursor-pointer overflow-hidden transition-shadow hover:shadow-card active:scale-[0.99]"
+      >
         <ProductImage product={feature} className="aspect-[16/9]" />
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="min-w-0">
@@ -103,7 +109,9 @@ function Hero({ items, onCustomise }: { items: Product[]; onCustomise: (p: Produ
             )}
             <p className="mt-1 text-sm font-semibold">{formatCurrency(feature.basePrice)}</p>
           </div>
-          <AddControl product={feature} onCustomise={() => onCustomise(feature)} />
+          <span onClick={(e) => e.stopPropagation()}>
+            <AddControl product={feature} onCustomise={() => onCustomise(feature)} />
+          </span>
         </div>
       </Card>
       {rest.length > 0 && <Carousel items={rest} onCustomise={onCustomise} />}

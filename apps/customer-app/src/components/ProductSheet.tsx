@@ -1,19 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Clock, Sparkles } from 'lucide-react';
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  cn,
-} from '@feedo/ui';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Clock, Minus, Plus, Sparkles, X } from 'lucide-react';
+import { Button, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
 import { useCart } from '../store/cart.js';
 
-/** Variant + add-on selection before adding a product to the cart. */
+/** Full-detail bottom sheet: shows everything about a product and its order options. */
 export function ProductSheet({
   product,
   onClose,
@@ -44,109 +37,184 @@ export function ProductSheet({
     return price;
   }, [product, variant, addons]);
 
-  if (!product) return null;
-
   const toggleAddon = (label: string) =>
     setAddons((prev) => (prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]));
 
   return (
-    <Dialog open={Boolean(product)} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-sm">
-        {product.image?.url && (
-          <img src={product.image.url} alt={product.name} className="h-40 w-full rounded-xl object-cover" />
-        )}
-        <DialogHeader>
-          <DialogTitle>{product.name}</DialogTitle>
-        </DialogHeader>
-
-        {product.description && (
-          <p className="text-sm text-muted-foreground">{product.description}</p>
-        )}
-
-        {((product.prepTimeMinutes ?? 0) > 0 || (product.loyaltyPoints ?? 0) > 0) && (
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            {(product.prepTimeMinutes ?? 0) > 0 && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" /> ~{product.prepTimeMinutes} min prep
-              </span>
-            )}
-            {(product.loyaltyPoints ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-accent">
-                <Sparkles className="h-3.5 w-3.5" /> Earn {product.loyaltyPoints} pts each
-              </span>
-            )}
-          </div>
-        )}
-
-        {product.variants.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Choose size</p>
-            <div className="flex flex-wrap gap-2">
-              {product.variants.map((v) => (
+    <AnimatePresence>
+      {product && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92vh] max-w-md flex-col overflow-hidden rounded-t-3xl bg-card shadow-elevated"
+          >
+            {/* Scrollable content */}
+            <div className="no-scrollbar flex-1 overflow-y-auto">
+              {/* Hero image (or gradient placeholder) */}
+              <div className="relative">
+                {product.image?.url ? (
+                  <img src={product.image.url} alt={product.name} className="h-56 w-full object-cover" />
+                ) : (
+                  <div
+                    className="flex h-44 w-full items-center justify-center text-5xl font-bold text-white"
+                    style={{
+                      background:
+                        'linear-gradient(150deg, hsl(var(--accent)), hsl(var(--accent) / 0.6))',
+                    }}
+                  >
+                    {product.name[0]}
+                  </div>
+                )}
                 <button
-                  key={v.label}
-                  onClick={() => setVariant(v.label)}
-                  className={cn(
-                    'rounded-lg border px-3 py-1.5 text-sm transition-colors',
-                    variant === v.label ? 'border-foreground bg-foreground/5 font-medium text-foreground' : 'border-border',
-                  )}
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-foreground shadow-soft backdrop-blur transition-colors hover:bg-background"
                 >
-                  {v.label} · {formatCurrency(v.price)}
+                  <X className="h-5 w-5" />
                 </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {product.addons.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Add-ons</p>
-            <div className="space-y-1.5">
-              {product.addons.map((a) => (
-                <label key={a.label} className="flex cursor-pointer items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-                  <span className="flex items-center gap-2">
-                    <input type="checkbox" checked={addons.includes(a.label)} onChange={() => toggleAddon(a.label)} className="accent-[hsl(var(--accent))]" />
-                    {a.label}
+                {product.isVeg !== undefined && (
+                  <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium shadow-soft backdrop-blur">
+                    <span
+                      className={cn(
+                        'flex h-3.5 w-3.5 items-center justify-center rounded-sm border',
+                        product.isVeg ? 'border-success' : 'border-destructive',
+                      )}
+                    >
+                      <span className={cn('h-1.5 w-1.5 rounded-full', product.isVeg ? 'bg-success' : 'bg-destructive')} />
+                    </span>
+                    {product.isVeg ? 'Veg' : 'Non-veg'}
                   </span>
-                  <span className="text-muted-foreground">+{formatCurrency(a.price)}</span>
-                </label>
-              ))}
+                )}
+              </div>
+
+              <div className="space-y-5 p-5">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight">{product.name}</h2>
+                  <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(product.basePrice)}</p>
+                  {product.description && (
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{product.description}</p>
+                  )}
+                </div>
+
+                {((product.prepTimeMinutes ?? 0) > 0 || (product.loyaltyPoints ?? 0) > 0) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(product.prepTimeMinutes ?? 0) > 0 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" /> ~{product.prepTimeMinutes} min prep
+                      </span>
+                    )}
+                    {(product.loyaltyPoints ?? 0) > 0 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent">
+                        <Sparkles className="h-3.5 w-3.5" /> Earn {product.loyaltyPoints} pts each
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {product.variants.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Choose size</p>
+                    <div className="flex flex-wrap gap-2">
+                      {product.variants.map((v) => (
+                        <button
+                          key={v.label}
+                          onClick={() => setVariant(v.label)}
+                          className={cn(
+                            'rounded-xl border px-3.5 py-2 text-sm transition-colors',
+                            variant === v.label
+                              ? 'border-foreground bg-foreground/5 font-medium text-foreground'
+                              : 'border-border text-muted-foreground hover:border-foreground/30',
+                          )}
+                        >
+                          {v.label} · {formatCurrency(v.price)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {product.addons.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Add-ons</p>
+                    <div className="space-y-2">
+                      {product.addons.map((a) => (
+                        <label
+                          key={a.label}
+                          className="flex cursor-pointer items-center justify-between rounded-xl border border-border px-3.5 py-2.5 text-sm transition-colors hover:bg-secondary/50"
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={addons.includes(a.label)}
+                              onChange={() => toggleAddon(a.label)}
+                              className="h-4 w-4 accent-[hsl(var(--accent))]"
+                            />
+                            {a.label}
+                          </span>
+                          <span className="text-muted-foreground">+{formatCurrency(a.price)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 rounded-lg border border-border px-2 py-1">
-            <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-2 text-lg">−</button>
-            <span className="w-6 text-center text-sm font-medium">{qty}</span>
-            <button onClick={() => setQty((q) => q + 1)} className="px-2 text-lg">+</button>
-          </div>
-          {product.isVeg !== undefined && (
-            <Badge variant={product.isVeg ? 'success' : 'destructive'}>
-              {product.isVeg ? 'Veg' : 'Non-veg'}
-            </Badge>
-          )}
-        </div>
-
-        <Button
-          className="w-full"
-          onClick={() => {
-            add(
-              {
-                productId: product._id,
-                name: product.name,
-                variantLabel: variant,
-                addonLabels: addons,
-                unitPrice,
-              },
-              qty,
-            );
-            onClose();
-          }}
-        >
-          Add {qty} · {formatCurrency(unitPrice * qty)}
-        </Button>
-      </DialogContent>
-    </Dialog>
+            {/* Sticky footer: quantity + add */}
+            <div className="flex items-center gap-3 border-t border-border bg-card p-4 pb-6">
+              <div className="flex shrink-0 items-center gap-1 rounded-xl border border-border px-1.5 py-1.5">
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  className="flex h-8 w-8 items-center justify-center"
+                  aria-label="Decrease"
+                >
+                  <Minus className="h-4 w-4" />
+                </motion.button>
+                <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={() => setQty((q) => q + 1)}
+                  className="flex h-8 w-8 items-center justify-center"
+                  aria-label="Increase"
+                >
+                  <Plus className="h-4 w-4" />
+                </motion.button>
+              </div>
+              <Button
+                variant="success"
+                className="h-12 flex-1 justify-between rounded-xl"
+                onClick={() => {
+                  add(
+                    {
+                      productId: product._id,
+                      name: product.name,
+                      variantLabel: variant,
+                      addonLabels: addons,
+                      unitPrice,
+                    },
+                    qty,
+                  );
+                  onClose();
+                }}
+              >
+                <span>Add {qty} to order</span>
+                <span>{formatCurrency(unitPrice * qty)}</span>
+              </Button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

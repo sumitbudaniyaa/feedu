@@ -9,9 +9,10 @@ export interface RevenuePoint {
 }
 
 export interface DashboardStats {
-  revenueToday: number;
+  /** Revenue/orders for the selected range (day/week/month). */
+  revenue: number;
   revenueChangePct: number;
-  ordersToday: number;
+  orders: number;
   ordersChangePct: number;
   avgOrderValue: number;
   repeatCustomerPct: number;

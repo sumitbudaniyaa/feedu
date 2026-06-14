@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Gift, ReceiptText, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Gift, LogOut, ReceiptText, Sparkles } from 'lucide-react';
 import { Badge, Button, Card, Skeleton, cn } from '@feedo/ui';
 import { formatCurrency, formatRelativeTime } from '@feedo/utils';
 import type { LoyaltyReward, Redemption } from '@feedo/types';
@@ -92,9 +92,6 @@ export function RewardsPage() {
                 <div className="text-right text-xs text-white/80">
                   <p>{data.customer?.name || guest.name || 'Guest'}</p>
                   <p>{phone}</p>
-                  <button onClick={signOut} className="mt-1 underline underline-offset-2">
-                    Switch number
-                  </button>
                 </div>
               </div>
             </motion.div>
@@ -175,6 +172,11 @@ export function RewardsPage() {
                 </Card>
               )}
             </section>
+
+            {/* Log out */}
+            <Button variant="outline" className="w-full" onClick={signOut}>
+              <LogOut className="h-4 w-4" /> Log out
+            </Button>
           </>
         )}
       </main>

@@ -58,8 +58,8 @@ export function DashboardPage() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
           <>
-            <Stat label="Revenue today" value={formatCurrency(data.revenueToday)} delta={data.revenueChangePct} icon={IndianRupee} />
-            <Stat label="Orders today" value={String(data.ordersToday)} delta={data.ordersChangePct} icon={ShoppingBag} />
+            <Stat label={`Revenue ${RANGE_LABEL[range]}`} value={formatCurrency(data.revenue)} delta={data.revenueChangePct} icon={IndianRupee} />
+            <Stat label={`Orders ${RANGE_LABEL[range]}`} value={String(data.orders)} delta={data.ordersChangePct} icon={ShoppingBag} />
             <Stat label="Avg order value" value={formatCurrency(data.avgOrderValue)} icon={TrendingUp} />
             <Stat label="Repeat customers" value={`${data.repeatCustomerPct}%`} icon={Repeat} />
           </>
