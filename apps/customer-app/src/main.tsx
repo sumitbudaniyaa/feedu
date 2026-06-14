@@ -12,8 +12,8 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* Customer app is light-mode only — no toggle. Fresh storage key resets any stale dark pref. */}
-    <ThemeProvider storageKey="feedo-customer-theme-light" defaultMode="light" defaultAccent="violet">
+    {/* Customer app is dark-mode only — no toggle. Versioned storage key resets any stale light pref. */}
+    <ThemeProvider storageKey="feedo-customer-theme-dark-v2" defaultMode="dark" defaultAccent="violet">
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <App />

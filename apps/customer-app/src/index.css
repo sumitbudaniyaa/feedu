@@ -1,12 +1,27 @@
 @import '@feedo/ui/styles/globals.css';
 
 /*
-  Customer app is light-only. Use a soft off-white page background (cards stay pure
-  white) so surfaces have depth instead of everything blending into flat white.
+  Customer app is dark-only (Zomato-style ordering UI). We force the dark palette on
+  :root so every surface is dark regardless of the runtime theme class — slightly
+  richer near-black than the shared default, with elevated cards for depth.
 */
 :root {
-  --background: 240 6% 97%;
-  --secondary: 240 5% 94%;
-  --muted: 240 5% 94%;
-  --border: 240 6% 90%;
+  --background: 0 0% 5%; /* #0D0D0D page */
+  --foreground: 0 0% 96%; /* #F5F5F5 text */
+  --card: 0 0% 9%; /* #171717 surface */
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 0 0% 6%;
+  --secondary: 0 0% 13%; /* #212121 chips/inputs */
+  --secondary-foreground: 0 0% 96%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 220 9% 64%; /* #9AA1AD */
+  --border: 0 0% 16%; /* #292929 */
+  --input: 0 0% 16%;
+}
+
+html {
+  color-scheme: dark;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Gift, Search, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { ChevronRight, Gift, Search, ShoppingBag, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { Button, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
@@ -122,38 +122,58 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
         <div className="relative mt-4 flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
             <Input
               placeholder="Search dishes…"
-              className="h-12 rounded-xl border-0 bg-white pl-10 text-foreground shadow-elevated"
+              className="h-12 rounded-xl border-0 bg-white pl-10 text-zinc-900 placeholder:text-zinc-500 shadow-elevated"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {/* Veg-only filter, kept at the top for quick access. */}
+          {/* Veg-only filter, kept at the top for quick access (Zomato-style VEG toggle). */}
           <motion.button
             whileTap={{ scale: 0.94 }}
             onClick={() => setVegOnly((v) => !v)}
             aria-pressed={vegOnly}
             className={cn(
-              'flex h-12 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-sm font-semibold shadow-elevated transition-colors',
-              vegOnly ? 'bg-success text-white' : 'bg-white text-foreground',
+              'flex h-12 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-sm font-bold shadow-elevated transition-colors',
+              vegOnly ? 'bg-success text-white' : 'bg-white text-zinc-900',
             )}
           >
             <span
               className={cn(
-                'flex h-4 w-4 items-center justify-center rounded-sm border',
+                'flex h-4 w-4 items-center justify-center rounded-sm border-2',
                 vegOnly ? 'border-white' : 'border-success',
               )}
             >
-              <span className={cn('h-2 w-2 rounded-full', vegOnly ? 'bg-white' : 'bg-success')} />
+              <span className={cn('h-1.5 w-1.5 rounded-full', vegOnly ? 'bg-white' : 'bg-success')} />
             </span>
-            Veg
+            VEG
           </motion.button>
         </div>
       </header>
 
-      <main className="space-y-7 px-5 pt-6">
+      <main className="space-y-7 px-5 pt-5">
+        {/* Rewards strip — Zomato-style info band, but real Feedo loyalty. */}
+        {browsing && (
+          <motion.button
+            whileTap={{ scale: 0.99 }}
+            onClick={() => navigate('/rewards')}
+            className="flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-border bg-card p-3.5 text-left"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Earn points on every order</span>
+              <span className="block text-xs text-muted-foreground">
+                Redeem them for free items. View your rewards
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </motion.button>
+        )}
+
         {/* Curated sections from the Menu CMS */}
         {browsing && sections.length > 0 && (
           <SectionsBlock sections={sections} products={products} onCustomise={setSelected} />
