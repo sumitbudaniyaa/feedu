@@ -3,6 +3,7 @@ import { EntryPage } from './pages/EntryPage.js';
 import { MenuPage } from './pages/MenuPage.js';
 import { CartPage } from './pages/CartPage.js';
 import { RewardsPage } from './pages/RewardsPage.js';
+import { AccountPage } from './pages/AccountPage.js';
 import { TrackPage } from './pages/TrackPage.js';
 
 export function App() {
@@ -15,6 +16,7 @@ export function App() {
       <Route path="/r/:slug" element={<MenuPage mode="slug" />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/rewards" element={<RewardsPage />} />
+      <Route path="/account" element={<AccountPage />} />
       <Route path="/order/:orderId" element={<TrackPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

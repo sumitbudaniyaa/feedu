@@ -4,7 +4,6 @@ import { formatCurrency, formatDate, formatTime } from '@feedo/utils';
 
 const PAPER = '#FBF7EF';
 const INK = '#2A2520';
-const PAGE = 'hsl(240 6% 97%)'; // matches the customer app page bg so the perforation blends
 
 /** Deterministic faux-barcode bar widths derived from the order number. */
 function barcode(seed: string): number[] {
@@ -26,19 +25,11 @@ export const InvoiceTicket = forwardRef<HTMLDivElement, { order: TrackedOrder }>
   ({ order }, ref) => {
     const r = order.restaurant;
     const paid = order.paymentStatus === 'paid';
-    const scallop = Array.from({ length: 18 });
 
     return (
-      <div ref={ref} className="relative mx-auto w-full max-w-[340px]" style={{ background: PAGE }}>
-        {/* perforated top edge */}
-        <div className="absolute -top-1.5 left-0 right-0 flex justify-between px-1.5">
-          {scallop.map((_, i) => (
-            <span key={i} className="h-3 w-3 rounded-full" style={{ background: PAGE }} />
-          ))}
-        </div>
-
+      <div ref={ref} className="relative mx-auto w-full max-w-[340px]">
         <div
-          className="px-6 py-7 font-mono text-[13px] leading-relaxed"
+          className="overflow-hidden rounded-2xl px-6 py-7 font-mono text-[13px] leading-relaxed shadow-elevated"
           style={{ background: PAPER, color: INK }}
         >
           <div className="text-center">
@@ -133,13 +124,6 @@ export const InvoiceTicket = forwardRef<HTMLDivElement, { order: TrackedOrder }>
             ))}
           </div>
           <p className="mt-1 text-center text-[11px] tracking-[0.3em]">{order.orderNumber}</p>
-        </div>
-
-        {/* perforated bottom edge */}
-        <div className="absolute -bottom-1.5 left-0 right-0 flex justify-between px-1.5">
-          {scallop.map((_, i) => (
-            <span key={i} className="h-3 w-3 rounded-full" style={{ background: PAGE }} />
-          ))}
         </div>
       </div>
     );

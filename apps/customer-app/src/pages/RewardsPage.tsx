@@ -1,40 +1,24 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Gift, LogOut, ReceiptText, Sparkles } from 'lucide-react';
+import { ArrowLeft, Gift, Sparkles, User } from 'lucide-react';
 import { Badge, Button, Card, Skeleton, cn } from '@feedo/ui';
-import { formatCurrency, formatRelativeTime } from '@feedo/utils';
+import { formatRelativeTime } from '@feedo/utils';
 import type { LoyaltyReward, Redemption } from '@feedo/types';
 import { useAccount, useAuth } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { useGuest } from '../store/guest.js';
 import { OtpLogin } from '../components/OtpLogin.js';
 
-const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'default' | 'accent'> = {
-  pending: 'warning',
-  confirmed: 'accent',
-  preparing: 'warning',
-  ready: 'success',
-  served: 'default',
-  completed: 'success',
-  cancelled: 'destructive',
-  refunded: 'destructive',
-};
-
 export function RewardsPage() {
   const navigate = useNavigate();
   const { restaurant, menuPath } = useCart();
   const guest = useGuest();
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
-  const clearTokens = useAuth((s) => s.clear);
 
   const phone = guest.phone;
   const { data, isLoading } = useAccount(restaurant?.slug, isAuthed);
 
   const goBack = () => navigate(menuPath ?? '/');
-  const signOut = () => {
-    clearTokens();
-    guest.clear();
-  };
 
   if (!restaurant) {
     // No restaurant context — send them to scan/enter first.
@@ -48,7 +32,15 @@ export function RewardsPage() {
         <motion.button whileTap={{ scale: 0.9 }} onClick={goBack} className="rounded-lg p-1 hover:bg-secondary">
           <ArrowLeft className="h-5 w-5" />
         </motion.button>
-        <h1 className="text-lg font-semibold tracking-tight">Rewards & orders</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Rewards</h1>
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => navigate('/account')}
+          aria-label="Account"
+          className="ml-auto flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium hover:bg-secondary/70"
+        >
+          <User className="h-3.5 w-3.5" /> Account
+        </motion.button>
       </header>
 
       <main className="space-y-6 px-5 pt-2">
@@ -134,49 +126,6 @@ export function RewardsPage() {
                 </Card>
               </section>
             )}
-
-            {/* Past orders */}
-            <section className="space-y-3">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                <ReceiptText className="h-4 w-4" /> Past orders
-              </h2>
-              {data.orders.length > 0 ? (
-                <Card className="divide-y divide-border">
-                  {data.orders.map((o) => (
-                    <Link
-                      key={o._id}
-                      to={`/order/${o._id}`}
-                      className="flex items-center gap-3 p-3.5 transition-colors hover:bg-secondary/50"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">#{o.orderNumber}</span>
-                          <Badge variant={STATUS_VARIANT[o.status]} className="capitalize">
-                            {o.status}
-                          </Badge>
-                        </div>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {o.items.length} item{o.items.length > 1 ? 's' : ''} ·{' '}
-                          {formatRelativeTime(o.placedAt)}
-                          {o.loyaltyPointsEarned > 0 ? ` · +${o.loyaltyPointsEarned} pts` : ''}
-                        </p>
-                      </div>
-                      <span className="text-sm font-semibold">{formatCurrency(o.total)}</span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </Link>
-                  ))}
-                </Card>
-              ) : (
-                <Card className="border-dashed p-4 text-sm text-muted-foreground">
-                  No orders yet from {phone}. Your orders will appear here.
-                </Card>
-              )}
-            </section>
-
-            {/* Log out */}
-            <Button variant="outline" className="w-full" onClick={signOut}>
-              <LogOut className="h-4 w-4" /> Log out
-            </Button>
           </>
         )}
       </main>

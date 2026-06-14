@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
 import { Card, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product, Section } from '@feedo/types';
@@ -33,12 +34,17 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
           transition={{ duration: 0.3, delay: Math.min(i * 0.06, 0.3), ease: [0.16, 1, 0.3, 1] }}
           className="space-y-3"
         >
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">{section.title}</h2>
-              {section.subtitle && <p className="text-xs text-muted-foreground">{section.subtitle}</p>}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 text-accent" />
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-bold tracking-tight">{section.title}</h2>
+                {section.subtitle && (
+                  <p className="truncate text-xs text-muted-foreground">{section.subtitle}</p>
+                )}
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground">{items.length} items</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{items.length} items</span>
           </div>
 
           {section.layout === 'carousel' && <Carousel items={items} onCustomise={onCustomise} />}

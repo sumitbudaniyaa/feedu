@@ -309,7 +309,7 @@ router.post(
           rewardTitle: reward.title,
           productId: String(reward.productId),
           customer: { name: customer.name ?? undefined, phone },
-          type: type ?? (tableId ? 'dine_in' : 'takeaway'),
+          type: type ?? 'dine_in',
           tableId: tableId && isValidObjectId(tableId) ? tableId : undefined,
         });
         const redemption = await Redemption.create({

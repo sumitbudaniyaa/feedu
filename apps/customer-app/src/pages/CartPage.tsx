@@ -76,7 +76,8 @@ export function CartPage() {
     setPaying(true);
     try {
       const { order, razorpay, demo, free, cash } = await checkout.mutateAsync({
-        type: tableId ? 'dine_in' : 'takeaway',
+        // Dine-in only restaurant — every order is dine-in.
+        type: 'dine_in',
         tableId: tableId ?? undefined,
         items: lines.map((l) => ({
           productId: l.productId,
