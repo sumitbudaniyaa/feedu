@@ -180,6 +180,22 @@ catalog where each reward **must link a menu item** (enforced in the admin form 
 and any legacy claims. `POST /public/r/:slug/redeem` still exists (direct claim / non-linked
 fallback), but the primary UX is the cart flow above.
 
+### Payment methods & sales channels
+Checkout offers **online (Razorpay)** or **cash / pay-at-counter**. A cash order is
+confirmed immediately (goes to the kitchen) but left `paymentStatus: unpaid`; staff mark
+it collected via `PATCH /orders/:id/pay-cash`. Online and ₹0/reward-only orders are
+finalized as paid. `finalizeOrder()` centralizes confirm + loyalty accrual + reward-spend;
+`markPaid` (online) and the cash path both call it.
+
+Every order records a **`channel`** (`app | counter | zomato | swiggy | district`): the
+customer app sets `app`, staff orders `counter`, and the aggregator webhook sets the
+provider. Admin Analytics + super-admin Overview show a **channel mix** (orders + revenue
+share). Aggregators/middleware (Zomato/Swiggy/District, UrbanPiper, etc.) push pre-paid
+orders into one kitchen/dashboard via `POST /api/integrations/:provider/orders`
+(secret-gated by `x-integration-secret` = `INTEGRATION_SECRET`; items reference our product
+ids). Note: these platforms are *channels*, not payment gateways — you can't embed a
+"pay with Zomato" button; you ingest their orders and settlement happens on their side.
+
 ### Payments (Razorpay)
 Customer checkout is pay-first: `POST /public/r/:slug/checkout` captures name + mobile and
 creates a **pending, silent** order (hidden from the kitchen until paid) plus a matching

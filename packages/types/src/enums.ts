@@ -38,6 +38,10 @@ export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export const orderTypeSchema = z.enum(['dine_in', 'takeaway']);
 export type OrderType = z.infer<typeof orderTypeSchema>;
 
+/** Where the order came from — own app, counter, or a delivery aggregator. */
+export const orderChannelSchema = z.enum(['app', 'counter', 'zomato', 'swiggy', 'district']);
+export type OrderChannel = z.infer<typeof orderChannelSchema>;
+
 export const paymentStatusSchema = z.enum(['unpaid', 'paid', 'refunded', 'failed']);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 

@@ -13,6 +13,7 @@ import analyticsRoutes from '../modules/analytics/analytics.routes.js';
 import customerRoutes from '../modules/customers/customers.routes.js';
 import platformRoutes from '../modules/platform/platform.routes.js';
 import publicRoutes from '../modules/public/public.routes.js';
+import integrationRoutes from '../modules/integrations/integrations.routes.js';
 import uploadRoutes from '../modules/uploads/uploads.routes.js';
 
 const router = Router();
@@ -23,6 +24,9 @@ router.get('/health', (_req, res) => {
 
 // Public (customer) — no auth
 router.use('/public', publicRoutes);
+
+// Aggregator/middleware order ingestion (secret-gated, not tenant-authed)
+router.use('/integrations', integrationRoutes);
 
 // Authenticated, tenant-scoped
 router.use('/auth', authRoutes);

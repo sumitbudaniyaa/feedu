@@ -20,6 +20,7 @@ export interface DashboardStats {
   peakHours: { hour: number; orders: number }[];
   lowStock: { productId: string; name: string; stock: number }[];
   loyaltyRedemptions: number;
+  channelMix: { channel: string; orders: number; revenue: number }[];
 }
 
 export const analyticsRangeSchema = z.object({

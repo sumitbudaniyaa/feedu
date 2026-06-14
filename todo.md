@@ -115,6 +115,11 @@ super-admin console. Hardening + polish ongoing.
       admin deletes (product/category/section/reward/program/table/staff) + order cancel,
       super-admin suspend/reactivate
 - [x] Customer "Veg only" filter toggle in the menu
+- [x] Payment methods: online (Razorpay) OR cash/pay-at-counter at checkout; cash orders
+      confirm to the kitchen unpaid, admin "Mark cash collected"
+- [x] Order `channel` (app/counter/zomato/swiggy/district) + channel-mix analytics in admin
+      & super-admin; secret-gated `/integrations/:provider/orders` ingestion webhook for
+      aggregators/middleware (orders land in one kitchen/dashboard, pre-paid on platform)
 
 ## Pending / Next
 - [ ] Logo/banner upload in Settings (product images done; reuse the `/uploads` endpoint)

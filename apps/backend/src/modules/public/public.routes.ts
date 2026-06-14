@@ -131,6 +131,8 @@ const checkoutSchema = z.object({
   }),
   /** Optional loyalty reward applied to the order (free ₹0 item, points spent). */
   rewardId: z.string().optional(),
+  /** How the diner pays: online via Razorpay, or cash at the counter. */
+  paymentMethod: z.enum(['razorpay', 'cash']).default('razorpay'),
 });
 
 /**
@@ -147,9 +149,10 @@ router.post(
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     const restaurantId = String(restaurant._id);
 
-    const { customer, rewardId, ...orderInput } = req.body as {
+    const { customer, rewardId, paymentMethod, ...orderInput } = req.body as {
       customer: { name: string; phone: string };
       rewardId?: string;
+      paymentMethod: 'razorpay' | 'cash';
       type: 'dine_in' | 'takeaway';
       tableId?: string;
       items: unknown[];
@@ -179,18 +182,25 @@ router.post(
       input: orderInput as never,
       customer: orderCustomer,
       reward,
-      paymentMethod: 'razorpay',
+      paymentMethod,
+      channel: 'app',
       silent: true,
     });
 
-    // Nothing payable (reward-only / all free) → confirm immediately, no Razorpay.
+    // Nothing payable (reward-only / all free) → confirm immediately, no payment.
     if (order.total <= 0) {
       const finalized = await orders.markPaid(String(order._id));
       return ok(res, { order: finalized, razorpay: null, demo: isDemoMode(), free: true }, 201);
     }
 
+    // Pay at counter → confirm now (goes to the kitchen) but leave payment unpaid.
+    if (paymentMethod === 'cash') {
+      const finalized = await orders.finalizeOrder(String(order._id), { paid: false, method: 'cash' });
+      return ok(res, { order: finalized, razorpay: null, demo: isDemoMode(), free: false, cash: true }, 201);
+    }
+
     const razorpay = await createRazorpayOrder(order.total, String(order._id));
-    return ok(res, { order, razorpay, demo: isDemoMode(), free: false }, 201);
+    return ok(res, { order, razorpay, demo: isDemoMode(), free: false, cash: false }, 201);
   }),
 );
 

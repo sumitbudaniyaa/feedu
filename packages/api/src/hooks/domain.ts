@@ -57,6 +57,14 @@ export function createDomainHooks(client: ApiClient) {
         onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
       });
     },
+    /** Mark a cash/counter order's payment as collected. */
+    useMarkCashPaid() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (id: string) => client.patch<Order>(`/orders/${id}/pay-cash`, {}),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+      });
+    },
     useCreateOrder() {
       const qc = useQueryClient();
       return useMutation({

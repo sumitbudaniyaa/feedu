@@ -40,6 +40,7 @@ router.post(
       input: req.body,
       autoConfirm: true,
       paymentMethod: 'cash',
+      channel: 'counter',
     });
     return ok(res, order, 201);
   }),
@@ -49,6 +50,17 @@ router.get(
   '/:id',
   validateObjectId(),
   asyncHandler(async (req, res) => ok(res, await orders.getOrder(req.restaurantId!, req.params.id!))),
+);
+
+// Mark a cash/counter order's payment collected.
+router.patch(
+  '/:id/pay-cash',
+  validateObjectId(),
+  authorize('owner', 'manager', 'waiter'),
+  asyncHandler(async (req, res) => {
+    const order = await orders.markCashCollected(req.restaurantId!, req.params.id!);
+    return ok(res, order);
+  }),
 );
 
 router.patch(

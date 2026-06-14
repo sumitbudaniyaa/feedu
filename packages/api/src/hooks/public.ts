@@ -27,12 +27,16 @@ export interface CheckoutResult {
   demo: boolean;
   /** True when nothing was payable (e.g. reward-only) — order already confirmed. */
   free: boolean;
+  /** True for a pay-at-counter (cash) order — confirmed, payment collected later. */
+  cash?: boolean;
 }
 
 export interface CheckoutInput extends CreateOrderInput {
   customer: { name: string; phone: string };
   /** Loyalty reward applied to the order (requires the customer to be signed in). */
   rewardId?: string;
+  /** How the diner pays. Defaults to online (Razorpay). */
+  paymentMethod?: 'razorpay' | 'cash';
 }
 
 export interface PayInput {

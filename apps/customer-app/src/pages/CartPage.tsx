@@ -63,11 +63,19 @@ export function CartPage() {
   };
 
   // Called from the drawer after details are entered and validated.
-  const proceed = async ({ name, phone }: { name: string; phone: string }) => {
+  const proceed = async ({
+    name,
+    phone,
+    paymentMethod,
+  }: {
+    name: string;
+    phone: string;
+    paymentMethod: 'razorpay' | 'cash';
+  }) => {
     setError(null);
     setPaying(true);
     try {
-      const { order, razorpay, demo, free } = await checkout.mutateAsync({
+      const { order, razorpay, demo, free, cash } = await checkout.mutateAsync({
         type: tableId ? 'dine_in' : 'takeaway',
         tableId: tableId ?? undefined,
         items: lines.map((l) => ({
@@ -78,10 +86,11 @@ export function CartPage() {
         })),
         customer: { name, phone },
         rewardId: appliedReward?.rewardId,
+        paymentMethod,
       });
 
-      // Nothing payable (e.g. reward-only) — order is already confirmed.
-      if (free) {
+      // Reward-only (free) or pay-at-counter (cash) → already confirmed server-side, no payment step.
+      if (free || cash) {
         finish(order._id);
         return;
       }

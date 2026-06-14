@@ -60,13 +60,20 @@ router.get(
       },
       { $sort: { _id: 1 } },
     ]);
-    const topRestaurants = await Order.aggregate([
-      { $match: { status: { $in: PAID } } },
-      { $group: { _id: '$restaurantId', revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
-      { $sort: { revenue: -1 } },
-      { $limit: 5 },
-      { $lookup: { from: 'restaurants', localField: '_id', foreignField: '_id', as: 'r' } },
-      { $project: { revenue: 1, orders: 1, name: { $arrayElemAt: ['$r.name', 0] } } },
+    const [topRestaurants, channels] = await Promise.all([
+      Order.aggregate([
+        { $match: { status: { $in: PAID } } },
+        { $group: { _id: '$restaurantId', revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+        { $sort: { revenue: -1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'restaurants', localField: '_id', foreignField: '_id', as: 'r' } },
+        { $project: { revenue: 1, orders: 1, name: { $arrayElemAt: ['$r.name', 0] } } },
+      ]),
+      Order.aggregate([
+        { $match: { status: { $in: PAID } } },
+        { $group: { _id: '$channel', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
+        { $sort: { revenue: -1 } },
+      ]),
     ]);
     return ok(res, {
       series: series.map((s) => ({ date: s._id, revenue: s.revenue, orders: s.orders })),
@@ -75,6 +82,11 @@ router.get(
         name: t.name ?? 'Unknown',
         revenue: t.revenue,
         orders: t.orders,
+      })),
+      channelMix: channels.map((c) => ({
+        channel: (c._id as string) ?? 'app',
+        orders: c.orders,
+        revenue: c.revenue,
       })),
     });
   }),

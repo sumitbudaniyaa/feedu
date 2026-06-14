@@ -27,6 +27,7 @@ export interface PlatformRestaurant {
 export interface PlatformAnalytics {
   series: { date: string; revenue: number; orders: number }[];
   topRestaurants: { restaurantId: string; name: string; revenue: number; orders: number }[];
+  channelMix: { channel: string; orders: number; revenue: number }[];
 }
 
 export interface PlatformUser {

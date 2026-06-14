@@ -13,8 +13,16 @@ import {
 } from '@feedo/ui';
 import { formatCurrency, formatDate, formatTime } from '@feedo/utils';
 import type { Order } from '@feedo/types';
-import { useRestaurant } from '../lib/api.js';
+import { useMarkCashPaid, useRestaurant } from '../lib/api.js';
 import { Invoice } from './Invoice.js';
+
+const CHANNEL_LABEL: Record<string, string> = {
+  app: 'App',
+  counter: 'Counter',
+  zomato: 'Zomato',
+  swiggy: 'Swiggy',
+  district: 'District',
+};
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
   pending: 'warning',
@@ -38,6 +46,7 @@ export function OrderDetailsDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { data: restaurant } = useRestaurant();
+  const markCashPaid = useMarkCashPaid();
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -73,6 +82,9 @@ export function OrderDetailsDialog({
                 <Badge variant="outline" className="capitalize">
                   {order.type.replace('_', '-')}
                 </Badge>
+                {order.channel && order.channel !== 'app' && (
+                  <Badge variant="outline">{CHANNEL_LABEL[order.channel] ?? order.channel}</Badge>
+                )}
                 {order.isReward && <Badge variant="accent">🎁 Reward</Badge>}
               </div>
             </DialogHeader>
@@ -149,6 +161,16 @@ export function OrderDetailsDialog({
                 <span className="font-medium">Note: </span>
                 {order.notes}
               </p>
+            )}
+
+            {order.paymentMethod === 'cash' && order.paymentStatus === 'unpaid' && (
+              <Button
+                className="w-full"
+                onClick={() => markCashPaid.mutate(order._id)}
+                disabled={markCashPaid.isPending}
+              >
+                {markCashPaid.isPending ? 'Updating…' : 'Mark cash collected'}
+              </Button>
             )}
 
             <Button variant="outline" className="w-full" onClick={downloadInvoice} disabled={downloading}>

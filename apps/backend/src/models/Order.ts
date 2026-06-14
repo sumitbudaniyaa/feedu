@@ -27,6 +27,12 @@ const orderSchema = new Schema(
     customerName: { type: String },
     customerPhone: { type: String },
     type: { type: String, enum: ['dine_in', 'takeaway'], required: true },
+    channel: {
+      type: String,
+      enum: ['app', 'counter', 'zomato', 'swiggy', 'district'],
+      default: 'app',
+      index: true,
+    },
     status: {
       type: String,
       enum: [

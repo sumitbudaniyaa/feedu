@@ -21,6 +21,8 @@ const envSchema = z.object({
   // Razorpay (optional in dev — when unset, payments run in a demo/mock mode).
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
+  // Shared secret for aggregator (Zomato/Swiggy/middleware) order ingestion webhooks.
+  INTEGRATION_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

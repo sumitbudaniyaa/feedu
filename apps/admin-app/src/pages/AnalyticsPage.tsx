@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { BarChart3 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
+import { BarChart3, Store } from 'lucide-react';
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import { useDashboard } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
+
+const CHANNEL_LABEL: Record<string, string> = {
+  app: 'Feedo app',
+  counter: 'Counter',
+  zomato: 'Zomato',
+  swiggy: 'Swiggy',
+  district: 'District',
+};
 
 export function AnalyticsPage() {
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
@@ -74,6 +82,43 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order channels */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Store className="h-4 w-4" /> Order channels
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10" />)
+          ) : data && data.channelMix.length > 0 ? (
+            (() => {
+              const totalRev = data.channelMix.reduce((s, c) => s + c.revenue, 0) || 1;
+              return data.channelMix.map((c) => {
+                const pctShare = Math.round((c.revenue / totalRev) * 100);
+                return (
+                  <div key={c.channel} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 font-medium">
+                        {CHANNEL_LABEL[c.channel] ?? c.channel}
+                        <Badge variant="outline">{c.orders} orders</Badge>
+                      </span>
+                      <span className="font-medium">{formatCurrency(c.revenue)}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${pctShare}%` }} />
+                    </div>
+                  </div>
+                );
+              });
+            })()
+          ) : (
+            <EmptyState icon={Store} title="No channel data yet" description="Orders from the app, counter, Zomato or Swiggy will break down here." />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

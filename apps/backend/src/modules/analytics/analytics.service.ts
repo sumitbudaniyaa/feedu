@@ -29,7 +29,7 @@ export async function getDashboardStats(
   const rid = new Types.ObjectId(restaurantId);
   const matchPaid = { restaurantId: rid, status: { $in: REVENUE_STATUSES } } as Record<string, unknown>;
 
-  const [todayAgg, yestAgg, series, topProducts, peakHours, lowStock, allTimeCustomers] =
+  const [todayAgg, yestAgg, series, topProducts, peakHours, lowStock, allTimeCustomers, channels] =
     await Promise.all([
       Order.aggregate([
         { $match: { ...matchPaid, placedAt: { $gte: today } } },
@@ -81,6 +81,11 @@ export async function getDashboardStats(
         { $match: { ...matchPaid, customerId: { $ne: null } } },
         { $group: { _id: '$customerId', orders: { $sum: 1 } } },
       ]),
+      Order.aggregate([
+        { $match: { ...matchPaid, placedAt: { $gte: rangeStart } } },
+        { $group: { _id: '$channel', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
+        { $sort: { revenue: -1 } },
+      ]),
     ]);
 
   const repeat = allTimeCustomers.filter((c) => c.orders > 1).length;
@@ -105,5 +110,10 @@ export async function getDashboardStats(
     peakHours: peakHours.map((h) => ({ hour: h._id, orders: h.orders })),
     lowStock: lowStock.map((p) => ({ productId: String(p._id), name: p.name, stock: p.stock ?? 0 })),
     loyaltyRedemptions: 0,
+    channelMix: channels.map((c) => ({
+      channel: (c._id as string) ?? 'app',
+      orders: c.orders,
+      revenue: c.revenue,
+    })),
   };
 }

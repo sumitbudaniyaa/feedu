@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Button, Input, Label } from '@feedo/ui';
+import { Banknote, CreditCard } from 'lucide-react';
+import { Button, Input, Label, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import { useGuest } from '../store/guest.js';
+
+type PaymentMethod = 'razorpay' | 'cash';
 
 interface CheckoutDrawerProps {
   open: boolean;
@@ -10,14 +13,15 @@ interface CheckoutDrawerProps {
   submitting: boolean;
   error?: string | null;
   onClose: () => void;
-  onProceed: (details: { name: string; phone: string }) => void;
+  onProceed: (details: { name: string; phone: string; paymentMethod: PaymentMethod }) => void;
 }
 
-/** Bottom sheet that collects guest details, then initiates payment. */
+/** Bottom sheet that collects guest details + payment method, then places the order. */
 export function CheckoutDrawer({ open, total, submitting, error, onClose, onProceed }: CheckoutDrawerProps) {
   const guest = useGuest();
   const [name, setName] = useState(guest.name);
   const [phone, setPhone] = useState(guest.phone);
+  const [method, setMethod] = useState<PaymentMethod>('razorpay');
   const [touched, setTouched] = useState(false);
 
   const nameValid = name.trim().length >= 2;
@@ -30,7 +34,7 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
     if (!canProceed) return;
     // Remember the guest so rewards & past orders auto-load next time.
     guest.save(name.trim(), phone);
-    onProceed({ name: name.trim(), phone });
+    onProceed({ name: name.trim(), phone, paymentMethod: method });
   };
 
   return (
@@ -88,13 +92,54 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
                 )}
               </div>
 
+              {/* Payment method */}
+              <div className="space-y-1.5">
+                <Label>Payment</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { id: 'razorpay', label: 'Pay online', icon: CreditCard, hint: 'UPI / card / wallet' },
+                      { id: 'cash', label: 'Pay at counter', icon: Banknote, hint: 'Cash on collection' },
+                    ] as const
+                  ).map((opt) => {
+                    const Icon = opt.icon;
+                    const active = method === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setMethod(opt.id)}
+                        className={cn(
+                          'flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors',
+                          active ? 'border-success bg-success/10' : 'border-border hover:bg-secondary',
+                        )}
+                      >
+                        <Icon className={cn('h-4 w-4', active ? 'text-success' : 'text-muted-foreground')} />
+                        <span className="text-sm font-medium">{opt.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{opt.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <Button type="submit" variant="success" className="h-12 w-full justify-between rounded-xl" disabled={!canProceed}>
-                <span>{submitting ? 'Processing…' : 'Proceed to pay'}</span>
+                <span>
+                  {submitting
+                    ? 'Processing…'
+                    : method === 'cash'
+                      ? 'Place order'
+                      : total > 0
+                        ? 'Proceed to pay'
+                        : 'Place order'}
+                </span>
                 <span>{formatCurrency(total)}</span>
               </Button>
-              <p className="text-center text-[11px] text-muted-foreground">Payments secured by Razorpay</p>
+              {method === 'razorpay' && (
+                <p className="text-center text-[11px] text-muted-foreground">Payments secured by Razorpay</p>
+              )}
             </form>
           </motion.div>
         </>

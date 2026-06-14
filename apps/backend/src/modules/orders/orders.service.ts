@@ -53,6 +53,8 @@ interface CreateContext {
   autoConfirm?: boolean;
   /** A loyalty reward applied to this order — added as a ₹0 line; points deducted on payment. */
   reward?: { rewardId: string; productId: string; pointsCost: number };
+  /** Sales channel (own app, counter, or an aggregator). */
+  channel?: 'app' | 'counter' | 'zomato' | 'swiggy' | 'district';
 }
 
 /**
@@ -68,6 +70,7 @@ export async function createOrder({
   silent,
   autoConfirm,
   reward,
+  channel,
 }: CreateContext) {
   const restaurant = await Restaurant.findById(restaurantId).lean();
   if (!restaurant) throw ApiError.notFound('Restaurant not found');
@@ -167,6 +170,7 @@ export async function createOrder({
         customerName: customer?.name,
         customerPhone: customer?.phone,
         type: input.type,
+        channel: channel ?? 'app',
         status: autoConfirm ? 'confirmed' : 'pending',
         items,
         subtotal: totals.subtotal,
@@ -378,26 +382,31 @@ export async function createRewardOrder(ctx: RewardOrderContext) {
   return order.toObject();
 }
 
-/** Mark an order paid and auto-confirm it (used after a verified payment). */
-export async function markPaid(orderId: string, providerRef?: string) {
+/**
+ * Confirm an order and run loyalty side-effects (accrual + reward spend) once.
+ * `paid` marks payment captured (online); a cash order is confirmed but left unpaid
+ * until staff collect it. Either way the order is surfaced to the kitchen/admin.
+ */
+export async function finalizeOrder(
+  orderId: string,
+  opts: { paid: boolean; method?: 'razorpay' | 'cash'; providerRef?: string },
+) {
   const order = await Order.findById(orderId);
   if (!order) throw ApiError.notFound('Order not found');
-  order.paymentStatus = 'paid';
+  if (opts.paid) order.paymentStatus = 'paid';
   if (order.status === 'pending') order.status = 'confirmed';
 
-  // Accrue loyalty + customer tracking now that payment succeeded.
   const restaurantId = String(order.restaurantId);
   if (order.customerPhone) {
     const earned = await accrueCustomer(restaurantId, {
       phone: order.customerPhone,
       name: order.customerName ?? undefined,
       total: order.total,
-      // Per-item points (set at order creation) win; fall back to the points program.
       points: order.loyaltyPointsEarned > 0 ? order.loyaltyPointsEarned : undefined,
     });
     order.loyaltyPointsEarned = earned;
 
-    // Spend points for a reward applied to this order (once, when it's confirmed).
+    // Spend points for a reward applied to this order (once, when it's committed).
     if (order.loyaltyRewardApplied && order.rewardPointsSpent > 0 && !order.rewardDeducted) {
       await Customer.updateOne(
         { restaurantId, phone: order.customerPhone, points: { $gte: order.rewardPointsSpent } },
@@ -409,17 +418,33 @@ export async function markPaid(orderId: string, providerRef?: string) {
   await order.save();
 
   const obj = order.toObject();
-  emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, obj); // surface to kitchen/admin once paid
-  if (providerRef) {
+  emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, obj); // surface to kitchen/admin
+  if (opts.paid && opts.providerRef) {
     await Payment.create({
       restaurantId,
       orderId: order._id,
       amount: order.total,
-      method: 'razorpay',
+      method: opts.method ?? 'razorpay',
       status: 'paid',
-      providerRef,
+      providerRef: opts.providerRef,
     }).catch(() => undefined);
   }
+  return obj;
+}
+
+/** Mark an order paid + confirmed (used after a verified online payment). */
+export function markPaid(orderId: string, providerRef?: string) {
+  return finalizeOrder(orderId, { paid: true, method: 'razorpay', providerRef });
+}
+
+/** Mark a cash order's payment collected at the counter (admin action). */
+export async function markCashCollected(restaurantId: string, orderId: string) {
+  const order = await Order.findOne({ _id: orderId, restaurantId });
+  if (!order) throw ApiError.notFound('Order not found');
+  order.paymentStatus = 'paid';
+  await order.save();
+  const obj = order.toObject();
+  emit(SOCKET_EVENTS.ORDER_UPDATED, restaurantId, obj);
   return obj;
 }
 

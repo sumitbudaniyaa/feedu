@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { moneySchema, objectIdSchema } from '../common.js';
 import {
+  orderChannelSchema,
   orderStatusSchema,
   orderTypeSchema,
   paymentMethodSchema,
@@ -33,6 +34,7 @@ export const orderSchema = z.object({
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   type: orderTypeSchema,
+  channel: orderChannelSchema.default('app'),
   status: orderStatusSchema,
   items: z.array(orderItemSchema).min(1),
   subtotal: moneySchema,
