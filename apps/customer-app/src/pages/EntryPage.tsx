@@ -15,10 +15,8 @@ export function EntryPage() {
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
       <div className="pointer-events-none absolute -top-32 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-accent/10 blur-3xl" />
 
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground text-background">
-        <span className="text-xl font-bold">F</span>
-      </div>
-      <h1 className="mt-5 text-xl font-semibold tracking-tight">Order with Feedo</h1>
+      <span className="text-4xl font-black italic leading-none tracking-tight text-foreground">feedo</span>
+      <h1 className="mt-4 text-xl font-semibold tracking-tight">Order with feedo</h1>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
         <QrCode className="h-4 w-4" /> Scan the QR on your table to begin
       </p>

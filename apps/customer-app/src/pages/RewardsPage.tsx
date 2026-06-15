@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Gift, Sparkles, User } from 'lucide-react';
 import { Badge, Button, Card, Skeleton, cn } from '@feedo/ui';
-import { formatRelativeTime } from '@feedo/utils';
+import { formatDate, formatTime } from '@feedo/utils';
 import type { LoyaltyReward, Redemption } from '@feedo/types';
 import { useAccount, useAuth } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
@@ -204,7 +204,7 @@ function ClaimRow({ redemption }: { redemption: Redemption }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{redemption.rewardTitle}</p>
         <p className="text-xs text-muted-foreground">
-          {redemption.pointsCost} pts · {formatRelativeTime(redemption.createdAt)}
+          {redemption.pointsCost} pts · {formatDate(redemption.createdAt)} · {formatTime(redemption.createdAt)}
         </p>
       </div>
       <Badge

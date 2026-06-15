@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, Utensils } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -169,11 +169,13 @@ function OrderRow({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">#{order.orderNumber}</span>
+            {/* Table number — prominent so staff can see it at a glance. */}
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent/15 px-2.5 py-1 text-base font-bold text-accent">
+              <Utensils className="h-4 w-4" />
+              {order.tableName || 'Takeaway'}
+            </span>
             <Badge variant={STATUS_VARIANT[order.status]} className="capitalize">
               {order.status}
-            </Badge>
-            <Badge variant="outline" className="capitalize">
-              {order.type.replace('_', '-')}
             </Badge>
             {order.channel && order.channel !== 'app' && (
               <Badge variant="outline" className="capitalize">

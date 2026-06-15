@@ -23,7 +23,7 @@ import {
   useTheme,
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useLogout, useMe, useRestaurant } from '../lib/api.js';
 import { useLiveSync } from '../lib/useLiveSync.js';
 
@@ -40,13 +40,27 @@ const NAV = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
+// Waiters get a trimmed app: just orders + inventory.
+const WAITER_PATHS = new Set(['/orders', '/inventory']);
+
 export function DashboardLayout() {
   const user = useAuth((s) => s.user);
   const setSession = useAuth((s) => s.setSession);
   const tokens = useAuth((s) => s.tokens);
   const logout = useLogout();
   const navigate = useNavigate();
+  const location = useLocation();
   const { setAccent } = useTheme();
+
+  const isWaiter = user?.role === 'waiter';
+  const nav = isWaiter ? NAV.filter((n) => WAITER_PATHS.has(n.to)) : NAV;
+
+  // Keep waiters out of pages they can't access (deep-links / refresh land on Orders).
+  useEffect(() => {
+    if (isWaiter && !WAITER_PATHS.has(location.pathname)) {
+      navigate('/orders', { replace: true });
+    }
+  }, [isWaiter, location.pathname, navigate]);
 
   // Realtime order/analytics sync.
   useLiveSync();
@@ -74,7 +88,7 @@ export function DashboardLayout() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

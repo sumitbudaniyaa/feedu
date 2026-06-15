@@ -163,6 +163,12 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (id: string,
           </span>
         </div>
 
+        {/* Table number — the most important thing for the kitchen/runner. */}
+        <div className={cn('flex items-center justify-between border-b px-5 py-2.5', t.divide)}>
+          <span className="text-xs font-semibold uppercase tracking-widest opacity-70">Table</span>
+          <span className="text-2xl font-black tracking-tight">{order.tableName || 'Takeaway'}</span>
+        </div>
+
         <div className="space-y-2 px-4 py-4">
           {order.items.map((item, i) => (
             <div key={i} className={cn('flex items-center gap-2.5 rounded-lg px-3 py-2 text-lg', t.itemBg)}>

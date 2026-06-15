@@ -59,7 +59,9 @@ export function CartPage() {
 
   const finish = (orderId: string) => {
     clear();
-    navigate(`/order/${orderId}`);
+    // Flag the confirmation view so the track page celebrates a fresh order
+    // (vs. opening the same page from order history).
+    navigate(`/order/${orderId}`, { state: { justPlaced: true } });
   };
 
   // Called from the drawer after details are entered and validated.

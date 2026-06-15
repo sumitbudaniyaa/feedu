@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
 import { Button, Skeleton } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
 import type { Order } from '@feedo/types';
@@ -19,12 +19,15 @@ function etaMinutes(order: Order): number {
 export function TrackPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const justPlaced = Boolean((location.state as { justPlaced?: boolean } | null)?.justPlaced);
   const menuPath = useCart((s) => s.menuPath);
   const { data: order, isLoading } = useTrackOrder(orderId);
   const ticketRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
   const goToMenu = () => navigate(menuPath ?? '/');
+  const goBack = () => (justPlaced ? goToMenu() : navigate(-1));
 
   const downloadInvoice = async () => {
     if (!ticketRef.current) return;
@@ -57,13 +60,32 @@ export function TrackPage() {
     <div className="mx-auto min-h-screen max-w-md bg-background p-5 pb-10">
       <div className="mb-4 flex items-center justify-between">
         <button
-          onClick={goToMenu}
+          onClick={goBack}
           className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <span className="text-xs text-muted-foreground">Order #{order.orderNumber}</span>
+        <span className="text-xs text-muted-foreground">
+          {justPlaced ? 'Order confirmation' : 'Order details'} · #{order.orderNumber}
+        </span>
       </div>
+
+      {/* Fresh-order confirmation banner — only on the post-checkout view. */}
+      {justPlaced && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 flex items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-4"
+        >
+          <CheckCircle2 className="h-6 w-6 shrink-0 text-success" />
+          <div>
+            <p className="text-sm font-semibold text-success">Order placed successfully</p>
+            <p className="text-xs text-muted-foreground">
+              We&apos;ve sent it to the kitchen{order.tableName ? ` · ${order.tableName}` : ''}.
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       <PreparingHero order={order} />
 
