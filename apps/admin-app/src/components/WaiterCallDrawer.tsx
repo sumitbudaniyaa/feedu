@@ -33,8 +33,10 @@ function ring() {
   }
 }
 
-/** Listens for table calls and shows a ringing drawer with slide-to-attend + close. */
-export function WaiterCallDrawer() {
+/** Listens for table calls and shows ringing call(s) with slide-to-attend + close.
+ *  `toast` = non-blocking cards pinned to the top (no backdrop) for the desktop admin.
+ *  `drawer` = bottom sheet with a dimmed backdrop for the mobile waiter app. */
+export function WaiterCallDrawer({ variant = 'drawer' }: { variant?: 'drawer' | 'toast' }) {
   const restaurantId = useAuth((s) => s.user?.restaurantId);
   const attendCall = useAttendCall();
   const [calls, setCalls] = useState<Call[]>([]);
@@ -43,9 +45,14 @@ export function WaiterCallDrawer() {
     if (!restaurantId) return;
     const onCalled = (p: { tableName: string }) =>
       setCalls((prev) => [...prev, { id: Date.now() + Math.random(), tableName: p.tableName }]);
+    // Someone (this or another device) accepted a table's call → clear it everywhere.
+    const onAttending = (p: { tableName: string }) =>
+      setCalls((prev) => prev.filter((c) => c.tableName !== p.tableName));
     socket.on(SOCKET_EVENTS.WAITER_CALLED, onCalled);
+    socket.on(SOCKET_EVENTS.WAITER_ATTENDING, onAttending);
     return () => {
       socket.off(SOCKET_EVENTS.WAITER_CALLED, onCalled);
+      socket.off(SOCKET_EVENTS.WAITER_ATTENDING, onAttending);
     };
   }, [restaurantId]);
 
@@ -62,6 +69,29 @@ export function WaiterCallDrawer() {
   };
   const dismiss = (id: number) => setCalls((prev) => prev.filter((c) => c.id !== id));
 
+  // Top, non-blocking stack — leaves the rest of the dashboard fully usable.
+  if (variant === 'toast') {
+    return (
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4">
+        <AnimatePresence>
+          {calls.map((call) => (
+            <motion.div
+              key={call.id}
+              layout
+              initial={{ opacity: 0, y: -20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className="pointer-events-auto w-full max-w-sm"
+            >
+              <CallCard call={call} mode="button" onAttend={() => attend(call)} onDismiss={() => dismiss(call.id)} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Bottom sheet with backdrop — mobile waiter app.
   return (
     <AnimatePresence>
       {calls.length > 0 && (
@@ -96,7 +126,7 @@ export function WaiterCallDrawer() {
             <div className="space-y-3">
               <AnimatePresence>
                 {calls.map((call) => (
-                  <CallCard key={call.id} call={call} onAttend={() => attend(call)} onDismiss={() => dismiss(call.id)} />
+                  <CallCard key={call.id} call={call} mode="slide" onAttend={() => attend(call)} onDismiss={() => dismiss(call.id)} />
                 ))}
               </AnimatePresence>
             </div>
@@ -107,14 +137,24 @@ export function WaiterCallDrawer() {
   );
 }
 
-function CallCard({ call, onAttend, onDismiss }: { call: Call; onAttend: () => void; onDismiss: () => void }) {
+function CallCard({
+  call,
+  mode,
+  onAttend,
+  onDismiss,
+}: {
+  call: Call;
+  mode: 'slide' | 'button';
+  onAttend: () => void;
+  onDismiss: () => void;
+}) {
   return (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      className="overflow-hidden rounded-2xl border border-destructive/40 bg-destructive/10 p-4"
+      className="overflow-hidden rounded-2xl border border-destructive/40 bg-card p-4 shadow-elevated"
     >
       <div className="flex items-center gap-3">
         <motion.span
@@ -128,6 +168,14 @@ function CallCard({ call, onAttend, onDismiss }: { call: Call; onAttend: () => v
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Table calling</p>
           <p className="truncate text-xl font-black tracking-tight">{call.tableName}</p>
         </div>
+        {mode === 'button' ? (
+          <button
+            onClick={onAttend}
+            className="shrink-0 rounded-full bg-success px-4 py-2 text-sm font-semibold text-success-foreground transition-colors hover:bg-success/90"
+          >
+            Attend
+          </button>
+        ) : null}
         <button
           onClick={onDismiss}
           aria-label="Dismiss"
@@ -136,9 +184,11 @@ function CallCard({ call, onAttend, onDismiss }: { call: Call; onAttend: () => v
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-4">
-        <SlideToAttend onAttend={onAttend} />
-      </div>
+      {mode === 'slide' && (
+        <div className="mt-4">
+          <SlideToAttend onAttend={onAttend} />
+        </div>
+      )}
     </motion.div>
   );
 }
