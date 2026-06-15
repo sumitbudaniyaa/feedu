@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SupportTicket } from '@feedo/api';
+import type { CustomerAnalytics, SupportTicket } from '@feedo/api';
 import {
   ApiClient,
   createAuthHooks,
@@ -68,6 +68,15 @@ export const rewards = createResource<LoyaltyReward>(apiClient, 'rewards', '/rew
 export const tables = createResource<Table>(apiClient, 'tables', '/tables');
 export const staff = createResource<User>(apiClient, 'staff', '/staff');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers');
+
+/** Full analytics for one diner (most-ordered, claims, spend, etc.). */
+export function useCustomerAnalytics(id?: string) {
+  return useQuery({
+    queryKey: ['customer-analytics', id],
+    queryFn: () => apiClient.get<CustomerAnalytics>(`/customers/${id}`),
+    enabled: Boolean(id),
+  });
+}
 
 /** The current restaurant's subscription (read-only — Feedu manages billing). */
 export function useSubscription() {

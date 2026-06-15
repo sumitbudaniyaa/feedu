@@ -31,4 +31,5 @@ export const {
   useSupportTickets,
   useUpdateTicket,
   useCreateEmployee,
+  useCustomerAnalytics,
 } = platform;

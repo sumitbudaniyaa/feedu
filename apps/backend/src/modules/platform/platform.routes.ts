@@ -19,6 +19,7 @@ import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
+import { getCustomerAnalytics } from '../customers/customer-analytics.js';
 
 const PAID = ['confirmed', 'preparing', 'ready', 'served', 'completed'];
 
@@ -182,12 +183,22 @@ router.get(
   }),
 );
 
-// All customers across the platform (ranked by spend).
+// All customers across the platform (ranked by spend, optional search).
 router.get(
   '/customers',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    const restaurantId = typeof req.query.restaurantId === 'string' ? req.query.restaurantId : '';
+    const filter: Record<string, unknown> = {};
+    if (restaurantId) filter.restaurantId = restaurantId;
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+      ];
+    }
     const [customers, restaurants] = await Promise.all([
-      Customer.find().sort({ totalSpent: -1 }).limit(200).lean(),
+      Customer.find(filter).sort({ totalSpent: -1 }).limit(200).lean(),
       Restaurant.find().select('name').lean(),
     ]);
     const rName = new Map(restaurants.map((r) => [String(r._id), r.name]));
@@ -195,6 +206,18 @@ router.get(
       res,
       customers.map((c) => ({ ...c, restaurantName: rName.get(String(c.restaurantId)) ?? null })),
     );
+  }),
+);
+
+// Full analytics for one diner (cross-tenant).
+router.get(
+  '/customers/:id',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const customer = await Customer.findById(req.params.id).lean();
+    if (!customer) throw ApiError.notFound('Customer not found');
+    const analytics = await getCustomerAnalytics(String(customer.restaurantId), customer.phone);
+    return ok(res, analytics);
   }),
 );
 

@@ -48,6 +48,22 @@ export interface PlatformUser {
 export type PlatformOrder = Order & { restaurantName: string | null };
 export type PlatformCustomer = Customer & { restaurantName: string | null };
 
+export interface CustomerAnalytics {
+  customer: { phone: string; name?: string; points?: number };
+  totalSpent: number;
+  totalOrders: number;
+  avgOrderValue: number;
+  points: number;
+  firstOrderAt: string | null;
+  lastOrderAt: string | null;
+  peakHour: number | null;
+  topItems: { name: string; qty: number; spent: number }[];
+  rewardClaimCount: number;
+  rewardClaims: Order[];
+  redemptions: { _id: string; rewardTitle: string; pointsCost: number; createdAt: string }[];
+  recentOrders: Order[];
+}
+
 export interface SupportTicketReply {
   author: 'restaurant' | 'feedo';
   authorName?: string;
@@ -122,10 +138,21 @@ export function createPlatformHooks(client: ApiClient) {
         queryFn: () => client.get<PlatformOrder[]>('/platform/orders'),
       });
     },
-    useAllCustomers() {
+    useAllCustomers(params?: { restaurantId?: string; search?: string }) {
+      const q = new URLSearchParams();
+      if (params?.restaurantId) q.set('restaurantId', params.restaurantId);
+      if (params?.search) q.set('search', params.search);
+      const suffix = q.toString() ? `?${q}` : '';
       return useQuery({
-        queryKey: ['platform', 'customers'],
-        queryFn: () => client.get<PlatformCustomer[]>('/platform/customers'),
+        queryKey: ['platform', 'customers', params ?? {}],
+        queryFn: () => client.get<PlatformCustomer[]>(`/platform/customers${suffix}`),
+      });
+    },
+    useCustomerAnalytics(id?: string) {
+      return useQuery({
+        queryKey: ['platform', 'customer', id],
+        queryFn: () => client.get<CustomerAnalytics>(`/platform/customers/${id}`),
+        enabled: Boolean(id),
       });
     },
     useUpdateSubscription() {

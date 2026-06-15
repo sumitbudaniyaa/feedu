@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Search, Sparkles, Users } from 'lucide-react';
+import { ChevronRight, Search, Sparkles, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, Badge, Card, EmptyState, Input, Skeleton } from '@feedo/ui';
 import { formatCurrency, formatRelativeTime, initials } from '@feedo/utils';
 import { customers as customersApi } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
+import { CustomerAnalyticsDialog } from '../components/CustomerAnalyticsDialog.js';
 
 export function CustomersPage() {
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<string | null>(null);
   const { data, isLoading } = customersApi.useList(search ? { search } : undefined);
 
   return (
@@ -30,7 +32,11 @@ export function CustomersPage() {
       ) : data && data.length > 0 ? (
         <Card className="divide-y divide-border">
           {data.map((c) => (
-            <div key={c._id} className="flex items-center gap-4 p-4">
+            <button
+              key={c._id}
+              onClick={() => setSelected(c._id)}
+              className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-secondary/50"
+            >
               <Avatar>
                 <AvatarFallback>{initials(c.name || c.phone)}</AvatarFallback>
               </Avatar>
@@ -45,7 +51,8 @@ export function CustomersPage() {
                 <Sparkles className="h-3 w-3" /> {c.points} pts
               </Badge>
               <span className="w-20 text-right text-sm font-semibold">{formatCurrency(c.totalSpent)}</span>
-            </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           ))}
         </Card>
       ) : (
@@ -55,6 +62,12 @@ export function CustomersPage() {
           description="As diners place paid orders, they'll appear here with their loyalty points."
         />
       )}
+
+      <CustomerAnalyticsDialog
+        customerId={selected}
+        open={Boolean(selected)}
+        onOpenChange={(v) => !v && setSelected(null)}
+      />
     </div>
   );
 }
