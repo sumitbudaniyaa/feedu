@@ -73,7 +73,48 @@ super-admin console. Hardening + polish ongoing.
 
 ## Recently added
 
-### Latest session — dark customer redesign, branding, admin minimalism
+### Latest session — roles, SaaS ops, support, call-waiter, rebrand to "feedu"
+**Customer**
+- [x] Landing screen uses the brand wordmark; entry field **slugifies** input so the
+      restaurant name resolves (fixes most "Restaurant not found"); backend menu lookup
+      is now case/whitespace-tolerant and returns a clear "offline" message when suspended
+- [x] **Order confirmation vs history** are now distinct — the post-checkout track page shows
+      a success banner ("Order confirmation"); opening the same order from history shows "Order details"
+- [x] **Claim history** shows full date + time
+- [x] **Direct (non-QR) entry asks for the table number** — stored in the cart and sent through
+      checkout + call-waiter; orders accept a manual `tableName`
+- [x] **Call waiter** button on the dine-in table badge ("on the way" confirmation state)
+- [x] **Log out** button restyled red
+
+**Admin (restaurant client)**
+- [x] **Waiter role** is limited to Orders + Inventory (nav filtered + route guard)
+- [x] **Table number** shown large/prominent on each order (admin rows + kitchen cards)
+- [x] **Subscription card** in Settings (plan/status/price/cycle/expiry, read-only)
+- [x] **Support page**: raise a ticket; click a ticket to open a **chat** with Feedu's replies
+- [x] Auth page redesigned (split brand banner + form, logo, show/hide password)
+
+**Super-admin = the Feedu company portal (not a restaurant)**
+- [x] **Feedu employees live in a separate `employees` Mongo collection** (no `restaurantId`);
+      auth login/refresh/me check employees first; existing super-admin migrated (id preserved)
+- [x] Overview splits **Feedu SaaS revenue** (MRR/ARR/paying restaurants) from marketplace GMV;
+      **Order-channels card removed**
+- [x] **Onboard restaurants** (owner+restaurant+subscription, unique slug/email, mobile number);
+      manage **subscription/suspend/delete on the restaurant detail page** (price + cycle, with
+      **auto-derived expiry**); list is navigation-only
+- [x] **Users** page split into **Feedu team** (+ add employee) and **Restaurant users**
+- [x] **Support tickets**: list → click to **chat**, set status, reply as "Feedu Support"
+- [x] **Account** page to change the super-admin's own credentials; auth redesign + show-password
+
+**Kitchen**
+- [x] `feedu` Kitchen lockup; prominent table number per ticket
+
+**Platform-wide**
+- [x] **Rebrand feedo → feedu** across all user-facing text (wordmarks, titles, copy, seed names).
+      Technical identifiers unchanged: `@feedo/*` packages, localStorage keys, Mongo DB name,
+      internal socket data values.
+- [x] **No duplicate restaurants** — onboarding rejects a taken slug/owner email (slug is DB-unique)
+
+### Prior session — dark customer redesign, branding, admin minimalism
 - [x] **Customer app → dark, Zomato-style** (whole app dark-only; near-black palette, theme-color meta)
 - [x] Animated gradient hero: `feedo` wordmark, floating glow blobs, staggered entrance,
       frosted-glass search with a **rotating placeholder** (cycles real dish names)

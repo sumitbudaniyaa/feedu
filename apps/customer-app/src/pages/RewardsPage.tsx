@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Gift, Sparkles, User } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Gift, Sparkles, User } from 'lucide-react';
 import { Badge, Button, Card, Skeleton, cn } from '@feedo/ui';
 import { formatDate, formatTime } from '@feedo/utils';
-import type { LoyaltyReward, Redemption } from '@feedo/types';
+import type { LoyaltyReward, Order, Redemption } from '@feedo/types';
 import { useAccount, useAuth } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { useGuest } from '../store/guest.js';
@@ -113,19 +113,28 @@ export function RewardsPage() {
               )}
             </section>
 
-            {/* Previous claims */}
-            {data.redemptions.length > 0 && (
-              <section className="space-y-3">
-                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Sparkles className="h-4 w-4" /> Your claims
-                </h2>
-                <Card className="divide-y divide-border">
-                  {data.redemptions.map((r) => (
-                    <ClaimRow key={r._id} redemption={r} />
-                  ))}
-                </Card>
-              </section>
-            )}
+            {/* Reward claim history — in-app reward orders (₹0 line) + any legacy code claims. */}
+            {(() => {
+              const claimedOrders = data.orders.filter(
+                (o) => o.isReward || (o.rewardPointsSpent ?? 0) > 0,
+              );
+              if (claimedOrders.length === 0 && data.redemptions.length === 0) return null;
+              return (
+                <section className="space-y-3">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Sparkles className="h-4 w-4" /> Reward claim history
+                  </h2>
+                  <Card className="divide-y divide-border">
+                    {claimedOrders.map((o) => (
+                      <RewardClaimRow key={o._id} order={o} />
+                    ))}
+                    {data.redemptions.map((r) => (
+                      <ClaimRow key={r._id} redemption={r} />
+                    ))}
+                  </Card>
+                </section>
+              );
+            })()}
           </>
         )}
       </main>
@@ -192,6 +201,27 @@ function RewardCard({ reward, points, index }: { reward: LoyaltyReward; points: 
         </div>
       </Card>
     </motion.div>
+  );
+}
+
+function RewardClaimRow({ order }: { order: Order }) {
+  // The reward is the free (₹0) line on the order.
+  const freeItem = order.items.find((i) => i.lineTotal === 0) ?? order.items[0];
+  return (
+    <Link to={`/order/${order._id}`} className="flex items-center gap-3 p-3.5 transition-colors hover:bg-secondary/50">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+        <Gift className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{freeItem?.name ?? 'Reward'}</p>
+        <p className="text-xs text-muted-foreground">
+          {order.rewardPointsSpent ? `${order.rewardPointsSpent} pts · ` : ''}
+          {formatDate(order.placedAt)} · {formatTime(order.placedAt)}
+        </p>
+      </div>
+      <Badge variant="accent">Claimed</Badge>
+      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+    </Link>
   );
 }
 
