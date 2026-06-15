@@ -107,51 +107,56 @@ export function InventoryPage() {
       )}
 
       {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-xl" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-44 rounded-xl" />
           ))}
         </div>
       ) : filtered.length > 0 ? (
-        <Card className="divide-y divide-border">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => (
-            <div key={p._id} className="flex items-center gap-4 p-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-sm font-medium">
+            <Card key={p._id} className="flex flex-col overflow-hidden">
+              <div className="relative aspect-[16/10] w-full overflow-hidden bg-secondary">
                 {p.image?.url ? (
                   <img src={p.image.url} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  p.name[0]
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground">
+                    {p.name[0]}
+                  </div>
                 )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-medium">{p.name}</p>
+                <div className="absolute left-2 top-2 flex flex-wrap gap-1">
                   {!p.isAvailable && <Badge variant="destructive">Unavailable</Badge>}
                   {p.stock != null && p.stock <= p.lowStockThreshold && (
-                    <Badge variant="warning">Low stock · {p.stock}</Badge>
+                    <Badge variant="warning">Low · {p.stock}</Badge>
                   )}
                 </div>
+              </div>
+              <div className="flex flex-1 flex-col p-3">
+                <p className="truncate font-medium">{p.name}</p>
                 <p className="text-xs text-muted-foreground">{catName(p.categoryId)}</p>
+                <div className="mt-auto flex items-center justify-between pt-3">
+                  <span className="text-sm font-semibold">{formatCurrency(p.basePrice)}</span>
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Edit"
+                      onClick={() => {
+                        setEditing(p);
+                        setOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => deleteProduct(p)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <span className="text-sm font-medium">{formatCurrency(p.basePrice)}</span>
-              <div className="flex gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing(p);
-                    setOpen(true);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => deleteProduct(p)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            </div>
+            </Card>
           ))}
-        </Card>
+        </div>
       ) : products && products.length > 0 ? (
         <EmptyState icon={Search} title="No products match" description="Try a different search, category or status." />
       ) : (
@@ -231,6 +236,9 @@ function ProductDialog({
       variants: form.variants
         .filter((v) => v.label.trim() && v.price !== '')
         .map((v) => ({ label: v.label.trim(), price: Number(v.price) })),
+      addons: form.addons
+        .filter((a) => a.label.trim() && a.price !== '')
+        .map((a) => ({ label: a.label.trim(), price: Number(a.price) })),
     };
     const onDone = { onSuccess: () => onOpenChange(false) };
     if (product) update.mutate({ id: product._id, body }, onDone);
@@ -360,6 +368,67 @@ function ProductDialog({
             )}
           </div>
 
+          {/* Add-ons (e.g. Extra gravy / Cheese). Optional paid extras the diner can add. */}
+          <div className="space-y-2 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Add-ons</p>
+                <p className="text-xs text-muted-foreground">
+                  Optional paid extras (e.g. Extra gravy, Cheese) the diner can add to this item.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setForm({ ...form, addons: [...form.addons, { label: '', price: '' }] })}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add add-on
+              </Button>
+            </div>
+            {form.addons.length > 0 && (
+              <div className="space-y-2">
+                {form.addons.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Add-on (e.g. Extra gravy)"
+                      value={a.label}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          addons: form.addons.map((row, j) => (j === i ? { ...row, label: e.target.value } : row)),
+                        })
+                      }
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="₹ Price"
+                      value={a.price}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          addons: form.addons.map((row, j) => (j === i ? { ...row, price: e.target.value } : row)),
+                        })
+                      }
+                      className="w-28"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setForm({ ...form, addons: form.addons.filter((_, j) => j !== i) })}
+                      aria-label="Remove add-on"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Prep time (mins)</Label>
@@ -432,6 +501,8 @@ function initial(product: Product | null, categories: Category[]) {
     loyaltyPoints: product?.loyaltyPoints != null ? String(product.loyaltyPoints) : '',
     // Size options, e.g. Half / Full. Empty = single-size product priced at basePrice.
     variants: (product?.variants ?? []).map((v) => ({ label: v.label, price: String(v.price) })),
+    // Add-ons, e.g. Extra gravy / Cheese. Optional paid extras the diner can pick.
+    addons: (product?.addons ?? []).map((a) => ({ label: a.label, price: String(a.price) })),
   };
 }
 

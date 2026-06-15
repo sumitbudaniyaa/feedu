@@ -87,6 +87,8 @@ super-admin (Feedu company) portal. Rebranded to **feedu**. Hardening + polish o
 **Admin (restaurant)**
 - [x] Per-customer **analytics** on click (same shared insight dialog)
 - [x] **Inventory filter bar** (search + category + status) — also in the waiter app
+- [x] **Inventory shown as cards** (image-forward grid); product form gains an **add-ons editor**
+      (e.g. Extra gravy / Cheese) alongside sizes — drives the customer product sheet (no more hard-coding)
 - [x] Staff creation captures a **mobile number**; removed the prefilled login email/password
 - [x] **Edit staff** (name / email / mobile / role / password) — admin; **edit employees**
       (name / email / mobile / password) — company portal. Employee model gained `phone`.
