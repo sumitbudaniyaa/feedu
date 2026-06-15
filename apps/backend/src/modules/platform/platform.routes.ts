@@ -146,6 +146,7 @@ router.get(
       _id: e._id,
       name: e.name,
       email: e.email,
+      phone: e.phone ?? null,
       role: 'super_admin' as const,
       isActive: e.isActive,
       createdAt: e.createdAt,
@@ -403,7 +404,7 @@ router.delete(
 router.post(
   '/users',
   asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body as Record<string, string>;
+    const { name, email, password, phone } = req.body as Record<string, string>;
     if (!name?.trim() || !email?.trim() || !password) {
       throw ApiError.badRequest('name, email and password are required');
     }
@@ -414,10 +415,37 @@ router.post(
     const emp = await Employee.create({
       name: name.trim(),
       email: lower,
+      phone: phone || undefined,
       passwordHash: await Employee.hashPassword(password),
       role: 'super_admin',
     });
     return ok(res, { _id: emp._id, name: emp.name, email: emp.email, role: emp.role }, 201);
+  }),
+);
+
+// Edit a Feedu employee (name / email / phone / password).
+router.patch(
+  '/users/:id',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { name, email, phone, password } = req.body as Record<string, string>;
+    const emp = await Employee.findById(req.params.id).select('+passwordHash');
+    if (!emp) throw ApiError.notFound('Employee not found');
+    if (email && email.toLowerCase() !== emp.email) {
+      const lower = email.toLowerCase();
+      if ((await Employee.exists({ email: lower })) || (await User.exists({ email: lower }))) {
+        throw ApiError.conflict('That email is already in use');
+      }
+      emp.email = lower;
+    }
+    if (name) emp.name = name;
+    if (phone !== undefined) emp.phone = phone || undefined;
+    if (password) {
+      if (password.length < 6) throw ApiError.badRequest('Password must be at least 6 characters');
+      emp.passwordHash = await Employee.hashPassword(password);
+    }
+    await emp.save();
+    return ok(res, { _id: emp._id, name: emp.name, email: emp.email, phone: emp.phone, role: emp.role });
   }),
 );
 

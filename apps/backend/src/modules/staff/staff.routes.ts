@@ -53,11 +53,24 @@ router.patch(
   validateObjectId(),
   authorize('owner', 'manager'),
   asyncHandler(async (req, res) => {
-    const { name, phone, role, permissions, isActive } = req.body as Record<string, unknown>;
+    const { name, email, phone, password, role, permissions, isActive } = req.body as Record<string, unknown>;
     if (role && !STAFF_ROLES.includes(role as string)) throw ApiError.badRequest('Invalid role');
 
     // Only set provided fields (Mongoose skips undefined paths on update).
-    const update = { name, phone, role, permissions, isActive };
+    const update: Record<string, unknown> = { name, phone, role, permissions, isActive };
+    if (typeof email === 'string' && email) {
+      const taken = await User.findOne({
+        email: email.toLowerCase(),
+        restaurantId: req.restaurantId,
+        _id: { $ne: req.params.id },
+      });
+      if (taken) throw ApiError.conflict('Another staff member already uses this email');
+      update.email = email.toLowerCase();
+    }
+    if (typeof password === 'string' && password) {
+      if (password.length < 8) throw ApiError.badRequest('Password must be at least 8 characters');
+      update.passwordHash = await User.hashPassword(password);
+    }
     const user = await User.findOneAndUpdate(
       { _id: req.params.id, restaurantId: req.restaurantId, role: { $ne: 'owner' } },
       update,

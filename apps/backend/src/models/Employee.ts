@@ -9,6 +9,7 @@ const employeeSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+    phone: { type: String },
     passwordHash: { type: String, required: true, select: false },
     // All Feedu staff are super admins of the platform for now.
     role: { type: String, enum: ['super_admin'], default: 'super_admin' },

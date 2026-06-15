@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ShieldCheck } from 'lucide-react';
+import { Pencil, Plus, ShieldCheck } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
@@ -16,13 +16,15 @@ import {
   Label,
   Skeleton,
 } from '@feedo/ui';
-import { formatDate, initials } from '@feedo/utils';
-import { useCreateEmployee, useUsers } from '../lib/api.js';
+import { initials } from '@feedo/utils';
+import type { PlatformUser } from '@feedo/api';
+import { useCreateEmployee, useUpdateEmployee, useUsers } from '../lib/api.js';
 
 /** Company portal "Team" page — Feedu employees only (restaurant users live on
  *  each restaurant's detail page). */
 export function UsersPage() {
   const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<PlatformUser | null>(null);
   // Only the Feedu team (super_admin / employees collection).
   const { data, isLoading } = useUsers({ role: 'super_admin' });
   const team = data ?? [];
@@ -56,11 +58,16 @@ export function UsersPage() {
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{u.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {u.email}
+                  {u.phone ? ` · ${u.phone}` : ''}
+                </p>
               </div>
               {!u.isActive && <Badge variant="destructive">Inactive</Badge>}
               <Badge variant="outline">Super admin</Badge>
-              <span className="hidden text-xs text-muted-foreground sm:block">{formatDate(u.createdAt)}</span>
+              <Button size="icon" variant="ghost" onClick={() => setEditing(u)} aria-label="Edit">
+                <Pencil className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </Card>
@@ -68,60 +75,101 @@ export function UsersPage() {
         <EmptyState icon={ShieldCheck} title="No team members yet" description="Add a Feedu employee to give them platform access." />
       )}
 
-      <AddEmployeeDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <EmployeeDialog open={addOpen} employee={null} onClose={() => setAddOpen(false)} />
+      <EmployeeDialog open={Boolean(editing)} employee={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }
 
-function AddEmployeeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function EmployeeDialog({
+  open,
+  employee,
+  onClose,
+}: {
+  open: boolean;
+  employee: PlatformUser | null;
+  onClose: () => void;
+}) {
   const create = useCreateEmployee();
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const update = useUpdateEmployee();
+  const editing = Boolean(employee);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Sync form when the target changes.
+  const key = employee?._id ?? 'new';
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setForm({ name: employee?.name ?? '', email: employee?.email ?? '', phone: employee?.phone ?? '', password: '' });
+  }
+
+  const pending = create.isPending || update.isPending;
+  const error = create.error ?? update.error;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const onDone = { onSuccess: () => onClose() };
+    if (editing && employee) {
+      update.mutate(
+        { id: employee._id, body: { name: form.name, email: form.email, phone: form.phone, password: form.password || undefined } },
+        onDone,
+      );
+    } else {
+      create.mutate({ name: form.name, email: form.email, phone: form.phone || undefined, password: form.password }, onDone);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Feedu team member</DialogTitle>
+          <DialogTitle>{editing ? 'Edit team member' : 'Add Feedu team member'}</DialogTitle>
         </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate(form, {
-              onSuccess: () => {
-                onClose();
-                setForm({ name: '', email: '', password: '' });
-              },
-            });
-          }}
-        >
+        <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-1.5">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => set('name', e.target.value)} required />
           </div>
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Mobile number</Label>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit number"
+                value={form.phone}
+                onChange={(e) => set('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Password</Label>
-            <Input type="text" minLength={6} value={form.password} onChange={(e) => set('password', e.target.value)} required />
+            <Label>{editing ? 'New password' : 'Password'}</Label>
+            <Input
+              type="text"
+              minLength={6}
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+              placeholder={editing ? 'Leave blank to keep current' : ''}
+              required={!editing}
+            />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Feedu employees get full super-admin access and are never tied to a restaurant.
-          </p>
-          {create.isError && (
+          {error && (
             <p className="text-sm text-destructive">
-              {create.error instanceof Error ? create.error.message : 'Could not create employee'}
+              {error instanceof Error ? error.message : 'Could not save employee'}
             </p>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? 'Creating…' : 'Create'}
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : editing ? 'Save changes' : 'Create'}
             </Button>
           </DialogFooter>
         </form>

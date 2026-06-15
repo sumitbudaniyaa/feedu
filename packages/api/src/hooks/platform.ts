@@ -38,6 +38,7 @@ export interface PlatformUser {
   _id: string;
   name: string;
   email: string;
+  phone?: string | null;
   role: UserRoleType;
   isActive: boolean;
   createdAt: string;
@@ -194,8 +195,16 @@ export function createPlatformHooks(client: ApiClient) {
     useCreateEmployee() {
       const qc = useQueryClient();
       return useMutation({
-        mutationFn: (body: { name: string; email: string; password: string }) =>
+        mutationFn: (body: { name: string; email: string; password: string; phone?: string }) =>
           client.post('/platform/users', body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'users'] }),
+      });
+    },
+    useUpdateEmployee() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, body }: { id: string; body: { name?: string; email?: string; phone?: string; password?: string } }) =>
+          client.patch(`/platform/users/${id}`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'users'] }),
       });
     },

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
@@ -19,7 +19,7 @@ import {
   useConfirm,
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
-import type { StaffRole } from '@feedo/types';
+import type { StaffRole, User } from '@feedo/types';
 import { staff as staffApi, useAuth } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
@@ -31,6 +31,7 @@ export function StaffPage() {
   const confirm = useConfirm();
   const me = useAuth((s) => s.user);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<User | null>(null);
 
   return (
     <div className="space-y-6">
@@ -38,7 +39,12 @@ export function StaffPage() {
         title="Staff"
         description="Invite managers, kitchen staff and waiters with scoped access."
         action={
-          <Button onClick={() => setOpen(true)}>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4" /> Add staff
           </Button>
         }
@@ -59,11 +65,27 @@ export function StaffPage() {
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{m.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {m.email}
+                  {m.phone ? ` · ${m.phone}` : ''}
+                </p>
               </div>
               <Badge variant="outline" className="capitalize">
                 {m.role}
               </Badge>
+              {m.role !== 'owner' && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Edit"
+                  onClick={() => {
+                    setEditing(m);
+                    setOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
               {m.role !== 'owner' && m._id !== me?._id && (
                 <Button
                   size="icon"
@@ -83,32 +105,61 @@ export function StaffPage() {
         <EmptyState icon={Users} title="No staff yet" description="Add your team to delegate access." />
       )}
 
-      <StaffDialog open={open} onOpenChange={setOpen} />
+      <StaffDialog open={open} onOpenChange={setOpen} member={editing} />
     </div>
   );
 }
 
-function StaffDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function StaffDialog({
+  open,
+  onOpenChange,
+  member,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  member: User | null;
+}) {
   const create = staffApi.useCreate();
+  const update = staffApi.useUpdate();
+  const editing = Boolean(member);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'waiter' as StaffRole });
+
+  // Sync form when the target changes.
+  const key = member?._id ?? 'new';
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setForm({
+      name: member?.name ?? '',
+      email: member?.email ?? '',
+      phone: member?.phone ?? '',
+      password: '',
+      role: (member?.role as StaffRole) ?? 'waiter',
+    });
+  }
+
+  const pending = create.isPending || update.isPending;
+  const error = create.error ?? update.error;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Drop an empty phone so it doesn't fail the 10-digit validation.
-    const payload = { ...form, phone: form.phone || undefined };
-    create.mutate(payload as Record<string, unknown>, {
-      onSuccess: () => {
-        onOpenChange(false);
-        setForm({ name: '', email: '', phone: '', password: '', role: 'waiter' });
-      },
-    });
+    const onDone = { onSuccess: () => onOpenChange(false) };
+    const phone = form.phone || undefined;
+    if (editing && member) {
+      update.mutate(
+        { id: member._id, body: { name: form.name, email: form.email, phone, role: form.role, password: form.password || undefined } as Record<string, unknown> },
+        onDone,
+      );
+    } else {
+      create.mutate({ name: form.name, email: form.email, phone, password: form.password, role: form.role } as Record<string, unknown>, onDone);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add staff member</DialogTitle>
+          <DialogTitle>{editing ? 'Edit staff member' : 'Add staff member'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
@@ -134,8 +185,15 @@ function StaffDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Password</Label>
-              <Input type="password" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 8 characters" required />
+              <Label>{editing ? 'New password' : 'Password'}</Label>
+              <Input
+                type="text"
+                minLength={8}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder={editing ? 'Leave blank to keep current' : 'Min 8 characters'}
+                required={!editing}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Role</Label>
@@ -148,17 +206,17 @@ function StaffDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
               </Select>
             </div>
           </div>
-          {create.error && (
+          {error && (
             <p className="text-sm text-destructive">
-              {create.error instanceof Error ? create.error.message : 'Failed'}
+              {error instanceof Error ? error.message : 'Failed'}
             </p>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? 'Adding…' : 'Add'}
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : editing ? 'Save changes' : 'Add'}
             </Button>
           </DialogFooter>
         </form>
