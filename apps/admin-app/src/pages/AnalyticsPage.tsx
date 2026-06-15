@@ -11,24 +11,42 @@ const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
 
 export function AnalyticsPage() {
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
-  const { data, isLoading } = useDashboard(range);
+  const [scope, setScope] = useState<'brand' | 'branch'>('brand');
   const role = useAuth((s) => s.user?.role);
   const isBrandWide = BRAND_WIDE.has(role ?? '');
   const { data: comparison } = useBranchComparison(range, isBrandWide);
+  const multiBranch = isBrandWide && (comparison?.totals.branchCount ?? 0) > 1;
+  // Brand-wide users default to the combined view; single-branch brands stay per-branch.
+  const effectiveScope = multiBranch ? scope : 'branch';
+  const { data, isLoading } = useDashboard(range, effectiveScope);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Analytics"
-        description="Sales, table efficiency, peaks and top products."
+        description={
+          effectiveScope === 'brand'
+            ? 'Combined sales across all your branches.'
+            : 'Sales, table efficiency, peaks and top products.'
+        }
         action={
-          <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
-            <TabsList>
-              <TabsTrigger value="day">Day</TabsTrigger>
-              <TabsTrigger value="week">Week</TabsTrigger>
-              <TabsTrigger value="month">Month</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center gap-2">
+            {multiBranch && (
+              <Tabs value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
+                <TabsList>
+                  <TabsTrigger value="brand">All branches</TabsTrigger>
+                  <TabsTrigger value="branch">This branch</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+            <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
+              <TabsList>
+                <TabsTrigger value="day">Day</TabsTrigger>
+                <TabsTrigger value="week">Week</TabsTrigger>
+                <TabsTrigger value="month">Month</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         }
       />
 

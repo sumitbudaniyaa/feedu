@@ -21,9 +21,36 @@ function pct(curr: number, prev: number): number {
   return Number((((curr - prev) / prev) * 100).toFixed(1));
 }
 
-/** Compute the admin dashboard stats from real order data. */
+interface DashboardScope {
+  /** Order/Table tenant filter (ObjectIds already cast for aggregation). */
+  tenantMatch: Record<string, unknown>;
+  /** Catalog filter for low-stock (branch `restaurantId` or brand `brandId`). */
+  productFilter: Record<string, unknown>;
+}
+
+/** Dashboard stats for a single branch (the active outlet). */
 export async function getDashboardStats(
   restaurantId: string,
+  range: 'day' | 'week' | 'month' = 'week',
+): Promise<DashboardStats> {
+  // Aggregation pipelines do NOT auto-cast — restaurantId must be a real ObjectId.
+  const rid = new Types.ObjectId(restaurantId);
+  return computeDashboard({ tenantMatch: { restaurantId: rid }, productFilter: { restaurantId } }, range);
+}
+
+/** Combined dashboard stats across every branch of a brand ("All branches"). */
+export async function getBrandDashboardStats(
+  brandId: string,
+  range: 'day' | 'week' | 'month' = 'week',
+): Promise<DashboardStats> {
+  const branches = await Restaurant.find({ brandId }).select('_id').lean();
+  const ids = branches.map((b) => b._id);
+  return computeDashboard({ tenantMatch: { restaurantId: { $in: ids } }, productFilter: { brandId } }, range);
+}
+
+/** Compute the admin dashboard stats from real order data for a given scope. */
+async function computeDashboard(
+  { tenantMatch, productFilter }: DashboardScope,
   range: 'day' | 'week' | 'month' = 'week',
 ): Promise<DashboardStats> {
   const rangeDays = range === 'day' ? 1 : range === 'week' ? 7 : 30;
@@ -31,9 +58,7 @@ export async function getDashboardStats(
   // Previous equivalent window, for the change %.
   const prevStart = new Date(rangeStart.getTime() - rangeDays * 86400000);
 
-  // Aggregation pipelines do NOT auto-cast — restaurantId must be a real ObjectId.
-  const rid = new Types.ObjectId(restaurantId);
-  const matchPaid = { restaurantId: rid, status: { $in: REVENUE_STATUSES } } as Record<string, unknown>;
+  const matchPaid = { ...tenantMatch, status: { $in: REVENUE_STATUSES } } as Record<string, unknown>;
 
   const [
     todayAgg,
@@ -89,7 +114,7 @@ export async function getDashboardStats(
         { $sort: { _id: 1 } },
       ]),
       Product.find({
-        restaurantId,
+        ...productFilter,
         stock: { $ne: null },
         $expr: { $lte: ['$stock', '$lowStockThreshold'] },
       })
@@ -115,7 +140,7 @@ export async function getDashboardStats(
       Order.aggregate([
         {
           $match: {
-            restaurantId: rid,
+            ...tenantMatch,
             status: 'completed',
             completedAt: { $ne: null },
             placedAt: { $gte: rangeStart },
@@ -128,7 +153,7 @@ export async function getDashboardStats(
           },
         },
       ]),
-      Table.countDocuments({ restaurantId: rid, isActive: true }),
+      Table.countDocuments({ ...tenantMatch, isActive: true }),
     ]);
 
   const repeat = allTimeCustomers.filter((c) => c.orders > 1).length;

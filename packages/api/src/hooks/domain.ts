@@ -30,10 +30,11 @@ export function createDomainHooks(client: ApiClient) {
     },
 
     // ---- Analytics ----
-    useDashboard(range: 'day' | 'week' | 'month' = 'week') {
+    useDashboard(range: 'day' | 'week' | 'month' = 'week', scope: 'branch' | 'brand' = 'branch') {
+      const suffix = scope === 'brand' ? '&scope=brand' : '';
       return useQuery({
-        queryKey: ['analytics', 'dashboard', range],
-        queryFn: () => client.get<DashboardStats>(`/analytics/dashboard?range=${range}`),
+        queryKey: ['analytics', 'dashboard', range, scope],
+        queryFn: () => client.get<DashboardStats>(`/analytics/dashboard?range=${range}${suffix}`),
         staleTime: 30_000,
       });
     },
