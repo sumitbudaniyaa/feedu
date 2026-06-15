@@ -19,8 +19,16 @@ import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
 
 const FILTERS: { value: string; label: string }[] = [
   { value: 'active', label: 'Active' },
+  { value: 'unpaid', label: 'Pending payment' },
   { value: 'all', label: 'All' },
 ];
+
+// Mirror the backend's `active` filter exactly (orders.service.listOrders).
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready'];
+const isActive = (o: { status: string; paymentStatus: string }) =>
+  ACTIVE_STATUSES.includes(o.status) &&
+  // Pending + unpaid orders are awaiting online payment — never shown as active.
+  !(o.status === 'pending' && o.paymentStatus === 'unpaid');
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
   pending: 'warning',
@@ -43,12 +51,34 @@ const NEXT: Partial<Record<OrderStatus, { to: OrderStatus; label: string }>> = {
 
 export function OrdersPage() {
   const [filter, setFilter] = useState('active');
+  // "unpaid" isn't a server filter — fetch all and narrow client-side.
   const { data: orders, isLoading } = useOrders(
-    filter === 'active' ? { active: true } : filter === 'all' ? {} : { status: filter },
+    filter === 'active'
+      ? { active: true }
+      : filter === 'all' || filter === 'unpaid'
+        ? {}
+        : { status: filter },
   );
   const updateStatus = useUpdateOrderStatus();
   const confirm = useConfirm();
   const [selected, setSelected] = useState<Order | null>(null);
+
+  // All orders (for the tab counts), independent of the selected filter.
+  const { data: allOrders } = useOrders({});
+  const counts = {
+    active: (allOrders ?? []).filter(isActive).length,
+    unpaid: (allOrders ?? []).filter(
+      (o) => o.paymentStatus === 'unpaid' && !['cancelled', 'refunded'].includes(o.status),
+    ).length,
+  };
+
+  // Pending-payment view: unpaid orders that are still collectable (not cancelled/refunded).
+  const displayed =
+    filter === 'unpaid'
+      ? (orders ?? []).filter(
+          (o) => o.paymentStatus === 'unpaid' && !['cancelled', 'refunded'].includes(o.status),
+        )
+      : orders;
 
   return (
     <div className="space-y-6">
@@ -56,11 +86,19 @@ export function OrdersPage() {
 
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList>
-          {FILTERS.map((f) => (
-            <TabsTrigger key={f.value} value={f.value}>
-              {f.label}
-            </TabsTrigger>
-          ))}
+          {FILTERS.map((f) => {
+            const count = f.value === 'active' ? counts.active : f.value === 'unpaid' ? counts.unpaid : null;
+            return (
+              <TabsTrigger key={f.value} value={f.value}>
+                {f.label}
+                {count != null && count > 0 && (
+                  <span className="ml-1.5 rounded-full bg-secondary px-1.5 text-xs font-semibold tabular-nums">
+                    {count}
+                  </span>
+                )}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
 
@@ -70,9 +108,9 @@ export function OrdersPage() {
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
-      ) : orders && orders.length > 0 ? (
+      ) : displayed && displayed.length > 0 ? (
         <div className="grid gap-3">
-          {orders.map((order) => (
+          {displayed.map((order) => (
             <OrderRow
               key={order._id}
               order={order}
@@ -94,7 +132,15 @@ export function OrdersPage() {
           ))}
         </div>
       ) : (
-        <EmptyState icon={ShoppingBag} title="No orders here" description="New orders will appear automatically." />
+        <EmptyState
+          icon={ShoppingBag}
+          title={filter === 'unpaid' ? 'No pending payments' : 'No orders here'}
+          description={
+            filter === 'unpaid'
+              ? 'Orders awaiting payment will show up here.'
+              : 'New orders will appear automatically.'
+          }
+        />
       )}
 
       <OrderDetailsDialog order={selected} open={Boolean(selected)} onOpenChange={(v) => !v && setSelected(null)} />

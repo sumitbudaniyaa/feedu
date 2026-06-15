@@ -1,1 +1,28 @@
 @import '@feedo/ui/styles/globals.css';
+
+/*
+  Super-admin is an information-dense console — run it at a tighter 14px base so
+  buttons, inputs, dialogs and spacing read compact/minimal (Tailwind sizing is
+  rem-based, so everything scales down proportionally).
+*/
+:root {
+  font-size: 14px;
+}
+
+/*
+  Minimal form controls: filled, borderless, no focus outline/ring.
+  !important is needed to beat Tailwind's per-component focus-ring utilities.
+*/
+input:not([type='checkbox']):not([type='radio']):not([type='file']),
+select,
+textarea {
+  border-color: transparent !important;
+  background-color: hsl(var(--secondary)) !important;
+  box-shadow: none !important;
+}
+input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}

@@ -40,6 +40,7 @@ export function SettingsPage() {
   const [gstNumber, setGstNumber] = useState('');
   const [gstPercent, setGstPercent] = useState('5');
   const [inclusive, setInclusive] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
     if (!restaurant) return;
@@ -64,14 +65,22 @@ export function SettingsPage() {
 
   const save = () => {
     if (contactInvalid) return;
-    update.mutate({
-      name: form.name,
-      description: form.description || undefined,
-      contactNumber: form.contactNumber || undefined,
-      cuisineType: form.cuisine ? form.cuisine.split(',').map((s) => s.trim()).filter(Boolean) : [],
-      branding: { accent, themeMode: restaurant?.branding?.themeMode ?? 'dark' },
-      tax: { gstNumber: gstNumber || undefined, gstPercent: Number(gstPercent), inclusive },
-    });
+    update.mutate(
+      {
+        name: form.name,
+        description: form.description || undefined,
+        contactNumber: form.contactNumber || undefined,
+        cuisineType: form.cuisine ? form.cuisine.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        branding: { accent, themeMode: restaurant?.branding?.themeMode ?? 'dark' },
+        tax: { gstNumber: gstNumber || undefined, gstPercent: Number(gstPercent), inclusive },
+      },
+      {
+        onSuccess: () => {
+          setJustSaved(true);
+          setTimeout(() => setJustSaved(false), 2500);
+        },
+      },
+    );
   };
 
   if (isLoading || !restaurant) {
@@ -183,9 +192,26 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={update.isPending || contactInvalid}>
-          {update.isPending ? 'Saving…' : 'Save changes'}
+      <div className="flex items-center justify-end gap-3">
+        {update.isError && (
+          <p className="text-sm text-destructive">
+            {update.error instanceof Error ? update.error.message : 'Could not save changes'}
+          </p>
+        )}
+        <Button
+          onClick={save}
+          disabled={update.isPending || contactInvalid}
+          variant={justSaved ? 'success' : 'default'}
+        >
+          {update.isPending ? (
+            'Saving…'
+          ) : justSaved ? (
+            <>
+              <Check className="h-4 w-4" /> Saved
+            </>
+          ) : (
+            'Save changes'
+          )}
         </Button>
       </div>
     </div>

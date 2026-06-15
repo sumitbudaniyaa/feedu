@@ -1,6 +1,6 @@
 import type { DashboardStats } from '@feedo/types';
 import { Types } from 'mongoose';
-import { Order, Product } from '../../models/index.js';
+import { Order, Product, Table } from '../../models/index.js';
 
 const REVENUE_STATUSES = ['confirmed', 'preparing', 'ready', 'served', 'completed'];
 
@@ -30,8 +30,19 @@ export async function getDashboardStats(
   const rid = new Types.ObjectId(restaurantId);
   const matchPaid = { restaurantId: rid, status: { $in: REVENUE_STATUSES } } as Record<string, unknown>;
 
-  const [todayAgg, yestAgg, series, topProducts, peakHours, lowStock, allTimeCustomers, channels] =
-    await Promise.all([
+  const [
+    todayAgg,
+    yestAgg,
+    series,
+    topProducts,
+    peakHours,
+    lowStock,
+    allTimeCustomers,
+    channels,
+    orderTypes,
+    completion,
+    tableCount,
+  ] = await Promise.all([
       // Current selected window (day / week / month).
       Order.aggregate([
         { $match: { ...matchPaid, placedAt: { $gte: rangeStart } } },
@@ -89,12 +100,44 @@ export async function getDashboardStats(
         { $group: { _id: '$channel', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
         { $sort: { revenue: -1 } },
       ]),
+      // Service-type split (dine-in / takeaway).
+      Order.aggregate([
+        { $match: { ...matchPaid, placedAt: { $gte: rangeStart } } },
+        { $group: { _id: '$type', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
+        { $sort: { revenue: -1 } },
+      ]),
+      // Average completion time (placed → completed), in minutes.
+      Order.aggregate([
+        {
+          $match: {
+            restaurantId: rid,
+            status: 'completed',
+            completedAt: { $ne: null },
+            placedAt: { $gte: rangeStart },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            avgMs: { $avg: { $subtract: ['$completedAt', '$placedAt'] } },
+          },
+        },
+      ]),
+      Table.countDocuments({ restaurantId: rid, isActive: true }),
     ]);
 
   const repeat = allTimeCustomers.filter((c) => c.orders > 1).length;
   const totalCustomers = allTimeCustomers.length;
   const rangeRevenue = todayAgg[0]?.revenue ?? 0;
   const rangeOrders = todayAgg[0]?.orders ?? 0;
+
+  // Table-efficiency metrics (only meaningful when tables exist).
+  const dineInOrders = orderTypes.find((t) => t._id === 'dine_in')?.orders ?? 0;
+  const revenuePerTable = tableCount ? Math.round(rangeRevenue / tableCount) : 0;
+  const tableTurnover = tableCount ? Number((dineInOrders / tableCount).toFixed(1)) : 0;
+  const avgCompletionMinutes = completion[0]?.avgMs
+    ? Math.round(completion[0].avgMs / 60000)
+    : 0;
 
   return {
     revenue: rangeRevenue,
@@ -118,5 +161,14 @@ export async function getDashboardStats(
       orders: c.orders,
       revenue: c.revenue,
     })),
+    orderTypeMix: orderTypes.map((t) => ({
+      type: (t._id as string) ?? 'dine_in',
+      orders: t.orders,
+      revenue: t.revenue,
+    })),
+    tableCount,
+    revenuePerTable,
+    tableTurnover,
+    avgCompletionMinutes,
   };
 }

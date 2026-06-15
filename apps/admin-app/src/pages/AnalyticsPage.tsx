@@ -1,18 +1,10 @@
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { BarChart3, Store } from 'lucide-react';
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
+import { BarChart3, Clock, IndianRupee, Repeat, RefreshCw, Table2, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import { useDashboard } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
-
-const CHANNEL_LABEL: Record<string, string> = {
-  app: 'Feedo app',
-  counter: 'Counter',
-  zomato: 'Zomato',
-  swiggy: 'Swiggy',
-  district: 'District',
-};
 
 export function AnalyticsPage() {
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
@@ -22,7 +14,7 @@ export function AnalyticsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Analytics"
-        description="Understand your peaks, top products and customer behaviour."
+        description="Sales, table efficiency, peaks and top products."
         action={
           <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
             <TabsList>
@@ -33,6 +25,37 @@ export function AnalyticsPage() {
           </Tabs>
         }
       />
+
+      {/* Key metrics */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {isLoading || !data ? (
+          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+        ) : (
+          <>
+            <Metric label="Total revenue" value={formatCurrency(data.revenue)} icon={IndianRupee} />
+            <Metric label="Avg order value" value={formatCurrency(data.avgOrderValue)} icon={TrendingUp} />
+            <Metric label="Repeat customers" value={`${data.repeatCustomerPct}%`} hint="Returning diners" icon={Repeat} />
+            <Metric
+              label="Revenue / table"
+              value={data.tableCount ? formatCurrency(data.revenuePerTable) : '—'}
+              hint={data.tableCount ? `${data.tableCount} active tables` : 'No tables set up'}
+              icon={Table2}
+            />
+            <Metric
+              label="Table turnover"
+              value={data.tableCount ? `${data.tableTurnover}×` : '—'}
+              hint="Parties served per table"
+              icon={RefreshCw}
+            />
+            <Metric
+              label="Avg serve time"
+              value={data.avgCompletionMinutes ? `${data.avgCompletionMinutes} min` : '—'}
+              hint="Order placed → completed"
+              icon={Clock}
+            />
+          </>
+        )}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -82,43 +105,31 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Order channels */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Store className="h-4 w-4" /> Order channels
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10" />)
-          ) : data && data.channelMix.length > 0 ? (
-            (() => {
-              const totalRev = data.channelMix.reduce((s, c) => s + c.revenue, 0) || 1;
-              return data.channelMix.map((c) => {
-                const pctShare = Math.round((c.revenue / totalRev) * 100);
-                return (
-                  <div key={c.channel} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 font-medium">
-                        {CHANNEL_LABEL[c.channel] ?? c.channel}
-                        <Badge variant="outline">{c.orders} orders</Badge>
-                      </span>
-                      <span className="font-medium">{formatCurrency(c.revenue)}</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${pctShare}%` }} />
-                    </div>
-                  </div>
-                );
-              });
-            })()
-          ) : (
-            <EmptyState icon={Store} title="No channel data yet" description="Orders from the app, counter, Zomato or Swiggy will break down here." />
-          )}
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{label}</span>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      </CardContent>
+    </Card>
   );
 }

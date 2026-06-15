@@ -186,6 +186,10 @@ function ProductDialog({
       image: form.imageUrl ? { url: form.imageUrl } : undefined,
       prepTimeMinutes: form.prepTime ? Number(form.prepTime) : undefined,
       loyaltyPoints: form.loyaltyPoints ? Number(form.loyaltyPoints) : undefined,
+      // Keep only completed rows; drop blanks.
+      variants: form.variants
+        .filter((v) => v.label.trim() && v.price !== '')
+        .map((v) => ({ label: v.label.trim(), price: Number(v.price) })),
     };
     const onDone = { onSuccess: () => onOpenChange(false) };
     if (product) update.mutate({ id: product._id, body }, onDone);
@@ -249,6 +253,72 @@ function ProductDialog({
             <Label>Description</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
           </div>
+
+          {/* Sizes / variants (e.g. Half / Full). Optional — leave empty for a single size. */}
+          <div className="space-y-2 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Sizes</p>
+                <p className="text-xs text-muted-foreground">
+                  Add options like Half / Full. Leave empty for a single size (uses the price above).
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setForm({ ...form, variants: [...form.variants, { label: '', price: '' }] })}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add size
+              </Button>
+            </div>
+            {form.variants.length > 0 && (
+              <div className="space-y-2">
+                {form.variants.map((v, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Size (e.g. Half)"
+                      value={v.label}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          variants: form.variants.map((row, j) =>
+                            j === i ? { ...row, label: e.target.value } : row,
+                          ),
+                        })
+                      }
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="₹ Price"
+                      value={v.price}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          variants: form.variants.map((row, j) =>
+                            j === i ? { ...row, price: e.target.value } : row,
+                          ),
+                        })
+                      }
+                      className="w-28"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setForm({ ...form, variants: form.variants.filter((_, j) => j !== i) })}
+                      aria-label="Remove size"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Prep time (mins)</Label>
@@ -319,6 +389,8 @@ function initial(product: Product | null, categories: Category[]) {
     imageUrl: product?.image?.url ?? '',
     prepTime: product?.prepTimeMinutes != null ? String(product.prepTimeMinutes) : '',
     loyaltyPoints: product?.loyaltyPoints != null ? String(product.loyaltyPoints) : '',
+    // Size options, e.g. Half / Full. Empty = single-size product priced at basePrice.
+    variants: (product?.variants ?? []).map((v) => ({ label: v.label, price: String(v.price) })),
   };
 }
 

@@ -22,6 +22,16 @@ export interface DashboardStats {
   lowStock: { productId: string; name: string; stock: number }[];
   loyaltyRedemptions: number;
   channelMix: { channel: string; orders: number; revenue: number }[];
+  /** Orders/revenue split by service type (dine_in / takeaway) for the range. */
+  orderTypeMix: { type: string; orders: number; revenue: number }[];
+  /** Active table count (for table-efficiency metrics). */
+  tableCount: number;
+  /** Range revenue divided by active tables. */
+  revenuePerTable: number;
+  /** Dine-in parties served per table over the range. */
+  tableTurnover: number;
+  /** Average minutes from order placed to completed (0 if not measurable). */
+  avgCompletionMinutes: number;
 }
 
 export const analyticsRangeSchema = z.object({

@@ -183,7 +183,11 @@ export function OrderDetailsDialog({
                 </p>
                 <p className="text-xs text-muted-foreground">Collected the payment? Record it below.</p>
                 <div className="flex gap-2">
-                  <Select value={method} onChange={(e) => setMethod(e.target.value)} className="flex-1">
+                  <Select
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value)}
+                    className="h-8 flex-1 border-0 bg-secondary text-xs shadow-none focus-visible:ring-0"
+                  >
                     {PAY_METHODS.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.label}
@@ -191,6 +195,7 @@ export function OrderDetailsDialog({
                     ))}
                   </Select>
                   <Button
+                    size="sm"
                     onClick={() =>
                       recordPayment.mutate(
                         { id: order._id, method },
@@ -209,8 +214,8 @@ export function OrderDetailsDialog({
               </p>
             )}
 
-            <Button variant="outline" className="w-full" onClick={downloadInvoice} disabled={downloading}>
-              <Download className="h-4 w-4" /> {downloading ? 'Generating…' : 'Download invoice'}
+            <Button size="sm" variant="outline" className="w-full" onClick={downloadInvoice} disabled={downloading}>
+              <Download className="h-3.5 w-3.5" /> {downloading ? 'Generating…' : 'Download invoice'}
             </Button>
 
             {/* Off-screen invoice used for PNG generation. */}

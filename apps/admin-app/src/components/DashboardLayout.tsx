@@ -67,11 +67,10 @@ export function DashboardLayout() {
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 px-3 py-5 lg:flex">
-        <div className="flex items-center gap-2 px-3 pb-6">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background">
-            <span className="text-sm font-bold">F</span>
-          </div>
-          <span className="text-sm font-semibold tracking-tight">Feedo</span>
+        <div className="flex items-center px-3 pb-6">
+          <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">
+            feedo
+          </span>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5">
@@ -109,9 +108,9 @@ export function DashboardLayout() {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur">
           <div className="lg:hidden">
-            <span className="text-sm font-semibold">Feedo</span>
+            <span className="text-lg font-black italic tracking-tight text-foreground">feedo</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
@@ -133,9 +132,9 @@ export function DashboardLayout() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1 px-6 py-8"
+          className="flex-1 px-4 py-4"
         >
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="w-full">
             <Outlet />
           </div>
         </motion.main>
