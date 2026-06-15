@@ -17,7 +17,8 @@ const addonSchema = new Schema(
 const productSchema = new Schema(
   {
     brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
-    restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
+    // The brand owns the catalog; restaurantId is legacy (the brand's home branch).
+    restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', index: true },
     categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
     name: { type: String, required: true, trim: true },
     description: String,

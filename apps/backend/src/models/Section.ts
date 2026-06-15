@@ -3,7 +3,8 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
 const sectionSchema = new Schema(
   {
     brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
-    restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
+    // Brand-owned; restaurantId is legacy (the brand's home branch).
+    restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', index: true },
     title: { type: String, required: true },
     subtitle: String,
     layout: { type: String, enum: ['carousel', 'hero', 'grid'], required: true },

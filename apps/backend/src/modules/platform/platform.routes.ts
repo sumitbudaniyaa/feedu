@@ -238,7 +238,8 @@ router.get(
         User.find({ restaurantId: id, role: { $in: ['owner', 'manager', 'kitchen', 'waiter'] } })
           .sort({ createdAt: 1 })
           .lean(),
-        Product.countDocuments({ restaurantId: id }),
+        // Catalog is brand-level; count by brand (fall back to branch for legacy data).
+        Product.countDocuments(restaurant.brandId ? { brandId: restaurant.brandId } : { restaurantId: id }),
         Customer.countDocuments({ restaurantId: id }),
         Order.find({ restaurantId: id }).sort({ placedAt: -1 }).limit(10).lean(),
         Order.aggregate([
@@ -474,23 +475,34 @@ router.delete(
     const id = req.params.id;
     const restaurant = await Restaurant.findById(id);
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    const brandId = restaurant.brandId;
+
+    // Branch-scoped data is always removed with the branch.
     await Promise.all([
       Restaurant.deleteOne({ _id: id }),
       Subscription.deleteMany({ restaurantId: id }),
       User.deleteMany({ restaurantId: id }),
-      Category.deleteMany({ restaurantId: id }),
-      Product.deleteMany({ restaurantId: id }),
       Table.deleteMany({ restaurantId: id }),
       Order.deleteMany({ restaurantId: id }),
       Customer.deleteMany({ restaurantId: id }),
-      Section.deleteMany({ restaurantId: id }),
-      LoyaltyProgram.deleteMany({ restaurantId: id }),
-      LoyaltyReward.deleteMany({ restaurantId: id }),
       BranchMenu.deleteMany({ branchId: id }),
     ]);
-    // Drop the brand once its last branch is gone (keeps multi-branch brands intact).
-    if (restaurant.brandId && !(await Restaurant.exists({ brandId: restaurant.brandId }))) {
-      await Brand.deleteOne({ _id: restaurant.brandId });
+
+    // Brand-shared catalog/loyalty belongs to the brand — only drop it (and the
+    // brand) when this was the brand's last branch. Branches without a brand
+    // (legacy single-tenant data) clean up by restaurantId as before.
+    const lastBranch = !brandId || !(await Restaurant.exists({ brandId }));
+    if (lastBranch) {
+      const scope = brandId ? { brandId } : { restaurantId: id };
+      await Promise.all([
+        Category.deleteMany(scope),
+        Product.deleteMany(scope),
+        Section.deleteMany(scope),
+        LoyaltyProgram.deleteMany(scope),
+        LoyaltyReward.deleteMany(scope),
+        BranchMenu.deleteMany(brandId ? { brandId } : { branchId: id }),
+        brandId ? Brand.deleteOne({ _id: brandId }) : Promise.resolve(),
+      ]);
     }
     return ok(res, { deleted: true });
   }),

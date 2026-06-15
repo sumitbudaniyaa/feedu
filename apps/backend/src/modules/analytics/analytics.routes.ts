@@ -20,7 +20,7 @@ router.get(
     if (req.query.scope === 'brand' && req.brandId && BRAND_WIDE.has(req.auth!.role)) {
       return ok(res, await getBrandDashboardStats(req.brandId, range));
     }
-    return ok(res, await getDashboardStats(req.branchId!, range));
+    return ok(res, await getDashboardStats(req.branchId!, range, req.brandId));
   }),
 );
 

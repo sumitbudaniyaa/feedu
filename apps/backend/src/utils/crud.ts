@@ -70,12 +70,9 @@ export function crud<T>(opts: CrudOptions<T>) {
 
     create: async (req: Request, res: Response) => {
       const payload = opts.createSchema ? opts.createSchema.parse(req.body) : req.body;
-      // Branch resources still stamp restaurantId; brand resources stamp brandId
-      // (+ restaurantId for back-compat reads during the transition).
-      const tenant =
-        level === 'brand'
-          ? { brandId: req.brandId, restaurantId: req.branchId }
-          : { restaurantId: req.branchId };
+      // Brand resources are owned by the tenant (brandId); branch resources by
+      // the active branch (restaurantId).
+      const tenant = level === 'brand' ? { brandId: req.brandId } : { restaurantId: req.branchId };
       const doc = await model.create({ ...payload, ...tenant });
       return ok(res, doc, 201);
     },

@@ -110,10 +110,16 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   product (home/legacy); `soldCount` stays brand-level. Fixes ordering at non-home branches (previously
   `Product.find({restaurantId})` returned nothing). Verified: placed an order at branch 2 (Koramangala),
   isolated per branch, reflected in the comparison.
-- [ ] **Phase 6 — cleanup (deferred until stable, by design):** drop legacy `restaurant`/`x-restaurant-id`
-  aliases + the `Product.restaurantId` write path. Risky teardown of the back-compat seams single-branch
-  flows still rely on — leave until the multi-branch model has soaked. (Phase 5b already removed the
-  order pipeline's reliance on `Product.restaurantId` for reads.)
+- [x] **Phase 6 — cleanup (done):** dropped the legacy aliases.
+  - **6a:** ApiClient sends `x-branch-id` (option `getRestaurantId`→`getBranchId`); `resolveTenant` no
+    longer honours `x-restaurant-id`.
+  - **6b:** removed the `req.restaurantId` request alias — every handler reads `req.branchId`. (The Mongo
+    `restaurantId` **field** stays = the branch FK; renaming it would be a data migration.)
+  - **6c:** brand-level entity reads moved to `brandId` (public rewards, platform product-count + delete
+    scoping, analytics low-stock); brand-level `crud` create no longer stamps `restaurantId`; `restaurantId`
+    is now optional on Product/Category/Section/LoyaltyProgram/LoyaltyReward. Branch delete only drops the
+    brand catalog/loyalty when removing the brand's last branch. Verified: new brand product persists
+    `brandId` only, is shared to all branches, and all read paths still work.
 
 ## Recently added
 

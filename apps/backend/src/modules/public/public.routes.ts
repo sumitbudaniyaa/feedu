@@ -106,6 +106,14 @@ function loadMenu(branchId: string, brandId?: string | null) {
   return resolveBranchMenu({ brandId, branchId });
 }
 
+/**
+ * Filter for brand-level resources (loyalty rewards) keyed to a branch's brand.
+ * Falls back to the branch id for legacy single-tenant data without a brand.
+ */
+function rewardScope(restaurant: { _id: unknown; brandId?: unknown }) {
+  return restaurant.brandId ? { brandId: restaurant.brandId } : { restaurantId: restaurant._id };
+}
+
 // Public restaurant + full menu by slug.
 router.get(
   '/r/:slug',
@@ -198,7 +206,7 @@ router.post(
     if (rewardId) {
       if (!req.customerPhone) throw ApiError.unauthorized('Sign in to use a reward');
       if (!isValidObjectId(rewardId)) throw ApiError.badRequest('Invalid reward');
-      const rw = await LoyaltyReward.findOne({ _id: rewardId, restaurantId, isActive: true }).lean();
+      const rw = await LoyaltyReward.findOne({ _id: rewardId, ...rewardScope(restaurant), isActive: true }).lean();
       if (!rw) throw ApiError.notFound('Reward not found');
       if (!rw.productId) throw ApiError.badRequest('This reward can’t be added to an order');
       const wallet = await Customer.findOne({ restaurantId, phone: req.customerPhone }).lean();
@@ -304,7 +312,7 @@ router.get(
     const [customer, orders, rewards, redemptions] = await Promise.all([
       Customer.findOne({ restaurantId, phone }).lean(),
       Order.find({ restaurantId, customerPhone: phone }).sort({ placedAt: -1 }).limit(15).lean(),
-      LoyaltyReward.find({ restaurantId, isActive: true }).sort({ pointsCost: 1 }).lean(),
+      LoyaltyReward.find({ ...rewardScope(restaurant), isActive: true }).sort({ pointsCost: 1 }).lean(),
       Redemption.find({ restaurantId, customerPhone: phone }).sort({ createdAt: -1 }).limit(10).lean(),
     ]);
 
@@ -340,7 +348,7 @@ router.post(
     const restaurant = await findLiveRestaurant(req.params.slug!);
     const restaurantId = restaurant._id;
 
-    const reward = await LoyaltyReward.findOne({ _id: rewardId, restaurantId, isActive: true }).lean();
+    const reward = await LoyaltyReward.findOne({ _id: rewardId, ...rewardScope(restaurant), isActive: true }).lean();
     if (!reward) throw ApiError.notFound('Reward not found');
 
     // Atomic conditional deduction — prevents double-spends and negative wallets.

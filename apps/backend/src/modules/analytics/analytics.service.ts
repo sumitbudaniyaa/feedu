@@ -32,10 +32,14 @@ interface DashboardScope {
 export async function getDashboardStats(
   restaurantId: string,
   range: 'day' | 'week' | 'month' = 'week',
+  brandId?: string | null,
 ): Promise<DashboardStats> {
   // Aggregation pipelines do NOT auto-cast — restaurantId must be a real ObjectId.
   const rid = new Types.ObjectId(restaurantId);
-  return computeDashboard({ tenantMatch: { restaurantId: rid }, productFilter: { restaurantId } }, range);
+  // The catalog is brand-level, so low-stock reads by brand (falls back to the
+  // branch for legacy data without a brand).
+  const productFilter = brandId ? { brandId } : { restaurantId };
+  return computeDashboard({ tenantMatch: { restaurantId: rid }, productFilter }, range);
 }
 
 /** Combined dashboard stats across every branch of a brand ("All branches"). */
