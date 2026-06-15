@@ -16,6 +16,7 @@ const addonSchema = new Schema(
 
 const productSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     categoryId: { type: Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
     name: { type: String, required: true, trim: true },

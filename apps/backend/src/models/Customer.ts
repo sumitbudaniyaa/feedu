@@ -6,6 +6,7 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
  */
 const customerSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     phone: { type: String, required: true },
     name: { type: String },

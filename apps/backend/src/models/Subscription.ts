@@ -9,6 +9,8 @@ const subscriptionSchema = new Schema(
       unique: true,
       index: true,
     },
+    // Stamped during Phase 1 migration; subscription becomes brand-level in a later phase.
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     plan: {
       type: String,
       enum: ['trial', 'starter', 'growth', 'enterprise'],

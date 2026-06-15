@@ -1,6 +1,8 @@
 export { User } from './User.js';
 export { Employee } from './Employee.js';
+export { Brand } from './Brand.js';
 export { Restaurant } from './Restaurant.js';
+export { BranchMenu } from './BranchMenu.js';
 export { Category } from './Category.js';
 export { Product } from './Product.js';
 export { Table } from './Table.js';

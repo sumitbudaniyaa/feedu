@@ -9,6 +9,9 @@ const dayHoursSchema = new Schema(
 
 const restaurantSchema = new Schema(
   {
+    // Tenant the branch belongs to. Optional during Phase 0/1 migration; becomes
+    // required once every restaurant has been backfilled with a brand.
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, index: true },

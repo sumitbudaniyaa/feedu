@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "tsx src/scripts/seed.ts",
+    "migrate:brands": "tsx src/scripts/migrate-brands.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured'"
   },

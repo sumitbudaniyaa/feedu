@@ -2,6 +2,7 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
 
 const loyaltyProgramSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     title: { type: String, required: true },
     type: {
@@ -39,6 +40,7 @@ const earnedRewardSchema = new Schema(
 
 const customerLoyaltySchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     points: { type: Number, default: 0 },

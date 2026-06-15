@@ -18,6 +18,7 @@ const orderItemSchema = new Schema(
 
 const orderSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     orderNumber: { type: String, required: true },
     tableId: { type: Schema.Types.ObjectId, ref: 'Table', default: null },

@@ -2,6 +2,7 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
 
 const sectionSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     title: { type: String, required: true },
     subtitle: String,

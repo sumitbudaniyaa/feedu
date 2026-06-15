@@ -3,6 +3,7 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
 /** Claimable loyalty reward (e.g. "Free Coffee" for 50 points). */
 const loyaltyRewardSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     title: { type: String, required: true, trim: true },
     description: String,
@@ -17,6 +18,7 @@ const loyaltyRewardSchema = new Schema(
 /** A diner's claim — points already deducted; staff fulfils by code. */
 const redemptionSchema = new Schema(
   {
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true },
     customerPhone: { type: String, required: true, index: true },
     customerName: String,
