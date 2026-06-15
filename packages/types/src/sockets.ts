@@ -27,15 +27,26 @@ export interface ServerToClientEvents {
 
 /** Client → server payloads. */
 export interface ClientToServerEvents {
-  /** Join a restaurant's room to receive its realtime stream. */
+  /** Join a restaurant's (branch's) room to receive its realtime stream. */
   'join:restaurant': (restaurantId: string) => void;
+  /** Join a brand's room to receive the realtime stream of all its branches. */
+  'join:brand': (brandId: string) => void;
   /** Customer subscribes to a single order's lifecycle. */
   'join:order': (orderId: string) => void;
 }
 
-/** Socket.IO room naming helpers — keep server + clients consistent. */
+/**
+ * Socket.IO room naming helpers — keep server + clients consistent.
+ *
+ * Multi-branch: `restaurant`/`branch` are the same per-outlet room (a Restaurant
+ * doc IS a branch); `brand` fans out across every branch of a tenant so
+ * brand-wide dashboards can watch all outlets at once.
+ */
 export const rooms = {
   restaurant: (id: string) => `restaurant:${id}`,
+  /** Alias of `restaurant` — a branch's per-outlet room. */
+  branch: (id: string) => `restaurant:${id}`,
+  brand: (id: string) => `brand:${id}`,
   kitchen: (id: string) => `kitchen:${id}`,
   order: (id: string) => `order:${id}`,
 };

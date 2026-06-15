@@ -164,6 +164,7 @@ export async function createOrder({
     try {
       order = await Order.create({
         restaurantId,
+        brandId: restaurant.brandId ?? undefined,
         orderNumber: await nextOrderNumber(restaurantId),
         tableId: input.tableId ?? null,
         tableName,
@@ -270,6 +271,13 @@ function emit(event: string, restaurantId: string, payload: unknown) {
     io.to(rooms.restaurant(restaurantId)).emit(event, payload);
     io.to(rooms.kitchen(restaurantId)).emit(event, payload);
     io.to(rooms.restaurant(restaurantId)).emit(SOCKET_EVENTS.DASHBOARD_REFRESH);
+
+    // Fan out to the brand room so brand-wide dashboards see every branch live.
+    const brandId = (payload as { brandId?: unknown } | null)?.brandId;
+    if (brandId) {
+      io.to(rooms.brand(String(brandId))).emit(event, payload);
+      io.to(rooms.brand(String(brandId))).emit(SOCKET_EVENTS.DASHBOARD_REFRESH);
+    }
   } catch {
     // Socket layer not ready (e.g. during tests) — non-fatal.
   }
@@ -347,6 +355,7 @@ export async function createRewardOrder(ctx: RewardOrderContext) {
     try {
       order = await Order.create({
         restaurantId: ctx.restaurantId,
+        brandId: product.brandId ?? undefined,
         orderNumber: await nextOrderNumber(ctx.restaurantId),
         tableId: ctx.tableId ?? null,
         tableName,

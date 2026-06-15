@@ -25,6 +25,11 @@ export function initSockets(httpServer: HttpServer): FeeduServer {
       socket.join(rooms.kitchen(restaurantId));
     });
 
+    // Brand-wide dashboards watch every branch of their tenant at once.
+    socket.on('join:brand', (brandId) => {
+      socket.join(rooms.brand(brandId));
+    });
+
     socket.on('join:order', (orderId) => {
       socket.join(rooms.order(orderId));
     });

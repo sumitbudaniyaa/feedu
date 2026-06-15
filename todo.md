@@ -97,7 +97,12 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   roles switch to any branch in their brand). Super-admin **Brand→Branches hierarchy** (`/platform/brands`
   rollup + `POST /platform/brands/:id/branches`, `BrandsPage`); platform onboarding now creates a Brand,
   delete drops the brand only when its last branch goes. Verified end-to-end via the API.
-- [ ] **Phase 5 — analytics + sockets:** brand/branch aggregations, `brand:`/`branch:` rooms.
+- [x] **Phase 5 — analytics + sockets (done):** `rooms.brand`/`rooms.branch` + `join:brand`; orders are
+  stamped with `brandId` and order events fan out to the brand room (brand-wide dashboards watch every
+  branch live). `GET /analytics/branches` brand comparison (revenue/orders/AOV/share per branch, zero-order
+  branches included); admin `useBranchComparison` + Branch-comparison card on Analytics (brand roles, >1
+  branch). `useLiveSync` now joins the active branch + brand room. Verified: brand room received a live
+  `order:updated`; comparison lists both branches. Dashboard authorize widened to brand/branch roles.
 - [ ] **Phase 6 — cleanup:** drop legacy `restaurant`/`x-restaurant-id` aliases + `Product.restaurantId` writes.
 
 ## Recently added

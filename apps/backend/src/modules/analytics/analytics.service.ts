@@ -1,8 +1,14 @@
-import type { DashboardStats } from '@feedo/types';
+import type { BranchComparison, DashboardStats } from '@feedo/types';
 import { Types } from 'mongoose';
-import { Order, Product, Table } from '../../models/index.js';
+import { Order, Product, Restaurant, Table } from '../../models/index.js';
 
 const REVENUE_STATUSES = ['confirmed', 'preparing', 'ready', 'served', 'completed'];
+
+function rangeStartFor(range: 'day' | 'week' | 'month'): Date {
+  const today = startOfDay();
+  const rangeDays = range === 'day' ? 1 : range === 'week' ? 7 : 30;
+  return new Date(today.getTime() - (rangeDays - 1) * 86400000);
+}
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -20,9 +26,8 @@ export async function getDashboardStats(
   restaurantId: string,
   range: 'day' | 'week' | 'month' = 'week',
 ): Promise<DashboardStats> {
-  const today = startOfDay();
   const rangeDays = range === 'day' ? 1 : range === 'week' ? 7 : 30;
-  const rangeStart = new Date(today.getTime() - (rangeDays - 1) * 86400000);
+  const rangeStart = rangeStartFor(range);
   // Previous equivalent window, for the change %.
   const prevStart = new Date(rangeStart.getTime() - rangeDays * 86400000);
 
@@ -170,5 +175,60 @@ export async function getDashboardStats(
     revenuePerTable,
     tableTurnover,
     avgCompletionMinutes,
+  };
+}
+
+/**
+ * Compare every branch of a brand over a range (brand-wide roles only).
+ * Branches with no orders in the window are still listed (revenue 0) so the
+ * brand owner sees the full footprint, not just the active outlets.
+ */
+export async function getBranchComparison(
+  brandId: string,
+  range: 'day' | 'week' | 'month' = 'week',
+): Promise<BranchComparison> {
+  const rangeStart = rangeStartFor(range);
+  const branches = await Restaurant.find({ brandId }).select('name slug isLive').sort({ createdAt: 1 }).lean();
+  const branchIds = branches.map((b) => b._id);
+
+  // Match by branch id ($in) rather than brandId so it holds regardless of
+  // whether every historical order was stamped with a brand.
+  const agg = await Order.aggregate([
+    { $match: { restaurantId: { $in: branchIds }, status: { $in: REVENUE_STATUSES }, placedAt: { $gte: rangeStart } } },
+    { $group: { _id: '$restaurantId', revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+  ]);
+  const byBranch = new Map(agg.map((a) => [String(a._id), a]));
+
+  const totalRevenue = agg.reduce((s, a) => s + a.revenue, 0);
+  const totalOrders = agg.reduce((s, a) => s + a.orders, 0);
+
+  const rows = branches.map((b) => {
+    const stat = byBranch.get(String(b._id));
+    const revenue = stat?.revenue ?? 0;
+    const orders = stat?.orders ?? 0;
+    return {
+      branchId: String(b._id),
+      name: b.name,
+      slug: b.slug,
+      isLive: b.isLive,
+      revenue,
+      orders,
+      avgOrderValue: orders ? Math.round(revenue / orders) : 0,
+      revenueSharePct: totalRevenue ? Number(((revenue / totalRevenue) * 100).toFixed(1)) : 0,
+    };
+  });
+  // Rank by revenue so the strongest branch leads the comparison.
+  rows.sort((a, b) => b.revenue - a.revenue);
+
+  return {
+    range,
+    branches: rows,
+    totals: {
+      revenue: totalRevenue,
+      orders: totalOrders,
+      avgOrderValue: totalOrders ? Math.round(totalRevenue / totalOrders) : 0,
+      branchCount: branches.length,
+      liveBranchCount: branches.filter((b) => b.isLive).length,
+    },
   };
 }

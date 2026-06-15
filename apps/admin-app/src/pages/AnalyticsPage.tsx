@@ -1,14 +1,20 @@
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { BarChart3, Clock, IndianRupee, Repeat, RefreshCw, Table2, TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
+import { BarChart3, Clock, IndianRupee, Repeat, RefreshCw, Store, Table2, TrendingUp } from 'lucide-react';
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
-import { useDashboard } from '../lib/api.js';
+import type { BranchComparison } from '@feedo/types';
+import { useAuth, useBranchComparison, useDashboard } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
+
+const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
 
 export function AnalyticsPage() {
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
   const { data, isLoading } = useDashboard(range);
+  const role = useAuth((s) => s.user?.role);
+  const isBrandWide = BRAND_WIDE.has(role ?? '');
+  const { data: comparison } = useBranchComparison(range, isBrandWide);
 
   return (
     <div className="space-y-6">
@@ -105,7 +111,50 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Brand-wide: how each branch is performing this range. */}
+      {isBrandWide && comparison && comparison.branches.length > 1 && (
+        <BranchComparisonCard comparison={comparison} />
+      )}
     </div>
+  );
+}
+
+function BranchComparisonCard({ comparison }: { comparison: BranchComparison }) {
+  const max = Math.max(1, ...comparison.branches.map((b) => b.revenue));
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Branch comparison</CardTitle>
+        <span className="text-xs text-muted-foreground">
+          {comparison.totals.liveBranchCount}/{comparison.totals.branchCount} live ·{' '}
+          {formatCurrency(comparison.totals.revenue)} total
+        </span>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {comparison.branches.map((b, i) => (
+          <div key={b.branchId} className="space-y-1.5">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="w-4 text-xs text-muted-foreground">{i + 1}</span>
+              <Store className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate font-medium">{b.name}</span>
+              {!b.isLive && <Badge variant="warning">Offline</Badge>}
+              <span className="text-xs text-muted-foreground">{b.orders} orders</span>
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                {formatCurrency(b.avgOrderValue)} AOV
+              </span>
+              <span className="w-20 text-right font-medium">{formatCurrency(b.revenue)}</span>
+            </div>
+            <div className="ml-6 h-1.5 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${Math.max(2, (b.revenue / max) * 100)}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 

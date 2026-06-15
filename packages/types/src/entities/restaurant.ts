@@ -37,6 +37,8 @@ export const onboardingStateSchema = z.object({
 export const restaurantSchema = z.object({
   _id: objectIdSchema,
   ownerId: objectIdSchema,
+  /** Tenant this outlet belongs to (multi-branch). Optional for legacy single-outlet data. */
+  brandId: objectIdSchema.optional(),
   name: z.string().min(1),
   slug: z.string().min(1),
   description: z.string().optional(),

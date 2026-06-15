@@ -34,6 +34,32 @@ export interface DashboardStats {
   avgCompletionMinutes: number;
 }
 
+/** One branch's headline numbers within a range (brand-wide comparison view). */
+export interface BranchPerformance {
+  branchId: string;
+  name: string;
+  slug: string;
+  isLive: boolean;
+  revenue: number;
+  orders: number;
+  avgOrderValue: number;
+  /** Share of the brand's range revenue, 0–100. */
+  revenueSharePct: number;
+}
+
+/** Brand → branch comparison across a range (brand-wide roles only). */
+export interface BranchComparison {
+  range: 'day' | 'week' | 'month';
+  branches: BranchPerformance[];
+  totals: {
+    revenue: number;
+    orders: number;
+    avgOrderValue: number;
+    branchCount: number;
+    liveBranchCount: number;
+  };
+}
+
 export const analyticsRangeSchema = z.object({
   range: z.enum(['day', 'week', 'month']).default('week'),
   restaurantId: objectIdSchema.optional(),

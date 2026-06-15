@@ -10,6 +10,7 @@ import {
   createSocket,
 } from '@feedo/api';
 import type {
+  BranchComparison,
   Category,
   Customer,
   LoyaltyProgram,
@@ -109,6 +110,15 @@ export function useBranches() {
   return useQuery({
     queryKey: ['branches'],
     queryFn: () => apiClient.get<Branch[]>('/restaurants/branches'),
+  });
+}
+
+/** Brand-wide branch comparison (revenue/orders per branch). Brand roles only. */
+export function useBranchComparison(range: 'day' | 'week' | 'month', enabled = true) {
+  return useQuery({
+    queryKey: ['analytics', 'branches', range],
+    queryFn: () => apiClient.get<BranchComparison>(`/analytics/branches?range=${range}`),
+    enabled,
   });
 }
 
