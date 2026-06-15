@@ -57,7 +57,7 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
           {step === 'phone' ? <Phone className="h-5 w-5 text-accent" /> : <ShieldCheck className="h-5 w-5 text-accent" />}
         </div>
-        <h2 className="mt-4 font-semibold">{step === 'phone' ? 'Sign in to Feedo' : 'Enter the code'}</h2>
+        <h2 className="mt-4 font-semibold">{step === 'phone' ? 'Sign in to Feedu' : 'Enter the code'}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {step === 'phone'
             ? 'We’ll text a one-time code to verify your number.'

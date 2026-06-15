@@ -27,9 +27,9 @@ export function LoginPage() {
       >
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-black/10 blur-3xl" />
-        <span className="relative text-3xl font-black italic tracking-tight">feedo</span>
+        <span className="relative text-3xl font-black italic tracking-tight">feedu</span>
         <div className="relative">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight">The Feedo platform console</h2>
+          <h2 className="text-3xl font-bold leading-tight tracking-tight">The Feedu platform console</h2>
           <p className="mt-3 max-w-sm text-white/85">
             Onboard restaurants, manage subscriptions, and watch the whole business in one place.
           </p>
@@ -49,7 +49,7 @@ export function LoginPage() {
           className="w-full max-w-sm"
         >
           <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-            <span className="text-3xl font-black italic tracking-tight text-foreground lg:hidden">feedo</span>
+            <span className="text-3xl font-black italic tracking-tight text-foreground lg:hidden">feedu</span>
             <h1 className="mt-2 flex items-center gap-2 text-xl font-semibold tracking-tight">
               <ShieldCheck className="h-5 w-5 text-accent" /> Platform sign in
             </h1>

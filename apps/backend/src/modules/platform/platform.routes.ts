@@ -47,7 +47,7 @@ router.get(
         ]),
         Order.countDocuments(),
       ]);
-    // Feedo's own SaaS revenue (what restaurants pay us), normalised to monthly.
+    // Feedu's own SaaS revenue (what restaurants pay us), normalised to monthly.
     const saasMrr = subs.reduce((s, x) => s + toMrr(x.price, x.billingCycle), 0);
     const payingRestaurants = subs.filter((s) => (s.price ?? 0) > 0 && s.status === 'active').length;
     const totalMrr = saasMrr || subs.reduce((s, x) => s + (x.mrr ?? 0), 0);
@@ -405,7 +405,7 @@ router.patch(
     if (status) update.status = status;
     const ops: Record<string, unknown> = { ...update };
     if (reply?.trim()) {
-      ops.$push = { replies: { author: 'feedo', authorName: 'Feedo Support', message: reply.trim() } };
+      ops.$push = { replies: { author: 'feedo', authorName: 'Feedu Support', message: reply.trim() } };
     }
     const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, ops, { new: true });
     if (!ticket) throw ApiError.notFound('Ticket not found');

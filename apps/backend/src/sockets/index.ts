@@ -8,11 +8,11 @@ import {
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-type FeedoServer = Server<ClientToServerEvents, ServerToClientEvents>;
+type FeeduServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
-let io: FeedoServer | null = null;
+let io: FeeduServer | null = null;
 
-export function initSockets(httpServer: HttpServer): FeedoServer {
+export function initSockets(httpServer: HttpServer): FeeduServer {
   io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: { origin: env.corsOrigins, credentials: true },
   });
@@ -37,7 +37,7 @@ export function initSockets(httpServer: HttpServer): FeedoServer {
 }
 
 /** Accessor for services that emit realtime events. */
-export function getIO(): FeedoServer {
+export function getIO(): FeeduServer {
   if (!io) throw new Error('Socket.IO not initialized');
   return io;
 }

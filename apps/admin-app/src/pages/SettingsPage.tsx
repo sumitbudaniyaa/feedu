@@ -201,7 +201,7 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Subscription — managed by Feedo, read-only here. */}
+      {/* Subscription — managed by Feedu, read-only here. */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Subscription</CardTitle>
@@ -229,7 +229,7 @@ export function SettingsPage() {
                 <span className="font-medium">{subscription.seats}</span>
               </SubRow>
               <p className="text-xs text-muted-foreground sm:col-span-2">
-                Billing is managed by Feedo. Contact support to change your plan.
+                Billing is managed by Feedu. Contact support to change your plan.
               </p>
             </div>
           ) : (

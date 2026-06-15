@@ -12,13 +12,13 @@ export function OverviewPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Platform overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Everything happening across Feedo.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Everything happening across Feedu.</p>
       </div>
 
-      {/* Feedo's own SaaS business — revenue we earn from subscribing restaurants. */}
+      {/* Feedu's own SaaS business — revenue we earn from subscribing restaurants. */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Feedo SaaS revenue
+          Feedu SaaS revenue
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {isLoading || !stats ? (

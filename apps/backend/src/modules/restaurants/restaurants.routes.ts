@@ -20,7 +20,7 @@ router.get(
   }),
 );
 
-// Current restaurant's subscription (read-only for the owner — billing is managed by Feedo).
+// Current restaurant's subscription (read-only for the owner — billing is managed by Feedu).
 router.get(
   '/me/subscription',
   asyncHandler(async (req, res) => {

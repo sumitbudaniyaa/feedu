@@ -87,7 +87,7 @@ export function DashboardLayout() {
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 px-3 py-5 lg:flex">
         <div className="flex items-center px-3 pb-6">
           <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">
-            feedo
+            feedu
           </span>
         </div>
 
@@ -115,7 +115,7 @@ export function DashboardLayout() {
         <Separator className="my-3" />
         <div className="flex items-center gap-3 px-2">
           <Avatar>
-            <AvatarFallback>{initials(user?.name ?? 'Feedo')}</AvatarFallback>
+            <AvatarFallback>{initials(user?.name ?? 'Feedu')}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{user?.name ?? 'Owner'}</p>
@@ -128,7 +128,7 @@ export function DashboardLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur">
           <div className="lg:hidden">
-            <span className="text-lg font-black italic tracking-tight text-foreground">feedo</span>
+            <span className="text-lg font-black italic tracking-tight text-foreground">feedu</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />

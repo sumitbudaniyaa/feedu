@@ -69,7 +69,7 @@ export const tables = createResource<Table>(apiClient, 'tables', '/tables');
 export const staff = createResource<User>(apiClient, 'staff', '/staff');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers');
 
-/** The current restaurant's subscription (read-only — Feedo manages billing). */
+/** The current restaurant's subscription (read-only — Feedu manages billing). */
 export function useSubscription() {
   return useQuery({
     queryKey: ['restaurant', 'subscription'],

@@ -33,7 +33,7 @@ export const InvoiceTicket = forwardRef<HTMLDivElement, { order: TrackedOrder }>
           style={{ background: PAPER, color: INK }}
         >
           <div className="text-center">
-            <p className="text-base font-bold uppercase tracking-[0.2em]">{r?.name ?? 'Feedo'}</p>
+            <p className="text-base font-bold uppercase tracking-[0.2em]">{r?.name ?? 'Feedu'}</p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.3em]">Tax Invoice</p>
             {r?.contactNumber && <p className="mt-1 text-[11px]">Tel · {r.contactNumber}</p>}
             {r?.gstNumber && <p className="text-[11px]">GSTIN · {r.gstNumber}</p>}

@@ -13,7 +13,7 @@ async function bootstrap() {
   initSockets(httpServer);
 
   httpServer.listen(env.PORT, () => {
-    logger.info(`Feedo backend running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
+    logger.info(`Feedu backend running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
   });
 
   const shutdown = async (signal: string) => {

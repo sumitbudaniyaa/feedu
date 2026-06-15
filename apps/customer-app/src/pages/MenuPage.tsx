@@ -149,7 +149,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           {/* Brand wordmark + rewards / account */}
           <div className="flex items-center justify-between gap-3">
             <span className="select-none text-2xl font-black italic leading-none tracking-tight text-white drop-shadow-sm">
-              feedo
+              feedu
             </span>
             <div className="flex shrink-0 items-center gap-2">
               <motion.button

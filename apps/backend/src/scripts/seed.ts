@@ -25,7 +25,7 @@ async function seed() {
   const superEmail = 'super@feedo.app';
   if (!(await User.exists({ email: superEmail }))) {
     await User.create({
-      name: 'Feedo Super Admin',
+      name: 'Feedu Super Admin',
       email: superEmail,
       passwordHash: await User.hashPassword('password123'),
       role: 'super_admin',

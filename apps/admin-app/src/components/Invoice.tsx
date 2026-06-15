@@ -16,7 +16,7 @@ export const Invoice = forwardRef<HTMLDivElement, { order: Order; restaurant?: R
         <div className="flex items-start justify-between border-b border-neutral-200 pb-5">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-neutral-900">
-              {restaurant?.name ?? 'Feedo'}
+              {restaurant?.name ?? 'Feedu'}
             </h1>
             {addr && (
               <p className="mt-1 max-w-[240px] text-xs text-neutral-500">
@@ -109,7 +109,7 @@ export const Invoice = forwardRef<HTMLDivElement, { order: Order; restaurant?: R
         </div>
 
         <p className="mt-10 border-t border-neutral-200 pt-4 text-center text-xs text-neutral-400">
-          Thank you for your business · Powered by Feedo
+          Thank you for your business · Powered by Feedu
         </p>
       </div>
     );

@@ -58,7 +58,7 @@ function KitchenBoard() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
-          <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">feedo</span>
+          <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">feedu</span>
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Kitchen</span>
           <Badge variant="outline">{orders?.length ?? 0} active</Badge>
         </div>
@@ -219,7 +219,7 @@ function KitchenLogin() {
         }}
       >
         <div className="mb-6 text-center">
-          <span className="block text-3xl font-black italic tracking-tight text-foreground">feedo</span>
+          <span className="block text-3xl font-black italic tracking-tight text-foreground">feedu</span>
           <span className="mt-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Kitchen</span>
           <p className="mt-2 text-sm text-muted-foreground">Sign in to view live orders</p>
         </div>

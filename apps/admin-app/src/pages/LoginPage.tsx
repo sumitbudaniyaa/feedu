@@ -73,14 +73,14 @@ export function LoginPage() {
       >
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-black/10 blur-3xl" />
-        <span className="relative text-3xl font-black italic tracking-tight">feedo</span>
+        <span className="relative text-3xl font-black italic tracking-tight">feedu</span>
         <div className="relative">
           <h2 className="text-3xl font-bold leading-tight tracking-tight">Your restaurant, beautifully run.</h2>
           <p className="mt-3 max-w-sm text-white/85">
             Orders, menu, inventory, loyalty and analytics — all in one calm, fast dashboard.
           </p>
         </div>
-        <p className="relative text-sm text-white/70">feedo for restaurants</p>
+        <p className="relative text-sm text-white/70">feedu for restaurants</p>
       </div>
 
       {/* Right auth form */}
@@ -95,7 +95,7 @@ export function LoginPage() {
           className="w-full max-w-sm"
         >
           <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-            <span className="text-3xl font-black italic tracking-tight text-foreground lg:hidden">feedo</span>
+            <span className="text-3xl font-black italic tracking-tight text-foreground lg:hidden">feedu</span>
             <h1 className="mt-2 text-xl font-semibold tracking-tight">Welcome back</h1>
             <p className="mt-1 text-sm text-muted-foreground">Sign in to manage your restaurant.</p>
           </div>

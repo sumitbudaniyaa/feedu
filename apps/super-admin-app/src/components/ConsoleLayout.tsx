@@ -33,7 +33,7 @@ export function ConsoleLayout() {
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 px-3 py-5 lg:flex">
         <div className="flex items-baseline gap-1.5 px-3 pb-6">
           <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">
-            feedo
+            feedu
           </span>
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Platform</span>
         </div>
@@ -74,7 +74,7 @@ export function ConsoleLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur">
           <span className="text-lg font-black italic tracking-tight text-foreground lg:hidden">
-            feedo<span className="ml-1 align-middle text-[10px] font-semibold uppercase not-italic tracking-widest text-muted-foreground">Platform</span>
+            feedu<span className="ml-1 align-middle text-[10px] font-semibold uppercase not-italic tracking-widest text-muted-foreground">Platform</span>
           </span>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
