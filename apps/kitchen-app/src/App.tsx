@@ -58,10 +58,8 @@ function KitchenBoard() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background">
-            <span className="text-sm font-bold">F</span>
-          </div>
-          <h1 className="text-lg font-semibold tracking-tight">Kitchen Display</h1>
+          <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">feedo</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Kitchen</span>
           <Badge variant="outline">{orders?.length ?? 0} active</Badge>
         </div>
         <div className="flex items-center gap-2">
@@ -215,11 +213,9 @@ function KitchenLogin() {
         }}
       >
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background">
-            <span className="text-lg font-bold">F</span>
-          </div>
-          <h1 className="text-lg font-semibold tracking-tight">Kitchen Display</h1>
-          <p className="text-sm text-muted-foreground">Sign in to view live orders</p>
+          <span className="block text-3xl font-black italic tracking-tight text-foreground">feedo</span>
+          <span className="mt-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Kitchen</span>
+          <p className="mt-2 text-sm text-muted-foreground">Sign in to view live orders</p>
         </div>
         <input name="email" type="email" placeholder="Email" required className="h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         <input name="password" type="password" placeholder="Password" required className="h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
