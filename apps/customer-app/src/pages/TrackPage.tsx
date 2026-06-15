@@ -2,9 +2,9 @@ import { useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
+import { ArrowLeft, ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
 import { Button, Skeleton } from '@feedo/ui';
-import { minutesSince } from '@feedo/utils';
+import { formatCurrency, formatDate, formatTime, minutesSince } from '@feedo/utils';
 import type { Order } from '@feedo/types';
 import { useTrackOrder } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
@@ -28,6 +28,8 @@ export function TrackPage() {
 
   const goToMenu = () => navigate(menuPath ?? '/');
   const goBack = () => (justPlaced ? goToMenu() : navigate(-1));
+  // Past/completed/cancelled orders show a plain summary, not the live tracking hero.
+  const isTerminal = order ? ['served', 'completed', 'cancelled', 'refunded'].includes(order.status) : false;
 
   const downloadInvoice = async () => {
     if (!ticketRef.current) return;
@@ -66,28 +68,30 @@ export function TrackPage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <span className="text-xs text-muted-foreground">
-          {justPlaced ? 'Order confirmation' : 'Order details'} · #{order.orderNumber}
+          {isTerminal ? 'Order details' : 'Live order'} · #{order.orderNumber}
         </span>
       </div>
 
-      {/* Fresh-order confirmation banner — only on the post-checkout view. */}
-      {justPlaced && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4 flex items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-4"
-        >
-          <CheckCircle2 className="h-6 w-6 shrink-0 text-success" />
+      {/* Live tracking hero only while the order is in progress. Past/history orders
+          show a compact summary instead of a celebratory banner. */}
+      {isTerminal ? (
+        <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-4">
           <div>
-            <p className="text-sm font-semibold text-success">Order placed successfully</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Order #{order.orderNumber}</p>
+            <p className="mt-0.5 text-lg font-semibold capitalize">{order.status}</p>
             <p className="text-xs text-muted-foreground">
-              We&apos;ve sent it to the kitchen{order.tableName ? ` · ${order.tableName}` : ''}.
+              {order.tableName ? `${order.tableName} · ` : ''}
+              {formatDate(order.placedAt)} {formatTime(order.placedAt)}
             </p>
           </div>
-        </motion.div>
+          <span className="text-right">
+            <span className="block text-xs text-muted-foreground">Total</span>
+            <span className="text-lg font-bold">{formatCurrency(order.total)}</span>
+          </span>
+        </div>
+      ) : (
+        <PreparingHero order={order} />
       )}
-
-      <PreparingHero order={order} />
 
       {order.loyaltyPointsEarned > 0 && (
         <motion.div
