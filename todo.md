@@ -82,8 +82,11 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
     Order, Customer, Subscription. No behaviour change.
   - `npm run migrate:brands` — idempotent backfill: one brand per restaurant, stamps `brandId`,
     seeds BranchMenu from current products. Verified on dev DB; re-run is a no-op.
-- [ ] **Phase 2 — auth:** JWT carries `brandId`/`branchIds`; `resolveTenant` sets `req.brandId` +
-  `req.branchId` (keeps `req.restaurantId` alias); `crud()` gains `level: 'brand' | 'branch'`.
+- [x] **Phase 2 — auth (done, back-compat):** `JwtPayload` gains `brandId`/`branchIds`; tokens carry
+  brand context (brand-wide roles get all brand branches); `register()` creates a Brand + first branch.
+  `resolveTenant` sets `req.brandId`/`branchId`/`branchIds`, keeps `req.restaurantId` alias, supports
+  branch-switch via `x-branch-id`; added `requireBrand`. `crud()` gains `level: 'brand' | 'branch'`
+  (default branch = unchanged). Verified: owner/super login, branch-scoped reads still work.
 - [ ] **Phase 3 — menu/loyalty brand-ized** + public menu resolves brand menu ⊕ BranchMenu override.
 - [ ] **Phase 4 — portals:** admin branch switcher + Branches pages; super-admin Brand→Branch hierarchy.
 - [ ] **Phase 5 — analytics + sockets:** brand/branch aggregations, `brand:`/`branch:` rooms.
