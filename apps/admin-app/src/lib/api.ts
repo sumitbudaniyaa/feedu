@@ -69,6 +69,13 @@ export const tables = createResource<Table>(apiClient, 'tables', '/tables');
 export const staff = createResource<User>(apiClient, 'staff', '/staff');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers');
 
+/** Tell the diner a waiter is on the way (after accepting their table call). */
+export function useAttendCall() {
+  return useMutation({
+    mutationFn: (tableName: string) => apiClient.post('/waiter/attend', { tableName }),
+  });
+}
+
 /** Full analytics for one diner (most-ordered, claims, spend, etc.). */
 export function useCustomerAnalytics(id?: string) {
   return useQuery({

@@ -27,7 +27,7 @@ import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useLogout, useMe, useRestaurant } from '../lib/api.js';
 import { useLiveSync } from '../lib/useLiveSync.js';
-import { WaiterCallToast } from './WaiterCallToast.js';
+import { WaiterCallDrawer } from './WaiterCallDrawer.js';
 import { WaiterApp } from './WaiterApp.js';
 
 const NAV = [
@@ -86,7 +86,7 @@ export function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <WaiterCallToast />
+      <WaiterCallDrawer />
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 px-3 py-5 lg:flex">
         <div className="flex items-center px-3 pb-6">

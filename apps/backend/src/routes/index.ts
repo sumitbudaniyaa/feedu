@@ -12,6 +12,7 @@ import restaurantRoutes from '../modules/restaurants/restaurants.routes.js';
 import analyticsRoutes from '../modules/analytics/analytics.routes.js';
 import customerRoutes from '../modules/customers/customers.routes.js';
 import supportRoutes from '../modules/support/support.routes.js';
+import waiterRoutes from '../modules/waiter/waiter.routes.js';
 import platformRoutes from '../modules/platform/platform.routes.js';
 import publicRoutes from '../modules/public/public.routes.js';
 import integrationRoutes from '../modules/integrations/integrations.routes.js';
@@ -42,6 +43,7 @@ router.use('/tables', tableRoutes);
 router.use('/staff', staffRoutes);
 router.use('/customers', customerRoutes);
 router.use('/support', supportRoutes);
+router.use('/waiter', waiterRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/uploads', uploadRoutes);
 

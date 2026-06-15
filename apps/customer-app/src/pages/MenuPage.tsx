@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, BellRing, Gift, Search, ShoppingBag, User, UtensilsCrossed } from 'lucide-react';
 import { Button, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
-import type { Product } from '@feedo/types';
-import { useCallWaiter, useMenuByQr, useMenuBySlug } from '../lib/api.js';
+import { SOCKET_EVENTS, type Product } from '@feedo/types';
+import { socket, useCallWaiter, useMenuByQr, useMenuBySlug } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { ProductSheet } from '../components/ProductSheet.js';
 import { ProductCard } from '../components/ProductCard.js';
@@ -36,6 +36,27 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   // Ring-the-waiter (dine-in only).
   const callWaiter = useCallWaiter(data?.restaurant.slug ?? '');
   const [waiterCalled, setWaiterCalled] = useState(false);
+  const [onTheWay, setOnTheWay] = useState(false);
+
+  // Listen for a waiter accepting our table's call → show "on the way" pill.
+  useEffect(() => {
+    const rid = data?.restaurant._id;
+    if (!rid) return;
+    if (!socket.connected) socket.connect();
+    socket.emit('join:restaurant', rid);
+    const myTable = data?.table?.name ?? tableName;
+    const onAttending = (p: { tableName: string }) => {
+      if (!myTable || p.tableName === myTable) {
+        setOnTheWay(true);
+        setWaiterCalled(false);
+        setTimeout(() => setOnTheWay(false), 5000);
+      }
+    };
+    socket.on(SOCKET_EVENTS.WAITER_ATTENDING, onAttending);
+    return () => {
+      socket.off(SOCKET_EVENTS.WAITER_ATTENDING, onAttending);
+    };
+  }, [data?.restaurant._id, data?.table?.name, tableName]);
 
   // Rotating search placeholder — prefers real dish names, falls back to generic terms.
   const searchTerms = useMemo(() => {
@@ -210,7 +231,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
             >
               {waiterCalled ? (
                 <>
-                  <BellRing className="h-3.5 w-3.5 text-success" /> Waiter on the way
+                  <BellRing className="h-3.5 w-3.5 text-success" /> Requested
                 </>
               ) : (
                 <>
@@ -337,6 +358,23 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           )}
         </section>
       </main>
+
+      {/* "Waiter on the way" pill — shown for 5s when a waiter accepts the call. */}
+      <AnimatePresence>
+        {onTheWay && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className={cn('fixed inset-x-0 z-40 mx-auto flex max-w-md justify-center px-5', count > 0 ? 'bottom-20' : 'bottom-5')}
+          >
+            <span className="inline-flex items-center gap-2 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-white shadow-elevated">
+              <BellRing className="h-4 w-4" /> A waiter is on the way to {effectiveTable}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {count > 0 && (
