@@ -87,7 +87,11 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   `resolveTenant` sets `req.brandId`/`branchId`/`branchIds`, keeps `req.restaurantId` alias, supports
   branch-switch via `x-branch-id`; added `requireBrand`. `crud()` gains `level: 'brand' | 'branch'`
   (default branch = unchanged). Verified: owner/super login, branch-scoped reads still work.
-- [ ] **Phase 3 — menu/loyalty brand-ized** + public menu resolves brand menu ⊕ BranchMenu override.
+- [x] **Phase 3 — brand menu + overrides (done, back-compat):** `resolveBranchMenu(brandId, branchId)`
+  merges the brand catalog with the branch's `BranchMenu` (price/availability/stock + exclusivity);
+  public menu uses it. Products/categories/sections/loyalty/rewards moved to `crud level:'brand'`.
+  New `/branch-menu` module (effective menu + per-product override PATCH). RBAC enum extended with
+  brand/branch roles (legacy kept). Verified single-brand behaviour is unchanged; overrides work.
 - [ ] **Phase 4 — portals:** admin branch switcher + Branches pages; super-admin Brand→Branch hierarchy.
 - [ ] **Phase 5 — analytics + sockets:** brand/branch aggregations, `brand:`/`branch:` rooms.
 - [ ] **Phase 6 — cleanup:** drop legacy `restaurant`/`x-restaurant-id` aliases + `Product.restaurantId` writes.
