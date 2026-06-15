@@ -107,49 +107,48 @@ export function InventoryPage() {
       )}
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-44 rounded-xl" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
       ) : filtered.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
           {filtered.map((p) => (
-            <Card key={p._id} className="flex flex-col overflow-hidden">
-              <div className="relative aspect-[16/10] w-full overflow-hidden bg-secondary">
+            <Card key={p._id} className="group flex flex-col overflow-hidden">
+              <div className="relative h-24 w-full overflow-hidden bg-secondary">
                 {p.image?.url ? (
                   <img src={p.image.url} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground">
+                  <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-muted-foreground">
                     {p.name[0]}
                   </div>
                 )}
-                <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-                  {!p.isAvailable && <Badge variant="destructive">Unavailable</Badge>}
-                  {p.stock != null && p.stock <= p.lowStockThreshold && (
-                    <Badge variant="warning">Low · {p.stock}</Badge>
-                  )}
-                </div>
+                {!p.isAvailable && <Badge variant="destructive" className="absolute left-1.5 top-1.5">Off</Badge>}
+                {p.isAvailable && p.stock != null && p.stock <= p.lowStockThreshold && (
+                  <Badge variant="warning" className="absolute left-1.5 top-1.5">Low · {p.stock}</Badge>
+                )}
               </div>
-              <div className="flex flex-1 flex-col p-3">
-                <p className="truncate font-medium">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{catName(p.categoryId)}</p>
-                <div className="mt-auto flex items-center justify-between pt-3">
+              <div className="flex flex-1 flex-col p-2.5">
+                <p className="truncate text-sm font-medium leading-tight">{p.name}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{catName(p.categoryId)}</p>
+                <div className="mt-auto flex items-center justify-between pt-2">
                   <span className="text-sm font-semibold">{formatCurrency(p.basePrice)}</span>
-                  <div className="flex gap-1">
+                  <div className="-mr-1 flex">
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="h-7 w-7"
                       aria-label="Edit"
                       onClick={() => {
                         setEditing(p);
                         setOpen(true);
                       }}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => deleteProduct(p)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete" onClick={() => deleteProduct(p)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
                 </div>
@@ -247,11 +246,12 @@ function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit product' : 'New product'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="flex max-h-[80vh] flex-col">
+          <div className="-mr-2 flex-1 space-y-4 overflow-y-auto pr-2">
           <div className="space-y-1.5">
             <Label>Product image</Label>
             <div className="flex items-center gap-3">
@@ -472,7 +472,8 @@ function ProductDialog({
               <Switch checked={form.isAvailable} onCheckedChange={(v) => setForm({ ...form, isAvailable: v })} /> Available
             </label>
           </div>
-          <DialogFooter>
+          </div>
+          <DialogFooter className="mt-4 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
