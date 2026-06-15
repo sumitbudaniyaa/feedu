@@ -11,7 +11,7 @@ import { CheckoutDrawer } from '../components/CheckoutDrawer.js';
 
 export function CartPage() {
   const navigate = useNavigate();
-  const { restaurant, tableId, menuPath, lines, appliedReward, setQty, setReward, subtotal, clear } =
+  const { restaurant, tableId, tableName, menuPath, lines, appliedReward, setQty, setReward, subtotal, clear } =
     useCart();
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
   const checkout = useCheckout(restaurant?.slug ?? '');
@@ -81,6 +81,7 @@ export function CartPage() {
         // Dine-in only restaurant — every order is dine-in.
         type: 'dine_in',
         tableId: tableId ?? undefined,
+        tableName: tableName ?? undefined,
         items: lines.map((l) => ({
           productId: l.productId,
           variantLabel: l.variantLabel,

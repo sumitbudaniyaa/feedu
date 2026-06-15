@@ -143,6 +143,7 @@ router.post(
 const checkoutSchema = z.object({
   type: orderTypeSchema,
   tableId: z.string().optional(),
+  tableName: z.string().optional(),
   items: z.array(cartItemSchema).default([]), // may be empty for a reward-only order
   notes: z.string().optional(),
   customer: z.object({

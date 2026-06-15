@@ -71,6 +71,8 @@ export type CartItem = z.infer<typeof cartItemSchema>;
 export const createOrderSchema = z.object({
   type: orderTypeSchema,
   tableId: objectIdSchema.optional(),
+  /** Manually entered table (when ordering via the link without scanning a QR). */
+  tableName: z.string().optional(),
   items: z.array(cartItemSchema).min(1),
   notes: z.string().optional(),
   loyaltyRewardId: objectIdSchema.optional(),

@@ -30,11 +30,14 @@ export interface AppliedReward {
 interface CartState {
   restaurant: CartRestaurant | null;
   tableId: string | null;
+  /** Manually entered table (link entry without a scanned QR). */
+  tableName: string | null;
   /** Path to return to the menu (slug or QR entry). */
   menuPath: string | null;
   lines: CartLine[];
   appliedReward: AppliedReward | null;
   setContext: (restaurant: CartRestaurant, tableId: string | null, menuPath: string) => void;
+  setTableName: (tableName: string) => void;
   setReward: (reward: AppliedReward | null) => void;
   add: (line: Omit<CartLine, 'key' | 'quantity'>, qty?: number) => void;
   setQty: (key: string, qty: number) => void;
@@ -57,15 +60,17 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       restaurant: null,
       tableId: null,
+      tableName: null,
       menuPath: null,
       lines: [],
       appliedReward: null,
       setContext: (restaurant, tableId, menuPath) => {
-        // Switching restaurants clears the cart + any applied reward.
+        // Switching restaurants clears the cart + any applied reward (+ manual table).
         if (get().restaurant && get().restaurant?.slug !== restaurant.slug)
-          set({ lines: [], appliedReward: null });
+          set({ lines: [], appliedReward: null, tableName: null });
         set({ restaurant, tableId, menuPath });
       },
+      setTableName: (tableName) => set({ tableName }),
       setReward: (reward) => set({ appliedReward: reward }),
       add: (line, qty = 1) => {
         const key = lineKey(line);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, QrCode } from 'lucide-react';
 import { Button, Input } from '@feedo/ui';
+import { slugify } from '@feedo/utils';
 
 /**
  * Real entry is by scanning a table QR (→ /t/:qrToken). This screen is the
@@ -24,7 +25,9 @@ export function EntryPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (slug.trim()) navigate(`/r/${slug.trim()}`);
+          // Accept either a handle or the restaurant's name — normalise to the slug.
+          const handle = slugify(slug.trim());
+          if (handle) navigate(`/r/${handle}`);
         }}
         className="mt-8 flex w-full max-w-xs gap-2"
       >

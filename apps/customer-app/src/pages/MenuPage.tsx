@@ -23,11 +23,15 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const setContext = useCart((s) => s.setContext);
   const count = useCart((s) => s.count());
   const subtotal = useCart((s) => s.subtotal());
+  const tableName = useCart((s) => s.tableName);
+  const setTableName = useCart((s) => s.setTableName);
 
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState<string>('all');
   const [vegOnly, setVegOnly] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
+  const [tablePromptOpen, setTablePromptOpen] = useState(false);
+  const [tableInput, setTableInput] = useState('');
 
   // Ring-the-waiter (dine-in only).
   const callWaiter = useCallWaiter(data?.restaurant.slug ?? '');
@@ -45,6 +49,11 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
     const id = setInterval(() => setPhIndex((i) => (i + 1) % searchTerms.length), 2200);
     return () => clearInterval(id);
   }, [searchTerms.length]);
+
+  // Prompt for a table when opened via the link (no QR scan) and none set yet.
+  useEffect(() => {
+    if (mode === 'slug' && data && !data.table && !tableName) setTablePromptOpen(true);
+  }, [mode, data, tableName]);
 
   useEffect(() => {
     if (!data) return;
@@ -88,6 +97,8 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   }
 
   const { restaurant, categories, products, sections, table } = data;
+  // Table: a scanned QR resolves the real one; otherwise the diner types it in.
+  const effectiveTable = table?.name ?? tableName ?? null;
   // Curated sections show while browsing "All" with no search — veg mode still shows them,
   // just narrowed to eligible (veg) products so empty sections drop out.
   const browsing = activeCat === 'all' && !search;
@@ -174,7 +185,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           </div>
         </motion.div>
 
-        {table && (
+        {effectiveTable ? (
           <motion.div
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
@@ -182,12 +193,12 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
             className="mt-4 flex items-center gap-2"
           >
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/15 backdrop-blur">
-              <UtensilsCrossed className="h-3.5 w-3.5" /> Dine-in · {table.name}
+              <UtensilsCrossed className="h-3.5 w-3.5" /> Dine-in · {effectiveTable}
             </span>
             <button
               onClick={() => {
                 if (waiterCalled) return;
-                callWaiter.mutate(table.name, {
+                callWaiter.mutate(effectiveTable, {
                   onSuccess: () => {
                     setWaiterCalled(true);
                     setTimeout(() => setWaiterCalled(false), 5000);
@@ -208,6 +219,15 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
               )}
             </button>
           </motion.div>
+        ) : (
+          mode === 'slug' && (
+            <button
+              onClick={() => setTablePromptOpen(true)}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/20 backdrop-blur"
+            >
+              <UtensilsCrossed className="h-3.5 w-3.5" /> Set your table
+            </button>
+          )
         )}
 
         <motion.div
@@ -346,6 +366,54 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       </AnimatePresence>
 
       <ProductSheet product={selected} onClose={() => setSelected(null)} />
+
+      {/* Table prompt for link/direct entry (no QR scan). */}
+      <AnimatePresence>
+        {tablePromptOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setTablePromptOpen(false)}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+              className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md rounded-t-3xl bg-card p-5 pb-7 shadow-elevated"
+            >
+              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border" />
+              <h2 className="text-lg font-semibold tracking-tight">Which table are you at?</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                So we bring your order to the right place. (Tip: scan the QR on your table next time.)
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!tableInput.trim()) return;
+                  setTableName(tableInput.trim());
+                  setTablePromptOpen(false);
+                }}
+                className="mt-4 space-y-3"
+              >
+                <Input
+                  autoFocus
+                  value={tableInput}
+                  onChange={(e) => setTableInput(e.target.value)}
+                  placeholder="e.g. Table 5"
+                  className="h-12"
+                />
+                <Button type="submit" variant="success" className="h-12 w-full rounded-xl" disabled={!tableInput.trim()}>
+                  Confirm table
+                </Button>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

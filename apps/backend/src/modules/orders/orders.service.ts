@@ -150,11 +150,12 @@ export async function createOrder({
     return sum + (product?.loyaltyPoints ?? 0) * cartItem.quantity;
   }, 0);
 
-  // Snapshot the table name for invoices / KDS.
-  let tableName: string | undefined;
+  // Snapshot the table name for invoices / KDS. A scanned QR resolves the real
+  // table; a diner ordering via the link can type their table number manually.
+  let tableName: string | undefined = input.tableName?.trim() || undefined;
   if (input.tableId) {
     const table = await Table.findOne({ _id: input.tableId, restaurantId }).select('name').lean();
-    tableName = table?.name;
+    tableName = table?.name ?? tableName;
   }
 
   // Persist order (retry once on duplicate order number race).
