@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   ApiClient,
   createAuthHooks,
@@ -13,6 +14,7 @@ import type {
   LoyaltyReward,
   Product,
   Section,
+  Subscription,
   Table,
   User,
 } from '@feedo/types';
@@ -65,3 +67,11 @@ export const rewards = createResource<LoyaltyReward>(apiClient, 'rewards', '/rew
 export const tables = createResource<Table>(apiClient, 'tables', '/tables');
 export const staff = createResource<User>(apiClient, 'staff', '/staff');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers');
+
+/** The current restaurant's subscription (read-only — Feedo manages billing). */
+export function useSubscription() {
+  return useQuery({
+    queryKey: ['restaurant', 'subscription'],
+    queryFn: () => apiClient.get<Subscription | null>('/restaurants/me/subscription'),
+  });
+}

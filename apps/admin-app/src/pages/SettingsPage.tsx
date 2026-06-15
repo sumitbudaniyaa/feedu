@@ -17,7 +17,8 @@ import {
 } from '@feedo/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AccentKey } from '@feedo/types';
-import { apiClient, useRestaurant, useUpdateRestaurant } from '../lib/api.js';
+import { formatCurrency, formatDate } from '@feedo/utils';
+import { apiClient, useRestaurant, useSubscription, useUpdateRestaurant } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 const ACCENTS: { key: AccentKey; hex: string }[] = [
@@ -29,8 +30,16 @@ const ACCENTS: { key: AccentKey; hex: string }[] = [
   { key: 'slate', hex: '#64748B' },
 ];
 
+const PLAN_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'accent'> = {
+  active: 'success',
+  trialing: 'accent',
+  past_due: 'warning',
+  cancelled: 'destructive',
+};
+
 export function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
+  const { data: subscription } = useSubscription();
   const update = useUpdateRestaurant();
   const { setAccent } = useTheme();
   const qc = useQueryClient();
@@ -192,6 +201,43 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Subscription — managed by Feedo, read-only here. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Subscription</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {subscription ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SubRow label="Plan">
+                <span className="font-medium capitalize">{subscription.plan}</span>
+                <Badge variant={PLAN_VARIANT[subscription.status] ?? 'accent'} className="capitalize">
+                  {subscription.status.replace('_', ' ')}
+                </Badge>
+              </SubRow>
+              <SubRow label="Price">
+                <span className="font-medium">
+                  {subscription.price ? `${formatCurrency(subscription.price)} / ${subscription.billingCycle}` : '—'}
+                </span>
+              </SubRow>
+              <SubRow label="Renews / expires">
+                <span className="font-medium">
+                  {subscription.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : '—'}
+                </span>
+              </SubRow>
+              <SubRow label="Seats">
+                <span className="font-medium">{subscription.seats}</span>
+              </SubRow>
+              <p className="text-xs text-muted-foreground sm:col-span-2">
+                Billing is managed by Feedo. Contact support to change your plan.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No subscription on file yet.</p>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-end gap-3">
         {update.isError && (
           <p className="text-sm text-destructive">
@@ -214,6 +260,15 @@ export function SettingsPage() {
           )}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function SubRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="flex items-center gap-2">{children}</div>
     </div>
   );
 }
