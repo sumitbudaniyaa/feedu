@@ -90,14 +90,16 @@ export function StaffPage() {
 
 function StaffDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const create = staffApi.useCreate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'waiter' as StaffRole });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'waiter' as StaffRole });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    create.mutate(form as Record<string, unknown>, {
+    // Drop an empty phone so it doesn't fail the 10-digit validation.
+    const payload = { ...form, phone: form.phone || undefined };
+    create.mutate(payload as Record<string, unknown>, {
       onSuccess: () => {
         onOpenChange(false);
-        setForm({ name: '', email: '', password: '', role: 'waiter' });
+        setForm({ name: '', email: '', phone: '', password: '', role: 'waiter' });
       },
     });
   };
@@ -113,9 +115,22 @@ function StaffDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Mobile number</Label>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit number"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

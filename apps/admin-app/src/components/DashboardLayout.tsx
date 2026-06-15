@@ -28,6 +28,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useLogout, useMe, useRestaurant } from '../lib/api.js';
 import { useLiveSync } from '../lib/useLiveSync.js';
 import { WaiterCallToast } from './WaiterCallToast.js';
+import { WaiterApp } from './WaiterApp.js';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
@@ -79,6 +80,9 @@ export function DashboardLayout() {
   useEffect(() => {
     if (restaurant?.branding?.accent) setAccent(restaurant.branding.accent);
   }, [restaurant?.branding?.accent, setAccent]);
+
+  // Waiters get a dedicated mobile app (live table calls + orders).
+  if (isWaiter) return <WaiterApp />;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">

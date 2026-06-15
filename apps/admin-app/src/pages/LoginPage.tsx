@@ -21,8 +21,8 @@ export function LoginPage() {
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
   if (isAuthed) navigate('/', { replace: true });
 
-  const [email, setEmail] = useState('owner@feedo.app');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [restaurantName, setRestaurantName] = useState('');
   const [show, setShow] = useState(false);
