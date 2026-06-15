@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { slugify } from '@feedo/utils';
+import { slugify, randomToken } from '@feedo/utils';
 import {
+  Brand,
+  BranchMenu,
   Category,
   Customer,
   Employee,
@@ -273,11 +275,96 @@ router.get(
       name: r.name,
       slug: r.slug,
       isLive: r.isLive,
+      brandId: r.brandId ? String(r.brandId) : null,
       createdAt: r.createdAt,
       subscription: subByR.get(String(r._id)) ?? null,
       orderCount: ordersByR.get(String(r._id)) ?? 0,
     }));
     return ok(res, data);
+  }),
+);
+
+// Brand → branches hierarchy with per-brand rollups (branch count, live, orders, MRR).
+router.get(
+  '/brands',
+  asyncHandler(async (_req, res) => {
+    const [brands, restaurants, subs, orderCounts] = await Promise.all([
+      Brand.find().sort({ createdAt: -1 }).lean(),
+      Restaurant.find().select('name slug isLive brandId contactNumber createdAt').lean(),
+      Subscription.find().lean(),
+      Order.aggregate([{ $group: { _id: '$restaurantId', count: { $sum: 1 } } }]),
+    ]);
+    const ordersByR = new Map(orderCounts.map((o) => [String(o._id), o.count as number]));
+    const subByR = new Map(subs.map((s) => [String(s.restaurantId), s]));
+
+    // Group branches under their brand.
+    const branchesByBrand = new Map<string, typeof restaurants>();
+    for (const r of restaurants) {
+      if (!r.brandId) continue; // legacy unbranded outlet — surfaced via /restaurants
+      const key = String(r.brandId);
+      if (!branchesByBrand.has(key)) branchesByBrand.set(key, []);
+      branchesByBrand.get(key)!.push(r);
+    }
+
+    const data = brands.map((brand) => {
+      const branches = (branchesByBrand.get(String(brand._id)) ?? []).map((r) => ({
+        _id: String(r._id),
+        name: r.name,
+        slug: r.slug,
+        isLive: r.isLive,
+        contactNumber: r.contactNumber ?? null,
+        createdAt: r.createdAt,
+        orderCount: ordersByR.get(String(r._id)) ?? 0,
+        subscription: subByR.get(String(r._id)) ?? null,
+      }));
+      const mrr = branches.reduce((s, b) => s + (b.subscription?.mrr ?? 0), 0);
+      return {
+        _id: String(brand._id),
+        name: brand.name,
+        slug: brand.slug,
+        cuisineType: brand.cuisineType ?? [],
+        accent: brand.branding?.accent ?? 'violet',
+        createdAt: brand.createdAt,
+        branchCount: branches.length,
+        liveBranchCount: branches.filter((b) => b.isLive).length,
+        totalOrders: branches.reduce((s, b) => s + b.orderCount, 0),
+        mrr,
+        branches,
+      };
+    });
+    return ok(res, data);
+  }),
+);
+
+// Onboard a new branch under an existing brand (inherits brand branding/tax/currency).
+router.post(
+  '/brands/:id/branches',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { name, contactNumber } = req.body as Record<string, string>;
+    if (!name?.trim()) throw ApiError.badRequest('Branch name is required');
+    if (contactNumber && !/^\d{10}$/.test(String(contactNumber))) {
+      throw ApiError.badRequest('Mobile number must be 10 digits');
+    }
+    const brand = await Brand.findById(req.params.id).lean();
+    if (!brand) throw ApiError.notFound('Brand not found');
+
+    let slug = slugify(name);
+    if (await Restaurant.exists({ slug })) slug = `${slug}-${randomToken(3)}`;
+
+    const branch = await Restaurant.create({
+      brandId: brand._id,
+      ownerId: brand.ownerId,
+      name: name.trim(),
+      slug,
+      contactNumber: contactNumber ? String(contactNumber) : undefined,
+      branding: brand.branding,
+      tax: brand.tax,
+      currency: brand.currency,
+      isLive: true,
+      onboarding: { completed: true, currentStep: 0, progress: 100, completedSteps: [] },
+    });
+    return ok(res, branch, 201);
   }),
 );
 
@@ -349,7 +436,10 @@ router.post(
       passwordHash: await User.hashPassword(String(password)),
       role: 'owner',
     });
+    // Onboarding creates a brand (tenant) with its first branch, matching self-signup.
+    const brand = await Brand.create({ ownerId: owner._id, name: restaurantName, slug });
     const restaurant = await Restaurant.create({
+      brandId: brand._id,
       ownerId: owner._id,
       name: restaurantName,
       slug,
@@ -363,6 +453,7 @@ router.post(
     const days = Number(durationDays) || (CYCLE_MONTHS[String(billingCycle)] ?? 1) * 30;
     const sub = await Subscription.create({
       restaurantId: restaurant._id,
+      brandId: brand._id,
       plan,
       status: 'active',
       price: Number(price),
@@ -395,7 +486,12 @@ router.delete(
       Section.deleteMany({ restaurantId: id }),
       LoyaltyProgram.deleteMany({ restaurantId: id }),
       LoyaltyReward.deleteMany({ restaurantId: id }),
+      BranchMenu.deleteMany({ branchId: id }),
     ]);
+    // Drop the brand once its last branch is gone (keeps multi-branch brands intact).
+    if (restaurant.brandId && !(await Restaurant.exists({ brandId: restaurant.brandId }))) {
+      await Brand.deleteOne({ _id: restaurant.brandId });
+    }
     return ok(res, { deleted: true });
   }),
 );

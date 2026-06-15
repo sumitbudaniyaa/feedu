@@ -92,7 +92,11 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   public menu uses it. Products/categories/sections/loyalty/rewards moved to `crud level:'brand'`.
   New `/branch-menu` module (effective menu + per-product override PATCH). RBAC enum extended with
   brand/branch roles (legacy kept). Verified single-brand behaviour is unchanged; overrides work.
-- [ ] **Phase 4 — portals:** admin branch switcher + Branches pages; super-admin Brand→Branch hierarchy.
+- [x] **Phase 4 — portals (done):** admin branch switcher + Branches page (`store/branch.ts`,
+  `BranchSwitcher`, `BranchesPage`, `GET/POST /restaurants/branches`; `resolveTenant` lets brand-wide
+  roles switch to any branch in their brand). Super-admin **Brand→Branches hierarchy** (`/platform/brands`
+  rollup + `POST /platform/brands/:id/branches`, `BrandsPage`); platform onboarding now creates a Brand,
+  delete drops the brand only when its last branch goes. Verified end-to-end via the API.
 - [ ] **Phase 5 — analytics + sockets:** brand/branch aggregations, `brand:`/`branch:` rooms.
 - [ ] **Phase 6 — cleanup:** drop legacy `restaurant`/`x-restaurant-id` aliases + `Product.restaurantId` writes.
 

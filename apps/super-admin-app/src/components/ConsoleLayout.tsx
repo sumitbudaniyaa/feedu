@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, LayoutGrid, LifeBuoy, LogOut, ReceiptText, Settings, UserRound, Users } from 'lucide-react';
+import { Boxes, Building2, LayoutGrid, LifeBuoy, LogOut, ReceiptText, Settings, UserRound, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, Button, Separator, ThemeToggle, cn } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { useAuth, useLogout, useMe } from '../lib/api.js';
 
 const NAV = [
   { to: '/', label: 'Overview', icon: LayoutGrid, end: true },
+  { to: '/brands', label: 'Brands', icon: Boxes },
   { to: '/restaurants', label: 'Restaurants', icon: Building2 },
   { to: '/orders', label: 'Orders', icon: ReceiptText },
   { to: '/customers', label: 'Customers', icon: UserRound },

@@ -23,9 +23,35 @@ export interface PlatformRestaurant {
   name: string;
   slug: string;
   isLive: boolean;
+  brandId?: string | null;
   createdAt: string;
   subscription: Subscription | null;
   orderCount: number;
+}
+
+export interface PlatformBranch {
+  _id: string;
+  name: string;
+  slug: string;
+  isLive: boolean;
+  contactNumber: string | null;
+  createdAt: string;
+  orderCount: number;
+  subscription: Subscription | null;
+}
+
+export interface PlatformBrand {
+  _id: string;
+  name: string;
+  slug: string;
+  cuisineType: string[];
+  accent: string;
+  createdAt: string;
+  branchCount: number;
+  liveBranchCount: number;
+  totalOrders: number;
+  mrr: number;
+  branches: PlatformBranch[];
 }
 
 export interface PlatformAnalytics {
@@ -114,6 +140,20 @@ export function createPlatformHooks(client: ApiClient) {
       return useQuery({
         queryKey: ['platform', 'restaurants'],
         queryFn: () => client.get<PlatformRestaurant[]>('/platform/restaurants'),
+      });
+    },
+    useBrands() {
+      return useQuery({
+        queryKey: ['platform', 'brands'],
+        queryFn: () => client.get<PlatformBrand[]>('/platform/brands'),
+      });
+    },
+    useOnboardBranch() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ brandId, body }: { brandId: string; body: { name: string; contactNumber?: string } }) =>
+          client.post(`/platform/brands/${brandId}/branches`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },
     useRestaurantDetail(id?: string) {

@@ -18,6 +18,8 @@ const platform = createPlatformHooks(apiClient);
 export const {
   useStats,
   useAnalytics,
+  useBrands,
+  useOnboardBranch,
   useRestaurants,
   useRestaurantDetail,
   useUsers,
