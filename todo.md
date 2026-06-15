@@ -88,6 +88,8 @@ super-admin (Feedu company) portal. Rebranded to **feedu**. Hardening + polish o
 - [x] Per-customer **analytics** on click (same shared insight dialog)
 - [x] **Inventory filter bar** (search + category + status) — also in the waiter app
 - [x] Staff creation captures a **mobile number**; removed the prefilled login email/password
+- [x] **Edit staff** (name / email / mobile / role / password) — admin; **edit employees**
+      (name / email / mobile / password) — company portal. Employee model gained `phone`.
 
 **Waiter**
 - [x] Dedicated **mobile waiter app** (Orders + Inventory tabs, floating pill nav)

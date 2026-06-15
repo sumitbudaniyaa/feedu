@@ -127,7 +127,7 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   `/customers` — tenant-scoped CRUD/lists (most via a shared `crud()` factory that auto-scopes
   every query to `req.restaurantId`). `/rewards` also exposes `/redemptions` (list + fulfil/cancel).
   `/customers/:id` returns per-diner analytics (spend, AOV, most-ordered, reward claims, visits).
-  `/staff` create accepts a mobile number.
+  `/staff` create + `:id` edit accept name/email/mobile/role/password (password optional on edit).
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
   "served" auto-completes; unpaid online orders excluded from staff lists)
 - `/support` — tenant: restaurants raise tickets + reply (chat); super-admin manages via `/platform/support`
@@ -138,7 +138,8 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   plus `tableCount` and order-type split (all from real aggregations; cast `restaurantId` to ObjectId)
 - `/uploads` — authenticated image upload (multer → local `/uploads` static, CORP cross-origin)
 - `/platform/*` — super-admin, cross-tenant: `stats` (incl. Feedu SaaS MRR/ARR), `analytics`,
-  `users` (Feedu employees + restaurant users), `users` POST (create employee), `orders`,
+  `users` (Feedu employees + restaurant users), `users` POST (create employee) + `users/:id`
+  PATCH (edit employee name/email/phone/password), `orders`,
   `customers` (+ `?restaurantId=`/`?search=`), `customers/:id` (per-diner analytics), `support`
   (list/update/reply), `account` (own credentials), `restaurants` (+ `restaurants` POST onboard,
   `restaurants/:id` detail, `:id/subscription` price/cycle/auto-expiry, `:id` suspend, `:id` DELETE)
@@ -283,9 +284,9 @@ Collections: **User, Employee, Restaurant, Category, Product, Table, Order, Loya
 CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment, Notification,
 Subscription, SupportTicket, Otp**.
 
-- **`Employee`** is the **Feedu company staff** collection (super admins) — deliberately
-  separate from `User` and never tied to a restaurant. Auth (`login`/`refresh`/`me`) checks
-  `Employee` first, then `User`. `/platform/users` create + the portal Employees page use it.
+- **`Employee`** is the **Feedu company staff** collection (super admins; name/email/phone) —
+  deliberately separate from `User` and never tied to a restaurant. Auth (`login`/`refresh`/`me`)
+  checks `Employee` first, then `User`. `/platform/users` create/edit + the portal Employees page use it.
 - **`Subscription`** carries `price` + `billingCycle` (monthly/quarterly/yearly) + `currentPeriodEnd`
   (auto-derived expiry); MRR is normalised from price/cycle.
 - **`SupportTicket`** — `{ restaurantId, subject, message, category, priority, status, replies[] }`.
