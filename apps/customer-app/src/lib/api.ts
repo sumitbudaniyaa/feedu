@@ -19,6 +19,7 @@ export const {
   useTrackOrder,
   usePlaceOrder,
   useCheckout,
+  useCallWaiter,
   usePayOrder,
   useAccount,
   useRedeem,

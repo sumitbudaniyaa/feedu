@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema } from '@feedo/types';
+import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema, SOCKET_EVENTS, rooms } from '@feedo/types';
 import bcrypt from 'bcryptjs';
 import {
   Category,
@@ -26,8 +26,28 @@ import { logger } from '../../utils/logger.js';
 import { env } from '../../config/env.js';
 import * as orders from '../orders/orders.service.js';
 import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../payments/payments.service.js';
+import { getIO } from '../../sockets/index.js';
 
 const router = Router();
+
+// ─── Call a waiter to a table ──────────────────────────────────────────────
+router.post(
+  '/r/:slug/call-waiter',
+  validate(z.object({ tableName: z.string().min(1) })),
+  asyncHandler(async (req, res) => {
+    const restaurant = await Restaurant.findOne({ slug: req.params.slug }).select('_id').lean();
+    if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    const { tableName } = req.body as { tableName: string };
+    const io = getIO() as unknown as {
+      to: (room: string) => { emit: (event: string, payload: unknown) => void };
+    };
+    io.to(rooms.restaurant(String(restaurant._id))).emit(SOCKET_EVENTS.WAITER_CALLED, {
+      tableName,
+      at: new Date().toISOString(),
+    });
+    return ok(res, { called: true });
+  }),
+);
 
 // ─── Customer OTP login ──────────────────────────────────────────────────
 router.post(

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Gift, Search, ShoppingBag, User, UtensilsCrossed } from 'lucide-react';
+import { Bell, BellRing, Gift, Search, ShoppingBag, User, UtensilsCrossed } from 'lucide-react';
 import { Button, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
-import { useMenuByQr, useMenuBySlug } from '../lib/api.js';
+import { useCallWaiter, useMenuByQr, useMenuBySlug } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { ProductSheet } from '../components/ProductSheet.js';
 import { ProductCard } from '../components/ProductCard.js';
@@ -28,6 +28,10 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const [activeCat, setActiveCat] = useState<string>('all');
   const [vegOnly, setVegOnly] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
+
+  // Ring-the-waiter (dine-in only).
+  const callWaiter = useCallWaiter(data?.restaurant.slug ?? '');
+  const [waiterCalled, setWaiterCalled] = useState(false);
 
   // Rotating search placeholder — prefers real dish names, falls back to generic terms.
   const searchTerms = useMemo(() => {
@@ -171,14 +175,39 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         </motion.div>
 
         {table && (
-          <motion.span
+          <motion.div
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/15 backdrop-blur"
+            className="mt-4 flex items-center gap-2"
           >
-            <UtensilsCrossed className="h-3.5 w-3.5" /> Dine-in · {table.name}
-          </motion.span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-white/15 backdrop-blur">
+              <UtensilsCrossed className="h-3.5 w-3.5" /> Dine-in · {table.name}
+            </span>
+            <button
+              onClick={() => {
+                if (waiterCalled) return;
+                callWaiter.mutate(table.name, {
+                  onSuccess: () => {
+                    setWaiterCalled(true);
+                    setTimeout(() => setWaiterCalled(false), 5000);
+                  },
+                });
+              }}
+              disabled={callWaiter.isPending}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-900 shadow-sm transition-transform active:scale-95 disabled:opacity-70"
+            >
+              {waiterCalled ? (
+                <>
+                  <BellRing className="h-3.5 w-3.5 text-success" /> Waiter on the way
+                </>
+              ) : (
+                <>
+                  <Bell className="h-3.5 w-3.5" /> {callWaiter.isPending ? 'Calling…' : 'Call waiter'}
+                </>
+              )}
+            </button>
+          </motion.div>
         )}
 
         <motion.div

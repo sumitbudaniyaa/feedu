@@ -8,6 +8,7 @@ export const SOCKET_EVENTS = {
   ORDER_STATUS_CHANGED: 'order:status_changed',
   NOTIFICATION_NEW: 'notification:new',
   DASHBOARD_REFRESH: 'dashboard:refresh',
+  WAITER_CALLED: 'waiter:called',
 } as const;
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
@@ -19,6 +20,7 @@ export interface ServerToClientEvents {
   'order:status_changed': (payload: { orderId: string; status: Order['status'] }) => void;
   'notification:new': (notification: Notification) => void;
   'dashboard:refresh': () => void;
+  'waiter:called': (payload: { tableName: string; at: string }) => void;
 }
 
 /** Client → server payloads. */

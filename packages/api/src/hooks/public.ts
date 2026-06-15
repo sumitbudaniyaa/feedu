@@ -109,6 +109,13 @@ export function createPublicHooks(client: ApiClient) {
         mutationFn: (body: CheckoutInput) => client.post<CheckoutResult>(`/public/r/${slug}/checkout`, body),
       });
     },
+    /** Ring a waiter to the diner's table. */
+    useCallWaiter(slug: string) {
+      return useMutation({
+        mutationFn: (tableName: string) =>
+          client.post<{ called: boolean }>(`/public/r/${slug}/call-waiter`, { tableName }),
+      });
+    },
     /** Confirm payment for an order (verifies Razorpay signature server-side). */
     usePayOrder() {
       return useMutation({
