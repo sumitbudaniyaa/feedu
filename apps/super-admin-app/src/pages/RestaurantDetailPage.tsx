@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Boxes, Check, IndianRupee, Power, ReceiptText, Trash2, UserRound, Users } from 'lucide-react';
+import { ArrowLeft, Boxes, IndianRupee, Pencil, Power, ReceiptText, Trash2, UserRound, Users } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -8,6 +8,11 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Label,
   Select,
@@ -253,32 +258,86 @@ function SubscriptionCard({
   restaurantId: string;
   subscription: import('@feedo/api').RestaurantDetail['subscription'];
 }) {
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Subscription</CardTitle>
+        <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <SubRow label="Plan">
+            <span className="font-medium capitalize">{subscription?.plan ?? '—'}</span>
+          </SubRow>
+          <SubRow label="Status">
+            <span className="font-medium capitalize">{(subscription?.status ?? '—').replace('_', ' ')}</span>
+          </SubRow>
+          <SubRow label="Price">
+            <span className="font-medium">
+              {subscription?.price ? `${formatCurrency(subscription.price)} / ${subscription.billingCycle}` : '—'}
+            </span>
+          </SubRow>
+          <SubRow label="Expires">
+            <span className="font-medium">
+              {subscription?.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : '—'}
+            </span>
+          </SubRow>
+        </div>
+      </CardContent>
+      <SubscriptionDialog
+        restaurantId={restaurantId}
+        subscription={subscription}
+        open={editing}
+        onClose={() => setEditing(false)}
+      />
+    </Card>
+  );
+}
+
+function SubRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function SubscriptionDialog({
+  restaurantId,
+  subscription,
+  open,
+  onClose,
+}: {
+  restaurantId: string;
+  subscription: import('@feedo/api').RestaurantDetail['subscription'];
+  open: boolean;
+  onClose: () => void;
+}) {
   const update = useUpdateSubscription();
   const [plan, setPlan] = useState<SubscriptionPlan>((subscription?.plan as SubscriptionPlan) ?? 'starter');
   const [status, setStatus] = useState<SubscriptionStatus>((subscription?.status as SubscriptionStatus) ?? 'active');
   const [price, setPrice] = useState(String(subscription?.price ?? 0));
   const [cycle, setCycle] = useState<Cycle>((subscription?.billingCycle as Cycle) ?? 'monthly');
-  const [saved, setSaved] = useState(false);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     update.mutate(
       { id: restaurantId, body: { plan, status, price: Number(price), billingCycle: cycle } },
-      {
-        onSuccess: () => {
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2500);
-        },
-      },
+      { onSuccess: onClose },
     );
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Subscription</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit subscription</DialogTitle>
+        </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -316,24 +375,17 @@ function SubscriptionCard({
               </Select>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Expires{' '}
-            <span className="font-medium text-foreground">
-              {subscription?.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : '—'}
-            </span>{' '}
-            · set automatically from the billing cycle when you save.
-          </p>
-          <Button type="submit" variant={saved ? 'success' : 'default'} disabled={update.isPending}>
-            {update.isPending ? 'Saving…' : saved ? (
-              <>
-                <Check className="h-4 w-4" /> Saved
-              </>
-            ) : (
-              'Save subscription'
-            )}
-          </Button>
+          <p className="text-xs text-muted-foreground">Expiry is set automatically from the billing cycle.</p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? 'Saving…' : 'Save subscription'}
+            </Button>
+          </DialogFooter>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
