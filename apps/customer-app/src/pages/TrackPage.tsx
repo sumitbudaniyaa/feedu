@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
@@ -19,17 +19,17 @@ function etaMinutes(order: Order): number {
 export function TrackPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const justPlaced = Boolean((location.state as { justPlaced?: boolean } | null)?.justPlaced);
+  const [searchParams] = useSearchParams();
+  // `?view=details` = opened from Order History → plain receipt, no live status hero.
+  // No param = the live order/status page (shown right after placing an order).
+  const isDetails = searchParams.get('view') === 'details';
   const menuPath = useCart((s) => s.menuPath);
   const { data: order, isLoading } = useTrackOrder(orderId);
   const ticketRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
   const goToMenu = () => navigate(menuPath ?? '/');
-  const goBack = () => (justPlaced ? goToMenu() : navigate(-1));
-  // Past/completed/cancelled orders show a plain summary, not the live tracking hero.
-  const isTerminal = order ? ['served', 'completed', 'cancelled', 'refunded'].includes(order.status) : false;
+  const goBack = () => (isDetails ? navigate(-1) : goToMenu());
 
   const downloadInvoice = async () => {
     if (!ticketRef.current) return;
@@ -68,13 +68,12 @@ export function TrackPage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <span className="text-xs text-muted-foreground">
-          {isTerminal ? 'Order details' : 'Live order'} · #{order.orderNumber}
+          {isDetails ? 'Order details' : 'Live order'} · #{order.orderNumber}
         </span>
       </div>
 
-      {/* Live tracking hero only while the order is in progress. Past/history orders
-          show a compact summary instead of a celebratory banner. */}
-      {isTerminal ? (
+      {/* History opens a plain receipt; the live order page keeps its status hero. */}
+      {isDetails ? (
         <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Order #{order.orderNumber}</p>

@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion';
-import { Bell, BellRing, ChevronsRight, LogOut, ShoppingBag } from 'lucide-react';
-import { Badge, ThemeToggle } from '@feedo/ui';
+import { BellRing, Boxes, ChevronsRight, LogOut, ShoppingBag } from 'lucide-react';
+import { ThemeToggle } from '@feedo/ui';
 import { SOCKET_EVENTS } from '@feedo/types';
 import { useNavigate } from 'react-router-dom';
 import { socket, useLogout } from '../lib/api.js';
 import { OrdersPage } from '../pages/OrdersPage.js';
+import { InventoryPage } from '../pages/InventoryPage.js';
 
 interface Call {
   id: number;
   tableName: string;
-  at: number;
 }
 
-/** Repeating attention ring via Web Audio. */
+/** Repeating attention ring + vibration. */
 function ring() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -37,23 +37,23 @@ function ring() {
   }
 }
 
-/** Mobile-app experience for waiters: live table calls (ringing) + orders. */
+/** Mobile waiter app: Orders + Inventory, with table calls arriving as a drawer. */
 export function WaiterApp() {
   const logout = useLogout();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'calls' | 'orders'>('calls');
+  const [tab, setTab] = useState<'orders' | 'inventory'>('orders');
   const [calls, setCalls] = useState<Call[]>([]);
 
   useEffect(() => {
     const onCalled = (p: { tableName: string }) =>
-      setCalls((prev) => [{ id: Date.now() + Math.random(), tableName: p.tableName, at: Date.now() }, ...prev]);
+      setCalls((prev) => [...prev, { id: Date.now() + Math.random(), tableName: p.tableName }]);
     socket.on(SOCKET_EVENTS.WAITER_CALLED, onCalled);
     return () => {
       socket.off(SOCKET_EVENTS.WAITER_CALLED, onCalled);
     };
   }, []);
 
-  // Keep ringing while any call is unattended.
+  // Ring while any call is pending.
   useEffect(() => {
     if (calls.length === 0) return;
     ring();
@@ -68,11 +68,6 @@ export function WaiterApp() {
       <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
         <span className="text-xl font-black italic tracking-tight">feedu</span>
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Waiter</span>
-        {calls.length > 0 && (
-          <Badge variant="destructive" className="ml-1 animate-pulse">
-            {calls.length} calling
-          </Badge>
-        )}
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
           <button
@@ -88,36 +83,44 @@ export function WaiterApp() {
         </div>
       </header>
 
-      <main className="flex-1 pb-20">
-        {tab === 'calls' ? (
-          <div className="space-y-4 p-4">
-            <AnimatePresence>
-              {calls.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center justify-center gap-3 py-24 text-center text-muted-foreground"
-                >
-                  <Bell className="h-10 w-10" />
-                  <p className="text-sm">No tables calling. You&apos;re all caught up.</p>
-                </motion.div>
-              ) : (
-                calls.map((call) => <CallCard key={call.id} call={call} onAttend={() => attend(call.id)} />)
-              )}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <div className="p-4">
-            <OrdersPage />
-          </div>
-        )}
-      </main>
+      <main className="flex-1 px-3 pb-20 pt-3">{tab === 'orders' ? <OrdersPage /> : <InventoryPage />}</main>
 
       {/* Bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-md border-t border-border bg-card">
-        <TabButton active={tab === 'calls'} onClick={() => setTab('calls')} icon={BellRing} label="Calls" badge={calls.length} />
         <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={ShoppingBag} label="Orders" />
+        <TabButton active={tab === 'inventory'} onClick={() => setTab('inventory')} icon={Boxes} label="Inventory" />
       </nav>
+
+      {/* Incoming table calls — drawer that rings until attended */}
+      <AnimatePresence>
+        {calls.length > 0 && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md space-y-3 rounded-t-3xl border-t border-border bg-card p-5 pb-7 shadow-elevated"
+            >
+              <div className="mx-auto mb-1 h-1.5 w-10 rounded-full bg-border" />
+              <p className="text-sm font-semibold">
+                {calls.length} table{calls.length === 1 ? '' : 's'} calling
+              </p>
+              <AnimatePresence>
+                {calls.map((call) => (
+                  <CallCard key={call.id} call={call} onAttend={() => attend(call.id)} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -127,26 +130,19 @@ function TabButton({
   onClick,
   icon: Icon,
   label,
-  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  badge?: number;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-1 flex-col items-center gap-0.5 py-3 text-xs font-medium ${active ? 'text-accent' : 'text-muted-foreground'}`}
+      className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs font-medium ${active ? 'text-accent' : 'text-muted-foreground'}`}
     >
       <Icon className="h-5 w-5" />
       {label}
-      {badge ? (
-        <span className="absolute right-[28%] top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
-          {badge}
-        </span>
-      ) : null}
     </button>
   );
 }
@@ -155,25 +151,25 @@ function CallCard({ call, onAttend }: { call: Call; onAttend: () => void }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.96, y: 12 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      className="overflow-hidden rounded-3xl border border-destructive/40 bg-destructive/10 p-5"
+      className="overflow-hidden rounded-2xl border border-destructive/40 bg-destructive/10 p-4"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <motion.span
           animate={{ rotate: [0, -18, 18, -18, 0] }}
           transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 0.3 }}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive text-white"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive text-white"
         >
-          <BellRing className="h-7 w-7" />
+          <BellRing className="h-6 w-6" />
         </motion.span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Table calling</p>
-          <p className="truncate text-2xl font-black tracking-tight">{call.tableName}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Table calling</p>
+          <p className="truncate text-xl font-black tracking-tight">{call.tableName}</p>
         </div>
       </div>
-      <div className="mt-5">
+      <div className="mt-4">
         <SlideToAttend onAttend={onAttend} />
       </div>
     </motion.div>
@@ -188,7 +184,7 @@ function SlideToAttend({ onAttend }: { onAttend: () => void }) {
 
   useEffect(() => {
     const w = trackRef.current?.offsetWidth ?? 0;
-    setMax(Math.max(0, w - 56)); // knob is 48px + 8px inset
+    setMax(Math.max(0, w - 56));
   }, []);
 
   return (

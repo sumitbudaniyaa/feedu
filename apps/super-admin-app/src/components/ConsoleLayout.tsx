@@ -11,7 +11,7 @@ const NAV = [
   { to: '/restaurants', label: 'Restaurants', icon: Building2 },
   { to: '/orders', label: 'Orders', icon: ReceiptText },
   { to: '/customers', label: 'Customers', icon: UserRound },
-  { to: '/users', label: 'Users', icon: Users },
+  { to: '/employees', label: 'Employees', icon: Users },
   { to: '/support', label: 'Support', icon: LifeBuoy },
   { to: '/account', label: 'Account', icon: Settings },
 ];

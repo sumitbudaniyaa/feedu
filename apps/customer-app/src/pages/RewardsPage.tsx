@@ -208,7 +208,7 @@ function RewardClaimRow({ order }: { order: Order }) {
   // The reward is the free (₹0) line on the order.
   const freeItem = order.items.find((i) => i.lineTotal === 0) ?? order.items[0];
   return (
-    <Link to={`/order/${order._id}`} className="flex items-center gap-3 p-3.5 transition-colors hover:bg-secondary/50">
+    <Link to={`/order/${order._id}?view=details`} className="flex items-center gap-3 p-3.5 transition-colors hover:bg-secondary/50">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
         <Gift className="h-4 w-4" />
       </div>

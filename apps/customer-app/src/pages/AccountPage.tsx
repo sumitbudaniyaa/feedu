@@ -107,7 +107,7 @@ export function AccountPage() {
                   {data.orders.map((o) => (
                     <Link
                       key={o._id}
-                      to={`/order/${o._id}`}
+                      to={`/order/${o._id}?view=details`}
                       className="flex items-center gap-3 p-3.5 transition-colors hover:bg-secondary/50"
                     >
                       <div className="min-w-0 flex-1">

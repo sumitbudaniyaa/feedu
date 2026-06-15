@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, ShieldCheck, Store, Users } from 'lucide-react';
+import { Plus, ShieldCheck } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
@@ -14,114 +14,61 @@ import {
   EmptyState,
   Input,
   Label,
-  Select,
   Skeleton,
 } from '@feedo/ui';
 import { formatDate, initials } from '@feedo/utils';
-import type { PlatformUser } from '@feedo/api';
 import { useCreateEmployee, useUsers } from '../lib/api.js';
 
-const RESTAURANT_ROLES = ['owner', 'manager', 'kitchen', 'waiter'];
-
+/** Company portal "Team" page — Feedu employees only (restaurant users live on
+ *  each restaurant's detail page). */
 export function UsersPage() {
-  const [role, setRole] = useState('');
-  const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const { data, isLoading } = useUsers({ role: role || undefined, search: search || undefined });
-
-  // Feedu's own employees vs restaurant (client) users.
-  const team = (data ?? []).filter((u) => u.role === 'super_admin');
-  const restaurantUsers = (data ?? []).filter((u) => u.role !== 'super_admin');
+  // Only the Feedu team (super_admin / employees collection).
+  const { data, isLoading } = useUsers({ role: 'super_admin' });
+  const team = data ?? [];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Feedu employees and the people at your client restaurants.</p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Feedu company employees with platform access. Restaurant staff are managed inside each restaurant.
+          </p>
+        </div>
+        <Button onClick={() => setAddOpen(true)}>
+          <Plus className="h-4 w-4" /> Add team member
+        </Button>
       </div>
 
-      {/* Feedu company team */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <ShieldCheck className="h-4 w-4" /> Feedu team
-          </h2>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4" /> Add team member
-          </Button>
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-xl" />
+          ))}
         </div>
-        {isLoading ? (
-          <Skeleton className="h-16 rounded-xl" />
-        ) : team.length > 0 ? (
-          <Card className="divide-y divide-border">
-            {team.map((u) => (
-              <UserRow key={u._id} user={u} />
-            ))}
-          </Card>
-        ) : (
-          <EmptyState icon={ShieldCheck} title="No Feedu employees yet" />
-        )}
-      </section>
-
-      {/* Restaurant (client) users */}
-      <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <Store className="h-4 w-4" /> Restaurant users
-        </h2>
-        <div className="flex flex-wrap gap-3">
-          <div className="relative max-w-xs flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Search name or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <Select className="w-40" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="">All roles</option>
-            {RESTAURANT_ROLES.map((r) => (
-              <option key={r} value={r} className="capitalize">
-                {r}
-              </option>
-            ))}
-          </Select>
-        </div>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-xl" />
-            ))}
-          </div>
-        ) : restaurantUsers.length > 0 ? (
-          <Card className="divide-y divide-border">
-            {restaurantUsers.map((u) => (
-              <UserRow key={u._id} user={u} />
-            ))}
-          </Card>
-        ) : (
-          <EmptyState icon={Users} title="No restaurant users found" />
-        )}
-      </section>
+      ) : team.length > 0 ? (
+        <Card className="divide-y divide-border">
+          {team.map((u) => (
+            <div key={u._id} className="flex items-center gap-3 p-4">
+              <Avatar>
+                <AvatarFallback>{initials(u.name)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{u.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+              </div>
+              {!u.isActive && <Badge variant="destructive">Inactive</Badge>}
+              <Badge variant="outline">Super admin</Badge>
+              <span className="hidden text-xs text-muted-foreground sm:block">{formatDate(u.createdAt)}</span>
+            </div>
+          ))}
+        </Card>
+      ) : (
+        <EmptyState icon={ShieldCheck} title="No team members yet" description="Add a Feedu employee to give them platform access." />
+      )}
 
       <AddEmployeeDialog open={addOpen} onClose={() => setAddOpen(false)} />
-    </div>
-  );
-}
-
-function UserRow({ user: u }: { user: PlatformUser }) {
-  return (
-    <div className="flex items-center gap-3 p-4">
-      <Avatar>
-        <AvatarFallback>{initials(u.name)}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{u.name}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {u.email}
-          {u.restaurantName ? ` · ${u.restaurantName}` : ''}
-        </p>
-      </div>
-      {!u.isActive && <Badge variant="destructive">Inactive</Badge>}
-      <Badge variant="outline" className="capitalize">
-        {u.role.replace('_', ' ')}
-      </Badge>
-      <span className="hidden text-xs text-muted-foreground sm:block">{formatDate(u.createdAt)}</span>
     </div>
   );
 }
