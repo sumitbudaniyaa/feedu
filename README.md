@@ -1,4 +1,4 @@
-# Feedo
+# Feedu
 
 Premium Restaurant Operating System SaaS — a multi-tenant platform with an owner
 dashboard, customer ordering PWA, kitchen display system, and an internal super-admin
@@ -12,25 +12,34 @@ Razorpay · JWT.
 
 ## What it does
 
-- **Admin** — range-aware dashboard (revenue/orders/AOV scoped to Day/Week/Month), live orders
-  with **Active / Pending-payment / All** tabs (count badges, mark-as-paid with method), inventory
-  (image upload, stock, prep time, per-item loyalty points, **configurable sizes/variants**),
-  Menu CMS (carousel/hero/grid sections), loyalty rewards catalog + **points-expiry** option,
-  Analytics (revenue/table, table turnover, avg serve time, peak hours, top products), tables &
-  downloadable QR codes, staff, customers, settings (branding/tax/go-live, with save confirmation),
-  and downloadable invoices. Compact/minimal, full-width, borderless-input UI.
+- **Admin (restaurant owner — your client)** — range-aware dashboard (revenue/orders/AOV scoped to
+  Day/Week/Month), live orders with **Active / Pending-payment / All** tabs (count badges, prominent
+  table number, mark-as-paid with method), inventory (image upload, stock, prep time, per-item loyalty
+  points, **configurable sizes/variants**), Menu CMS, loyalty rewards + **points-expiry**, Analytics
+  (revenue/table, table turnover, avg serve time, peak hours, top products), tables & QR codes, **staff
+  (with mobile number)**, **customer analytics** (click a diner → spend, most-ordered, reward claims,
+  visits), settings (branding/tax/go-live + **subscription details**), **support tickets** (chat),
+  downloadable invoices. **Waiter role** is limited to a **dedicated mobile waiter app** (live table
+  **calls ring** with sound/vibrate + **slide-to-attend**, plus orders).
 - **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
-  `feedo` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
-  **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, cart, **mobile-OTP login
-  (also enforced at guest checkout)**, **Razorpay checkout**, separate **Rewards** (wallet + in-app
-  free-reward orders) and **Account** (details, order history, log out) pages, and animated
-  order tracking with a downloadable ticket invoice. Dine-in only.
-- **Kitchen** — real-time KDS (`feedo` Kitchen), veg/non-veg markers, status-colored cards, one-tap flow.
-- **Super-admin** — cross-tenant console (`feedo` Platform): GMV/MRR, restaurants (+ detail), all
-  orders, customers, users, subscription management, suspend/reactivate. Same minimal admin styling.
-- **Realtime** — Socket.IO pushes new/updated orders to kitchen + admin instantly.
-- **Multi-tenant + secure** — every resource scoped by `restaurantId`; rate limiting, NoSQL-injection
-  sanitization, HPP, helmet/CSP, RBAC, bcrypt, JWT.
+  `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
+  **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **call-waiter** from the
+  table, cart, **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
+  **Rewards** (wallet + in-app free-reward orders + **claim history**) and **Account** (details, order
+  history, log out) pages, order confirmation + tracking with a downloadable ticket invoice. Dine-in
+  only; direct (non-QR) entry asks for the table number.
+- **Kitchen** — real-time KDS (`feedu` Kitchen), prominent table number, veg/non-veg markers,
+  status-colored cards, one-tap flow.
+- **Super-admin = the feedu company portal (you, the SaaS owner)** — separate **feedu SaaS revenue**
+  (MRR/ARR/paying restaurants) vs marketplace GMV; **onboard restaurants** (owner+restaurant+subscription,
+  unique slug/email, mobile); per-restaurant **subscription pricing + cycle (auto-expiry), suspend,
+  delete** on the detail page; **Users** split into a **feedu team** (own `employees` collection, no
+  tenant) + restaurant users, with **add-employee**; **support tickets** chat; **customers grouped by
+  restaurant** → drill in → per-diner analytics; change own credentials.
+- **Realtime** — Socket.IO pushes new/updated orders to kitchen + admin, and **waiter calls** to staff.
+- **Multi-tenant + secure** — every resource scoped by `restaurantId`; feedu staff isolated in a
+  separate `employees` collection; rate limiting, NoSQL-injection sanitization, HPP, helmet/CSP, RBAC,
+  bcrypt, JWT.
 
 ## Apps & ports
 
@@ -75,7 +84,7 @@ Running `npm run dev` shows an arrow-key menu — use **↑/↓** to move, **ent
 **q** to quit:
 
 ```
-  Feedo  — what do you want to run?
+  Feedu  — what do you want to run?
 
   ❯ Run all apps
     Run admin + backend

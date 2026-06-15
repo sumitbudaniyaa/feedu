@@ -1,14 +1,14 @@
-# Feedo — Architecture
+# Feedu — Architecture
 
 > Premium Restaurant Operating System SaaS. This document is the single source of
-> truth for how Feedo is structured. Update it whenever architecture, schema, APIs,
+> truth for how Feedu is structured. Update it whenever architecture, schema, APIs,
 > packages, auth, sockets, or state management change.
 
 ---
 
 ## 1. Monorepo Structure
 
-Feedo is a **Turborepo + npm workspaces** monorepo.
+Feedu is a **Turborepo + npm workspaces** monorepo.
 
 ```
 feedo/
@@ -59,7 +59,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 | `admin-app` | Restaurant owner / manager | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings, onboarding | violet |
 | `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login (incl. at guest checkout), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers (dark-optimized KDS) | emerald |
-| `super-admin-app` | Feedo internal | Restaurant management, subscriptions, platform analytics, feature toggles | blue |
+| `super-admin-app` | Feedu internal | Restaurant management, subscriptions, platform analytics, feature toggles | blue |
 
 ---
 
@@ -306,7 +306,7 @@ Schemas mirror the Zod definitions in `@feedo/types`.
   utilities to them. **Dark is primary** (#090909 / #111111 / #1A1A1A / #F5F5F5 / #9CA3AF).
 - **Font: Poppins** across all apps (loaded from Google Fonts in each `index.html`; set as
   `fontFamily.sans` in the shared Tailwind preset). The brand mark is the lowercase italic
-  `feedo` wordmark used in every app header (admin, super-admin, kitchen `feedo` Kitchen,
+  `feedu` wordmark used in every app header (admin, super-admin, kitchen `feedu` Kitchen,
   customer hero) — text-only, no image asset.
 - `ThemeProvider` resolves `dark | light | system`, persists to localStorage, and sets
   `.dark` + `[data-accent]` on `<html>`. Six muted accents map to `[data-accent='…']`.
