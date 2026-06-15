@@ -1,69 +1,184 @@
 import { useState } from 'react';
-import { Search, Users } from 'lucide-react';
-import { Avatar, AvatarFallback, Badge, Card, EmptyState, Input, Select, Skeleton } from '@feedo/ui';
+import { Plus, Search, ShieldCheck, Store, Users } from 'lucide-react';
+import {
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Input,
+  Label,
+  Select,
+  Skeleton,
+} from '@feedo/ui';
 import { formatDate, initials } from '@feedo/utils';
-import { useUsers } from '../lib/api.js';
+import type { PlatformUser } from '@feedo/api';
+import { useCreateEmployee, useUsers } from '../lib/api.js';
 
-const ROLES = ['owner', 'manager', 'kitchen', 'waiter', 'super_admin'];
+const RESTAURANT_ROLES = ['owner', 'manager', 'kitchen', 'waiter'];
 
 export function UsersPage() {
   const [role, setRole] = useState('');
   const [search, setSearch] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
   const { data, isLoading } = useUsers({ role: role || undefined, search: search || undefined });
 
+  // Feedu's own employees vs restaurant (client) users.
+  const team = (data ?? []).filter((u) => u.role === 'super_admin');
+  const restaurantUsers = (data ?? []).filter((u) => u.role !== 'super_admin');
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Every account across the platform.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Feedu employees and the people at your client restaurants.</p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search name or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      {/* Feedu company team */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <ShieldCheck className="h-4 w-4" /> Feedu team
+          </h2>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" /> Add team member
+          </Button>
         </div>
-        <Select className="w-40" value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="">All roles</option>
-          {ROLES.map((r) => (
-            <option key={r} value={r} className="capitalize">
-              {r.replace('_', ' ')}
-            </option>
-          ))}
-        </Select>
-      </div>
+        {isLoading ? (
+          <Skeleton className="h-16 rounded-xl" />
+        ) : team.length > 0 ? (
+          <Card className="divide-y divide-border">
+            {team.map((u) => (
+              <UserRow key={u._id} user={u} />
+            ))}
+          </Card>
+        ) : (
+          <EmptyState icon={ShieldCheck} title="No Feedu employees yet" />
+        )}
+      </section>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-xl" />
-          ))}
+      {/* Restaurant (client) users */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <Store className="h-4 w-4" /> Restaurant users
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          <div className="relative max-w-xs flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search name or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <Select className="w-40" value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="">All roles</option>
+            {RESTAURANT_ROLES.map((r) => (
+              <option key={r} value={r} className="capitalize">
+                {r}
+              </option>
+            ))}
+          </Select>
         </div>
-      ) : data && data.length > 0 ? (
-        <Card className="divide-y divide-border">
-          {data.map((u) => (
-            <div key={u._id} className="flex items-center gap-3 p-4">
-              <Avatar>
-                <AvatarFallback>{initials(u.name)}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{u.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {u.email}
-                  {u.restaurantName ? ` · ${u.restaurantName}` : ''}
-                </p>
-              </div>
-              {!u.isActive && <Badge variant="destructive">Inactive</Badge>}
-              <Badge variant="outline" className="capitalize">
-                {u.role.replace('_', ' ')}
-              </Badge>
-              <span className="hidden text-xs text-muted-foreground sm:block">{formatDate(u.createdAt)}</span>
-            </div>
-          ))}
-        </Card>
-      ) : (
-        <EmptyState icon={Users} title="No users found" />
-      )}
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded-xl" />
+            ))}
+          </div>
+        ) : restaurantUsers.length > 0 ? (
+          <Card className="divide-y divide-border">
+            {restaurantUsers.map((u) => (
+              <UserRow key={u._id} user={u} />
+            ))}
+          </Card>
+        ) : (
+          <EmptyState icon={Users} title="No restaurant users found" />
+        )}
+      </section>
+
+      <AddEmployeeDialog open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
+  );
+}
+
+function UserRow({ user: u }: { user: PlatformUser }) {
+  return (
+    <div className="flex items-center gap-3 p-4">
+      <Avatar>
+        <AvatarFallback>{initials(u.name)}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium">{u.name}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {u.email}
+          {u.restaurantName ? ` · ${u.restaurantName}` : ''}
+        </p>
+      </div>
+      {!u.isActive && <Badge variant="destructive">Inactive</Badge>}
+      <Badge variant="outline" className="capitalize">
+        {u.role.replace('_', ' ')}
+      </Badge>
+      <span className="hidden text-xs text-muted-foreground sm:block">{formatDate(u.createdAt)}</span>
+    </div>
+  );
+}
+
+function AddEmployeeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const create = useCreateEmployee();
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Feedu team member</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate(form, {
+              onSuccess: () => {
+                onClose();
+                setForm({ name: '', email: '', password: '' });
+              },
+            });
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label>Name</Label>
+            <Input value={form.name} onChange={(e) => set('name', e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Password</Label>
+            <Input type="text" minLength={6} value={form.password} onChange={(e) => set('password', e.target.value)} required />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Feedu employees get full super-admin access and are never tied to a restaurant.
+          </p>
+          {create.isError && (
+            <p className="text-sm text-destructive">
+              {create.error instanceof Error ? create.error.message : 'Could not create employee'}
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={create.isPending}>
+              {create.isPending ? 'Creating…' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

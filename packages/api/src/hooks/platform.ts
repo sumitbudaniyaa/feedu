@@ -164,6 +164,14 @@ export function createPlatformHooks(client: ApiClient) {
           client.patch('/platform/account', body),
       });
     },
+    useCreateEmployee() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (body: { name: string; email: string; password: string }) =>
+          client.post('/platform/users', body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'users'] }),
+      });
+    },
     useSupportTickets(status?: string) {
       const suffix = status ? `?status=${status}` : '';
       return useQuery({

@@ -362,6 +362,28 @@ router.delete(
   }),
 );
 
+// Create a Feedu company employee (super admin) — never tied to a restaurant.
+router.post(
+  '/users',
+  asyncHandler(async (req, res) => {
+    const { name, email, password } = req.body as Record<string, string>;
+    if (!name?.trim() || !email?.trim() || !password) {
+      throw ApiError.badRequest('name, email and password are required');
+    }
+    if (await User.exists({ email: email.toLowerCase() })) {
+      throw ApiError.conflict('A user with this email already exists');
+    }
+    const user = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase(),
+      passwordHash: await User.hashPassword(password),
+      role: 'super_admin',
+      // No restaurantId — Feedu employees are not tied to any tenant.
+    });
+    return ok(res, { _id: user._id, name: user.name, email: user.email, role: user.role }, 201);
+  }),
+);
+
 // All support tickets across the platform (optionally filter by status).
 router.get(
   '/support',
