@@ -1,3 +1,6 @@
+import type { Types } from 'mongoose';
+import type { BranchMenuDoc } from '../../models/BranchMenu.js';
+import type { ProductDoc } from '../../models/Product.js';
 import { BranchMenu, Category, Product, Section } from '../../models/index.js';
 
 interface MenuScope {
@@ -5,6 +8,64 @@ interface MenuScope {
   brandId?: string | null;
   /** The branch whose overrides to apply. */
   branchId: string;
+}
+
+type LeanProduct = ProductDoc & { _id: Types.ObjectId };
+type LeanOverride = BranchMenuDoc & { _id: Types.ObjectId };
+
+/** A catalog product with this branch's effective price/stock/availability resolved. */
+export interface EffectiveOrderProduct {
+  product: LeanProduct;
+  /** This branch's override row, if one exists (drives where stock is decremented). */
+  override: LeanOverride | null;
+  basePrice: number;
+  stock: number | null;
+  isAvailable: boolean;
+}
+
+/**
+ * Resolve specific catalog products for the order pipeline with this branch's
+ * effective price/stock/availability applied (same override semantics as
+ * {@link resolveBranchMenu}). Products another branch has claimed as exclusive
+ * are omitted. Backward compatible: without a `brandId` the catalog is read by
+ * `restaurantId` (legacy single-tenant behaviour).
+ */
+export async function resolveOrderProducts(
+  { brandId, branchId }: MenuScope,
+  productIds: string[],
+): Promise<Map<string, EffectiveOrderProduct>> {
+  const catalogFilter = brandId
+    ? { brandId, _id: { $in: productIds } }
+    : { restaurantId: branchId, _id: { $in: productIds } };
+
+  const [products, overrides, exclusives] = await Promise.all([
+    Product.find(catalogFilter).lean(),
+    BranchMenu.find({ branchId, productId: { $in: productIds } }).lean(),
+    brandId
+      ? BranchMenu.find({ brandId, branchExclusive: true, productId: { $in: productIds } })
+          .select('productId branchId')
+          .lean()
+      : [],
+  ]);
+
+  const overrideByProduct = new Map(overrides.map((o) => [String(o.productId), o]));
+  const exclusiveElsewhere = new Set(
+    exclusives.filter((e) => String(e.branchId) !== branchId).map((e) => String(e.productId)),
+  );
+
+  const map = new Map<string, EffectiveOrderProduct>();
+  for (const p of products as LeanProduct[]) {
+    if (exclusiveElsewhere.has(String(p._id))) continue; // not offered at this branch
+    const o = (overrideByProduct.get(String(p._id)) as LeanOverride | undefined) ?? null;
+    map.set(String(p._id), {
+      product: p,
+      override: o,
+      basePrice: o?.priceOverride ?? p.basePrice,
+      stock: o?.stock ?? p.stock ?? null,
+      isAvailable: (o ? o.isAvailable : true) && p.isAvailable,
+    });
+  }
+  return map;
 }
 
 /**

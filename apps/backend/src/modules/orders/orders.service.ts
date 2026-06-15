@@ -2,6 +2,7 @@ import type { CreateOrderInput, OrderStatus } from '@feedo/types';
 import { rooms, SOCKET_EVENTS } from '@feedo/types';
 import { computeTotals } from '@feedo/utils';
 import {
+  BranchMenu,
   Customer,
   CustomerLoyalty,
   LoyaltyProgram,
@@ -14,6 +15,7 @@ import {
 import { ApiError } from '../../utils/ApiError.js';
 import { getIO } from '../../sockets/index.js';
 import { logger } from '../../utils/logger.js';
+import { resolveOrderProducts } from '../menu/menu.service.js';
 
 /** Valid forward transitions for an order's status. */
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -74,18 +76,20 @@ export async function createOrder({
 }: CreateContext) {
   const restaurant = await Restaurant.findById(restaurantId).lean();
   if (!restaurant) throw ApiError.notFound('Restaurant not found');
+  const brandId = restaurant.brandId ? String(restaurant.brandId) : null;
 
   const productIds = input.items.map((i) => i.productId);
-  const products = await Product.find({ _id: { $in: productIds }, restaurantId }).lean();
-  const byId = new Map(products.map((p) => [String(p._id), p]));
+  // Resolve against the brand catalog with this branch's price/stock/availability.
+  const byId = await resolveOrderProducts({ brandId, branchId: restaurantId }, productIds);
 
   const items = input.items.map((cartItem) => {
-    const product = byId.get(cartItem.productId);
-    if (!product) throw ApiError.badRequest(`Product ${cartItem.productId} unavailable`);
-    if (!product.isAvailable) throw ApiError.badRequest(`${product.name} is unavailable`);
+    const eff = byId.get(cartItem.productId);
+    if (!eff) throw ApiError.badRequest(`Product ${cartItem.productId} unavailable`);
+    const { product } = eff;
+    if (!eff.isAvailable) throw ApiError.badRequest(`${product.name} is unavailable`);
 
-    // Resolve unit price from variant (if any) or base price.
-    let unitPrice = product.basePrice;
+    // Resolve unit price from variant (if any) or the branch's effective base price.
+    let unitPrice = eff.basePrice;
     if (cartItem.variantLabel) {
       const variant = product.variants.find((v) => v.label === cartItem.variantLabel);
       if (!variant) throw ApiError.badRequest(`Invalid variant for ${product.name}`);
@@ -100,8 +104,8 @@ export async function createOrder({
     });
     unitPrice += addons.reduce((s, a) => s + a.price, 0);
 
-    // Stock check (only when tracked).
-    if (product.stock != null && product.stock < cartItem.quantity) {
+    // Stock check against this branch's effective stock (only when tracked).
+    if (eff.stock != null && eff.stock < cartItem.quantity) {
       throw ApiError.badRequest(`${product.name} is out of stock`);
     }
 
@@ -121,7 +125,9 @@ export async function createOrder({
 
   // A claimed reward rides along as a ₹0 line (doesn't affect the payable total).
   if (reward) {
-    const rp = await Product.findOne({ _id: reward.productId, restaurantId }).lean();
+    const rp = await Product.findOne(
+      brandId ? { _id: reward.productId, brandId } : { _id: reward.productId, restaurantId },
+    ).lean();
     if (!rp) throw ApiError.badRequest('Reward item is unavailable');
     items.push({
       productId: rp._id,
@@ -146,7 +152,7 @@ export async function createOrder({
 
   // Per-item loyalty points (admin sets points per product). Credited on payment.
   const earnablePoints = input.items.reduce((sum, cartItem) => {
-    const product = byId.get(cartItem.productId);
+    const product = byId.get(cartItem.productId)?.product;
     return sum + (product?.loyaltyPoints ?? 0) * cartItem.quantity;
   }, 0);
 
@@ -193,12 +199,25 @@ export async function createOrder({
   }
   if (!order) throw ApiError.internal('Could not create order');
 
-  // Increment soldCount for every item; decrement stock only for tracked ones.
+  // Increment soldCount (brand-level) for every item; decrement stock only for
+  // tracked ones. Branch-level stock lives in BranchMenu when the branch has an
+  // override row that tracks it; otherwise fall back to the product's own stock
+  // (home-branch + legacy single-tenant behaviour).
   await Promise.all(
     items.map((i) => {
-      const tracked = byId.get(String(i.productId))?.stock != null;
+      const eff = byId.get(String(i.productId));
+      const tracked = eff?.stock != null;
+      if (tracked && eff?.override && eff.override.stock != null) {
+        return Promise.all([
+          BranchMenu.updateOne(
+            { branchId: restaurantId, productId: i.productId },
+            { $inc: { stock: -i.quantity } },
+          ),
+          Product.updateOne({ _id: i.productId }, { $inc: { soldCount: i.quantity } }),
+        ]);
+      }
       return Product.updateOne(
-        { _id: i.productId, restaurantId },
+        { _id: i.productId },
         tracked
           ? { $inc: { stock: -i.quantity, soldCount: i.quantity } }
           : { $inc: { soldCount: i.quantity } },
@@ -327,8 +346,13 @@ interface RewardOrderContext {
  * the diner can track it like any order.
  */
 export async function createRewardOrder(ctx: RewardOrderContext) {
-  const product = await Product.findOne({ _id: ctx.productId, restaurantId: ctx.restaurantId }).lean();
-  if (!product) throw ApiError.badRequest('Reward item is unavailable');
+  const branch = await Restaurant.findById(ctx.restaurantId).select('brandId').lean();
+  const brandId = branch?.brandId ? String(branch.brandId) : null;
+  const eff = (
+    await resolveOrderProducts({ brandId, branchId: ctx.restaurantId }, [ctx.productId])
+  ).get(ctx.productId);
+  if (!eff) throw ApiError.badRequest('Reward item is unavailable');
+  const { product } = eff;
 
   let tableName: string | undefined;
   if (ctx.tableId) {
@@ -380,12 +404,20 @@ export async function createRewardOrder(ctx: RewardOrderContext) {
   }
   if (!order) throw ApiError.internal('Could not place reward order');
 
-  // Decrement stock if the product tracks it.
-  if (product.stock != null) {
-    await Product.updateOne(
-      { _id: product._id, restaurantId: ctx.restaurantId },
-      { $inc: { stock: -1, soldCount: 1 } },
-    );
+  // Decrement this branch's effective stock if tracked (BranchMenu override when
+  // present, else the product's own stock — home-branch + legacy behaviour).
+  if (eff.stock != null) {
+    if (eff.override && eff.override.stock != null) {
+      await Promise.all([
+        BranchMenu.updateOne(
+          { branchId: ctx.restaurantId, productId: product._id },
+          { $inc: { stock: -1 } },
+        ),
+        Product.updateOne({ _id: product._id }, { $inc: { soldCount: 1 } }),
+      ]);
+    } else {
+      await Product.updateOne({ _id: product._id }, { $inc: { stock: -1, soldCount: 1 } });
+    }
   }
 
   emit(SOCKET_EVENTS.ORDER_CREATED, ctx.restaurantId, order.toObject());

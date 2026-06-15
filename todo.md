@@ -103,7 +103,17 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   branches included); admin `useBranchComparison` + Branch-comparison card on Analytics (brand roles, >1
   branch). `useLiveSync` now joins the active branch + brand room. Verified: brand room received a live
   `order:updated`; comparison lists both branches. Dashboard authorize widened to brand/branch roles.
-- [ ] **Phase 6 — cleanup:** drop legacy `restaurant`/`x-restaurant-id` aliases + `Product.restaurantId` writes.
+- [x] **Phase 5b — multi-branch order pipeline (done):** `resolveOrderProducts({brandId, branchId}, ids)`
+  resolves the order's products against the **brand** catalog with the branch's `BranchMenu`
+  price/availability/stock overrides (exclusive-elsewhere items omitted). `createOrder` +
+  `createRewardOrder` use it; stock decrements `BranchMenu` when the branch tracks its own, else the
+  product (home/legacy); `soldCount` stays brand-level. Fixes ordering at non-home branches (previously
+  `Product.find({restaurantId})` returned nothing). Verified: placed an order at branch 2 (Koramangala),
+  isolated per branch, reflected in the comparison.
+- [ ] **Phase 6 — cleanup (deferred until stable, by design):** drop legacy `restaurant`/`x-restaurant-id`
+  aliases + the `Product.restaurantId` write path. Risky teardown of the back-compat seams single-branch
+  flows still rely on — leave until the multi-branch model has soaked. (Phase 5b already removed the
+  order pipeline's reliance on `Product.restaurantId` for reads.)
 
 ## Recently added
 
