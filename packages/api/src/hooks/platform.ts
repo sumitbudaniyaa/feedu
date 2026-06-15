@@ -48,6 +48,28 @@ export interface PlatformUser {
 export type PlatformOrder = Order & { restaurantName: string | null };
 export type PlatformCustomer = Customer & { restaurantName: string | null };
 
+export interface SupportTicketReply {
+  author: 'restaurant' | 'feedo';
+  authorName?: string;
+  message: string;
+  createdAt: string;
+}
+export interface SupportTicket {
+  _id: string;
+  restaurantId: string;
+  restaurantName?: string;
+  subject: string;
+  message: string;
+  category: 'billing' | 'technical' | 'feature' | 'other';
+  priority: 'low' | 'normal' | 'high';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  createdByName?: string;
+  createdByEmail?: string;
+  replies: SupportTicketReply[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RestaurantDetail {
   restaurant: PlatformRestaurant & Record<string, unknown>;
   subscription: Subscription | null;
@@ -140,6 +162,21 @@ export function createPlatformHooks(client: ApiClient) {
       return useMutation({
         mutationFn: (body: { name?: string; email?: string; password?: string }) =>
           client.patch('/platform/account', body),
+      });
+    },
+    useSupportTickets(status?: string) {
+      const suffix = status ? `?status=${status}` : '';
+      return useQuery({
+        queryKey: ['platform', 'support', status ?? 'all'],
+        queryFn: () => client.get<SupportTicket[]>(`/platform/support${suffix}`),
+      });
+    },
+    useUpdateTicket() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, body }: { id: string; body: { status?: string; reply?: string } }) =>
+          client.patch<SupportTicket>(`/platform/support/${id}`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'support'] }),
       });
     },
   };

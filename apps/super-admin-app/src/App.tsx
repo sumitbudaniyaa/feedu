@@ -9,6 +9,7 @@ import { UsersPage } from './pages/UsersPage.js';
 import { OrdersPage } from './pages/OrdersPage.js';
 import { CustomersPage } from './pages/CustomersPage.js';
 import { AccountPage } from './pages/AccountPage.js';
+import { SupportPage } from './pages/SupportPage.js';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
@@ -32,6 +33,7 @@ export function App() {
         <Route path="/users" element={<UsersPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/account" element={<AccountPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,6 +10,7 @@ import {
   Restaurant,
   Section,
   Subscription,
+  SupportTicket,
   Table,
   User,
 } from '../../models/index.js';
@@ -346,6 +347,35 @@ router.delete(
       LoyaltyReward.deleteMany({ restaurantId: id }),
     ]);
     return ok(res, { deleted: true });
+  }),
+);
+
+// All support tickets across the platform (optionally filter by status).
+router.get(
+  '/support',
+  asyncHandler(async (req, res) => {
+    const filter: Record<string, unknown> = {};
+    if (typeof req.query.status === 'string' && req.query.status) filter.status = req.query.status;
+    const tickets = await SupportTicket.find(filter).sort({ updatedAt: -1 }).limit(300).lean();
+    return ok(res, tickets);
+  }),
+);
+
+// Update a ticket's status and/or reply to it.
+router.patch(
+  '/support/:id',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { status, reply } = req.body as { status?: string; reply?: string };
+    const update: Record<string, unknown> = {};
+    if (status) update.status = status;
+    const ops: Record<string, unknown> = { ...update };
+    if (reply?.trim()) {
+      ops.$push = { replies: { author: 'feedo', authorName: 'Feedo Support', message: reply.trim() } };
+    }
+    const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, ops, { new: true });
+    if (!ticket) throw ApiError.notFound('Ticket not found');
+    return ok(res, ticket);
   }),
 );
 

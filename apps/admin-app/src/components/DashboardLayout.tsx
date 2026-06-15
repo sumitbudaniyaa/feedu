@@ -4,6 +4,7 @@ import {
   Boxes,
   ChefHat,
   LayoutGrid,
+  LifeBuoy,
   LogOut,
   QrCode,
   Settings,
@@ -37,6 +38,7 @@ const NAV = [
   { to: '/staff', label: 'Staff', icon: Users },
   { to: '/customers', label: 'Customers', icon: UserRound },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/support', label: 'Support', icon: LifeBuoy },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

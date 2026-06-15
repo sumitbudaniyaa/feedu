@@ -28,4 +28,6 @@ export const {
   useOnboardRestaurant,
   useDeleteRestaurant,
   useUpdateAccount,
+  useSupportTickets,
+  useUpdateTicket,
 } = platform;

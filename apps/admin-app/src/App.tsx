@@ -12,6 +12,7 @@ import { StaffPage } from './pages/StaffPage.js';
 import { CustomersPage } from './pages/CustomersPage.js';
 import { AnalyticsPage } from './pages/AnalyticsPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
+import { SupportPage } from './pages/SupportPage.js';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
@@ -39,6 +40,7 @@ export function App() {
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/support" element={<SupportPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

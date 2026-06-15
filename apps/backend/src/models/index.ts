@@ -12,3 +12,4 @@ export { Section } from './Section.js';
 export { Payment } from './Payment.js';
 export { Notification } from './Notification.js';
 export { Subscription } from './Subscription.js';
+export { SupportTicket } from './SupportTicket.js';

@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { SupportTicket } from '@feedo/api';
 import {
   ApiClient,
   createAuthHooks,
@@ -73,5 +74,29 @@ export function useSubscription() {
   return useQuery({
     queryKey: ['restaurant', 'subscription'],
     queryFn: () => apiClient.get<Subscription | null>('/restaurants/me/subscription'),
+  });
+}
+
+/** Support tickets raised by this restaurant. */
+export function useSupportTickets() {
+  return useQuery({
+    queryKey: ['support'],
+    queryFn: () => apiClient.get<SupportTicket[]>('/support'),
+  });
+}
+export function useCreateTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { subject: string; message: string; category?: string; priority?: string }) =>
+      apiClient.post<SupportTicket>('/support', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['support'] }),
+  });
+}
+export function useReplyTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, message }: { id: string; message: string }) =>
+      apiClient.post<SupportTicket>(`/support/${id}/reply`, { message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['support'] }),
   });
 }
