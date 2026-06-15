@@ -143,6 +143,9 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   `customers` (+ `?restaurantId=`/`?search=`), `customers/:id` (per-diner analytics), `support`
   (list/update/reply), `account` (own credentials), `restaurants` (+ `restaurants` POST onboard,
   `restaurants/:id` detail, `:id/subscription` price/cycle/auto-expiry, `:id` suspend, `:id` DELETE)
+- **Subscription gating**: public menu/QR/checkout call `assertSubscriptionActive` — a restaurant
+  whose subscription is `past_due`/`cancelled`/expired (or is suspended `isLive:false`) is blocked
+  from the customer app; the admin app shows a full lock screen for that restaurant.
 - `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
   `checkout` (optional manual `tableName`), `orders/:id/pay`, `orders/:id` (track),
   `auth/otp/request`, `auth/otp/verify`, `r/:slug/account` + `r/:slug/redeem` (OTP-token gated),

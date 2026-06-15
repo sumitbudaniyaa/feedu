@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Check, KeyRound, Rocket } from 'lucide-react';
+import { useState } from 'react';
+import { Check, KeyRound, Pencil, Rocket } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -21,7 +21,7 @@ import {
   useTheme,
 } from '@feedo/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { AccentKey } from '@feedo/types';
+import type { AccentKey, Restaurant } from '@feedo/types';
 import { formatCurrency, formatDate } from '@feedo/utils';
 import {
   apiClient,
@@ -48,61 +48,19 @@ const PLAN_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'acce
   cancelled: 'destructive',
 };
 
+type Section = 'details' | 'branding' | 'tax' | null;
+
 export function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: subscription } = useSubscription();
-  const update = useUpdateRestaurant();
-  const { setAccent } = useTheme();
   const qc = useQueryClient();
-
-  const [form, setForm] = useState({ name: '', description: '', contactNumber: '', cuisine: '' });
-  const [accent, setLocalAccent] = useState<AccentKey>('violet');
-  const [gstNumber, setGstNumber] = useState('');
-  const [gstPercent, setGstPercent] = useState('5');
-  const [inclusive, setInclusive] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
+  const [editing, setEditing] = useState<Section>(null);
   const [pwOpen, setPwOpen] = useState(false);
-
-  useEffect(() => {
-    if (!restaurant) return;
-    setForm({
-      name: restaurant.name ?? '',
-      description: restaurant.description ?? '',
-      contactNumber: restaurant.contactNumber ?? '',
-      cuisine: (restaurant.cuisineType ?? []).join(', '),
-    });
-    setLocalAccent(restaurant.branding?.accent ?? 'violet');
-    setGstNumber(restaurant.tax?.gstNumber ?? '');
-    setGstPercent(String(restaurant.tax?.gstPercent ?? 5));
-    setInclusive(restaurant.tax?.inclusive ?? false);
-  }, [restaurant]);
 
   const goLive = useMutation({
     mutationFn: () => apiClient.post('/restaurants/me/go-live'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant'] }),
   });
-
-  const contactInvalid = Boolean(form.contactNumber) && !/^\d{10}$/.test(form.contactNumber);
-
-  const save = () => {
-    if (contactInvalid) return;
-    update.mutate(
-      {
-        name: form.name,
-        description: form.description || undefined,
-        contactNumber: form.contactNumber || undefined,
-        cuisineType: form.cuisine ? form.cuisine.split(',').map((s) => s.trim()).filter(Boolean) : [],
-        branding: { accent, themeMode: restaurant?.branding?.themeMode ?? 'dark' },
-        tax: { gstNumber: gstNumber || undefined, gstPercent: Number(gstPercent), inclusive },
-      },
-      {
-        onSuccess: () => {
-          setJustSaved(true);
-          setTimeout(() => setJustSaved(false), 2500);
-        },
-      },
-    );
-  };
 
   if (isLoading || !restaurant) {
     return (
@@ -112,6 +70,8 @@ export function SettingsPage() {
       </div>
     );
   }
+
+  const accentHex = ACCENTS.find((a) => a.key === (restaurant.branding?.accent ?? 'violet'))?.hex;
 
   return (
     <div className="space-y-6">
@@ -131,87 +91,40 @@ export function SettingsPage() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Restaurant details</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Contact number</Label>
-            <Input
-              type="tel"
-              inputMode="numeric"
-              maxLength={10}
-              value={form.contactNumber}
-              onChange={(e) =>
-                setForm({ ...form, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })
-              }
-              placeholder="10-digit mobile number"
-            />
-            {form.contactNumber && !/^\d{10}$/.test(form.contactNumber) && (
-              <p className="text-xs text-destructive">Enter a valid 10-digit number.</p>
-            )}
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Cuisine (comma separated)</Label>
-            <Input value={form.cuisine} onChange={(e) => setForm({ ...form, cuisine: e.target.value })} placeholder="Indian, Continental" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Description</Label>
-            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Restaurant details */}
+      <SectionCard title="Restaurant details" onEdit={() => setEditing('details')}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SubRow label="Name"><span className="font-medium">{restaurant.name}</span></SubRow>
+          <SubRow label="Contact"><span className="font-medium">{restaurant.contactNumber || '—'}</span></SubRow>
+          <SubRow label="Cuisine">
+            <span className="font-medium">{(restaurant.cuisineType ?? []).join(', ') || '—'}</span>
+          </SubRow>
+          <SubRow label="Description">
+            <span className="font-medium">{restaurant.description || '—'}</span>
+          </SubRow>
+        </div>
+      </SectionCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Branding</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Label>Accent color</Label>
-          <div className="flex flex-wrap gap-3">
-            {ACCENTS.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => {
-                  setLocalAccent(a.key);
-                  setAccent(a.key); // live preview
-                }}
-                className={cn(
-                  'h-9 w-9 rounded-full border-2 transition-transform hover:scale-110',
-                  accent === a.key ? 'border-foreground' : 'border-transparent',
-                )}
-                style={{ backgroundColor: a.hex }}
-                aria-label={a.key}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Branding */}
+      <SectionCard title="Branding" onEdit={() => setEditing('branding')}>
+        <SubRow label="Accent color">
+          <span className="inline-flex items-center gap-2 font-medium capitalize">
+            <span className="h-5 w-5 rounded-full border border-border" style={{ backgroundColor: accentHex }} />
+            {restaurant.branding?.accent ?? 'violet'}
+          </span>
+        </SubRow>
+      </SectionCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tax (GST)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>GST number</Label>
-            <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>GST percent</Label>
-            <Input type="number" min="0" max="100" value={gstPercent} onChange={(e) => setGstPercent(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-sm sm:col-span-2">
-            <Switch checked={inclusive} onCheckedChange={setInclusive} /> Prices include tax
-          </label>
-        </CardContent>
-      </Card>
+      {/* Tax */}
+      <SectionCard title="Tax (GST)" onEdit={() => setEditing('tax')}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SubRow label="GST number"><span className="font-medium">{restaurant.tax?.gstNumber || '—'}</span></SubRow>
+          <SubRow label="GST percent"><span className="font-medium">{restaurant.tax?.gstPercent ?? 5}%</span></SubRow>
+          <SubRow label="Prices include tax">
+            <span className="font-medium">{restaurant.tax?.inclusive ? 'Yes' : 'No'}</span>
+          </SubRow>
+        </div>
+      </SectionCard>
 
       {/* Subscription — managed by Feedu, read-only here. */}
       <Card>
@@ -266,31 +179,25 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <DetailsDialog open={editing === 'details'} onClose={() => setEditing(null)} restaurant={restaurant} />
+      <BrandingDialog open={editing === 'branding'} onClose={() => setEditing(null)} restaurant={restaurant} />
+      <TaxDialog open={editing === 'tax'} onClose={() => setEditing(null)} restaurant={restaurant} />
       <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
-
-      <div className="flex items-center justify-end gap-3">
-        {update.isError && (
-          <p className="text-sm text-destructive">
-            {update.error instanceof Error ? update.error.message : 'Could not save changes'}
-          </p>
-        )}
-        <Button
-          onClick={save}
-          disabled={update.isPending || contactInvalid}
-          variant={justSaved ? 'success' : 'default'}
-        >
-          {update.isPending ? (
-            'Saving…'
-          ) : justSaved ? (
-            <>
-              <Check className="h-4 w-4" /> Saved
-            </>
-          ) : (
-            'Save changes'
-          )}
-        </Button>
-      </div>
     </div>
+  );
+}
+
+function SectionCard({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <Button size="sm" variant="outline" onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </Button>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
@@ -300,6 +207,166 @@ function SubRow({ label, children }: { label: string; children: React.ReactNode 
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2">{children}</div>
     </div>
+  );
+}
+
+function DetailsDialog({ open, onClose, restaurant }: { open: boolean; onClose: () => void; restaurant: Restaurant }) {
+  const update = useUpdateRestaurant();
+  const [form, setForm] = useState({
+    name: restaurant.name ?? '',
+    contactNumber: restaurant.contactNumber ?? '',
+    cuisine: (restaurant.cuisineType ?? []).join(', '),
+    description: restaurant.description ?? '',
+  });
+  const invalid = Boolean(form.contactNumber) && !/^\d{10}$/.test(form.contactNumber);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (invalid) return;
+    update.mutate(
+      {
+        name: form.name,
+        contactNumber: form.contactNumber || undefined,
+        cuisineType: form.cuisine ? form.cuisine.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        description: form.description || undefined,
+      },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit restaurant details</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="space-y-1.5">
+            <Label>Name</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Contact number</Label>
+            <Input
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              value={form.contactNumber}
+              onChange={(e) => setForm({ ...form, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+              placeholder="10-digit mobile number"
+            />
+            {invalid && <p className="text-xs text-destructive">Enter a valid 10-digit number.</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Cuisine (comma separated)</Label>
+            <Input value={form.cuisine} onChange={(e) => setForm({ ...form, cuisine: e.target.value })} placeholder="Indian, Continental" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={update.isPending || invalid}>{update.isPending ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BrandingDialog({ open, onClose, restaurant }: { open: boolean; onClose: () => void; restaurant: Restaurant }) {
+  const update = useUpdateRestaurant();
+  const { setAccent } = useTheme();
+  const [accent, setLocalAccent] = useState<AccentKey>((restaurant.branding?.accent as AccentKey) ?? 'violet');
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      { branding: { accent, themeMode: restaurant.branding?.themeMode ?? 'dark' } },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit branding</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="space-y-2">
+            <Label>Accent color</Label>
+            <div className="flex flex-wrap gap-3">
+              {ACCENTS.map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => {
+                    setLocalAccent(a.key);
+                    setAccent(a.key); // live preview
+                  }}
+                  className={cn(
+                    'h-9 w-9 rounded-full border-2 transition-transform hover:scale-110',
+                    accent === a.key ? 'border-foreground' : 'border-transparent',
+                  )}
+                  style={{ backgroundColor: a.hex }}
+                  aria-label={a.key}
+                />
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={update.isPending}>{update.isPending ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TaxDialog({ open, onClose, restaurant }: { open: boolean; onClose: () => void; restaurant: Restaurant }) {
+  const update = useUpdateRestaurant();
+  const [gstNumber, setGstNumber] = useState(restaurant.tax?.gstNumber ?? '');
+  const [gstPercent, setGstPercent] = useState(String(restaurant.tax?.gstPercent ?? 5));
+  const [inclusive, setInclusive] = useState(restaurant.tax?.inclusive ?? false);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      { tax: { gstNumber: gstNumber || undefined, gstPercent: Number(gstPercent), inclusive } },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit tax (GST)</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>GST number</Label>
+              <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>GST percent</Label>
+              <Input type="number" min="0" max="100" value={gstPercent} onChange={(e) => setGstPercent(e.target.value)} />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Switch checked={inclusive} onCheckedChange={setInclusive} /> Prices include tax
+          </label>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={update.isPending}>{update.isPending ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -94,6 +94,12 @@ super-admin (Feedu company) portal. Rebranded to **feedu**. Hardening + polish o
       (name / email / mobile / password) — company portal. Employee model gained `phone`.
 - [x] **Change owner password** from admin Settings (Security card → dialog; verifies current
       password). Backend `POST /auth/change-password` works for any signed-in account.
+- [x] **Admin Settings** sections (details / branding / tax) are now read-only cards with an
+      **Edit → dialog**; super-admin restaurant **subscription** is a summary with an Edit dialog too.
+- [x] **Subscription/live gating**: a restaurant whose subscription is past_due/cancelled/expired
+      — or that's suspended (not live) — has its **customer app blocked** (menu/QR/checkout) and the
+      **admin app fully locked** behind a lock screen. (`assertSubscriptionActive` on public routes.)
+- [x] Inventory product cards made smaller; product dialog scrolls (pinned footer) + wider (max-w-2xl)
 
 **Waiter**
 - [x] Dedicated **mobile waiter app** (Orders + Inventory tabs, floating pill nav)
