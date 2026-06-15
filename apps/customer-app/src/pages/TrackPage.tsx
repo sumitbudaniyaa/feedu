@@ -20,16 +20,18 @@ export function TrackPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // `?view=details` = opened from Order History → plain receipt, no live status hero.
-  // No param = the live order/status page (shown right after placing an order).
-  const isDetails = searchParams.get('view') === 'details';
+  // `?view=details` (set by Order History links) only controls the Back target.
+  const fromHistory = searchParams.get('view') === 'details';
   const menuPath = useCart((s) => s.menuPath);
   const { data: order, isLoading } = useTrackOrder(orderId);
   const ticketRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
   const goToMenu = () => navigate(menuPath ?? '/');
-  const goBack = () => (isDetails ? navigate(-1) : goToMenu());
+  const goBack = () => (fromHistory ? navigate(-1) : goToMenu());
+  // The status banner is driven by the order itself: an in-progress order always shows
+  // live tracking (even when opened from history); a finished one shows a plain summary.
+  const isTerminal = order ? ['served', 'completed', 'cancelled', 'refunded'].includes(order.status) : false;
 
   const downloadInvoice = async () => {
     if (!ticketRef.current) return;
@@ -68,12 +70,12 @@ export function TrackPage() {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <span className="text-xs text-muted-foreground">
-          {isDetails ? 'Order details' : 'Live order'} · #{order.orderNumber}
+          {isTerminal ? 'Order details' : 'Live order'} · #{order.orderNumber}
         </span>
       </div>
 
-      {/* History opens a plain receipt; the live order page keeps its status hero. */}
-      {isDetails ? (
+      {/* Finished orders show a plain summary; in-progress orders show the live status hero. */}
+      {isTerminal ? (
         <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Order #{order.orderNumber}</p>
