@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LifeBuoy, Plus } from 'lucide-react';
+import { ChevronRight, LifeBuoy, Plus } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -18,7 +18,7 @@ import {
 } from '@feedo/ui';
 import { formatDate, formatTime } from '@feedo/utils';
 import type { SupportTicket } from '@feedo/api';
-import { useCreateTicket, useSupportTickets } from '../lib/api.js';
+import { useCreateTicket, useReplyTicket, useSupportTickets } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'accent' | 'default'> = {
@@ -31,12 +31,16 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'ac
 export function SupportPage() {
   const { data, isLoading } = useSupportTickets();
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<SupportTicket | null>(null);
+
+  // Keep the open chat in sync with refreshed data after replying.
+  const current = active ? (data?.find((t) => t._id === active._id) ?? active) : null;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Support"
-        description="Raise a ticket with the Feedo team — we'll get back to you here."
+        description="Raise a ticket with the Feedu team — open one to chat."
         action={
           <Button onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" /> New ticket
@@ -47,60 +51,109 @@ export function SupportPage() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
+            <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
       ) : data && data.length > 0 ? (
-        <div className="space-y-3">
+        <Card className="divide-y divide-border">
           {data.map((t) => (
-            <TicketCard key={t._id} ticket={t} />
+            <button
+              key={t._id}
+              onClick={() => setActive(t)}
+              className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary/50"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{t.subject}</span>
+                  <Badge variant={STATUS_VARIANT[t.status]} className="capitalize">
+                    {t.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {t.replies.length > 0 ? `${t.replies.length} repl${t.replies.length === 1 ? 'y' : 'ies'} · ` : ''}
+                  {formatDate(t.updatedAt)}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           ))}
-        </div>
+        </Card>
       ) : (
         <EmptyState
           icon={LifeBuoy}
           title="No tickets yet"
-          description="Need help? Raise a ticket and we'll respond here."
+          description="Need help? Raise a ticket and chat with us here."
         />
       )}
 
       <NewTicketDialog open={open} onClose={() => setOpen(false)} />
+      <ChatDialog ticket={current} onClose={() => setActive(null)} />
     </div>
   );
 }
 
-function TicketCard({ ticket }: { ticket: SupportTicket }) {
+function ChatDialog({ ticket, onClose }: { ticket: SupportTicket | null; onClose: () => void }) {
+  const reply = useReplyTicket();
+  const [message, setMessage] = useState('');
+
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold">{ticket.subject}</span>
-        <Badge variant={STATUS_VARIANT[ticket.status]} className="capitalize">
-          {ticket.status.replace('_', ' ')}
-        </Badge>
-        <Badge variant="outline" className="capitalize">
-          {ticket.category}
-        </Badge>
-        <span className="ml-auto text-xs text-muted-foreground">
-          {formatDate(ticket.createdAt)} {formatTime(ticket.createdAt)}
-        </span>
-      </div>
-      <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{ticket.message}</p>
-      {ticket.replies.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {ticket.replies.map((r, i) => (
-            <div
-              key={i}
-              className={`rounded-lg p-2.5 text-sm ${r.author === 'feedo' ? 'bg-accent/10' : 'bg-secondary/50'}`}
-            >
-              <p className="text-xs font-medium text-muted-foreground">
-                {r.author === 'feedo' ? 'Feedo Support' : (r.authorName ?? 'You')} · {formatDate(r.createdAt)}
-              </p>
-              <p className="mt-0.5 whitespace-pre-wrap">{r.message}</p>
+    <Dialog open={Boolean(ticket)} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        {ticket && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {ticket.subject}
+                <Badge variant={STATUS_VARIANT[ticket.status]} className="capitalize">
+                  {ticket.status.replace('_', ' ')}
+                </Badge>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+              <Bubble side="restaurant" name="You" at={ticket.createdAt} text={ticket.message} />
+              {ticket.replies.map((r, i) => (
+                <Bubble
+                  key={i}
+                  side={r.author === 'feedo' ? 'feedo' : 'restaurant'}
+                  name={r.author === 'feedo' ? 'Feedu Support' : (r.authorName ?? 'You')}
+                  at={r.createdAt}
+                  text={r.message}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-    </Card>
+
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!message.trim()) return;
+                reply.mutate({ id: ticket._id, message }, { onSuccess: () => setMessage('') });
+              }}
+            >
+              <Input placeholder="Write a reply…" value={message} onChange={(e) => setMessage(e.target.value)} />
+              <Button type="submit" disabled={reply.isPending || !message.trim()}>
+                Send
+              </Button>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Bubble({ side, name, at, text }: { side: 'restaurant' | 'feedo'; name: string; at: string; text: string }) {
+  const mine = side === 'restaurant';
+  return (
+    <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-accent text-accent-foreground' : 'bg-secondary'}`}>
+        <p className="whitespace-pre-wrap">{text}</p>
+      </div>
+      <p className="mt-1 px-1 text-[11px] text-muted-foreground">
+        {name} · {formatDate(at)} {formatTime(at)}
+      </p>
+    </div>
   );
 }
 

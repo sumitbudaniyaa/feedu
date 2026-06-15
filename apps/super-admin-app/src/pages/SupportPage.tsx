@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { LifeBuoy } from 'lucide-react';
+import { ChevronRight, LifeBuoy } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   Input,
   Select,
@@ -24,13 +28,15 @@ const STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
 export function SupportPage() {
   const [filter, setFilter] = useState('');
   const { data, isLoading } = useSupportTickets(filter || undefined);
+  const [active, setActive] = useState<SupportTicket | null>(null);
+  const current = active ? (data?.find((t) => t._id === active._id) ?? active) : null;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Support tickets</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Requests raised by restaurants.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Requests from your client restaurants — open one to chat.</p>
         </div>
         <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-44">
           <option value="">All statuses</option>
@@ -45,94 +51,118 @@ export function SupportPage() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
       ) : data && data.length > 0 ? (
-        <div className="space-y-3">
+        <Card className="divide-y divide-border">
           {data.map((t) => (
-            <TicketCard key={t._id} ticket={t} />
+            <button
+              key={t._id}
+              onClick={() => setActive(t)}
+              className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary/50"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{t.subject}</span>
+                  <Badge variant={STATUS_VARIANT[t.status]} className="capitalize">
+                    {t.status.replace('_', ' ')}
+                  </Badge>
+                  {t.priority === 'high' && <Badge variant="destructive">High</Badge>}
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {t.restaurantName ?? 'Unknown'} · {formatDate(t.updatedAt)}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           ))}
-        </div>
+        </Card>
       ) : (
         <EmptyState icon={LifeBuoy} title="No tickets" description="Restaurant support requests will appear here." />
       )}
+
+      <ChatDialog ticket={current} onClose={() => setActive(null)} />
     </div>
   );
 }
 
-function TicketCard({ ticket }: { ticket: SupportTicket }) {
+function ChatDialog({ ticket, onClose }: { ticket: SupportTicket | null; onClose: () => void }) {
   const update = useUpdateTicket();
-  const [reply, setReply] = useState('');
+  const [message, setMessage] = useState('');
 
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{ticket.subject}</span>
-            <Badge variant={STATUS_VARIANT[ticket.status]} className="capitalize">
-              {ticket.status.replace('_', ' ')}
-            </Badge>
-            <Badge variant="outline" className="capitalize">
-              {ticket.category}
-            </Badge>
-            {ticket.priority === 'high' && <Badge variant="destructive">High</Badge>}
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {ticket.restaurantName ?? 'Unknown'} · {ticket.createdByName ?? ''}
-            {ticket.createdByEmail ? ` (${ticket.createdByEmail})` : ''} · {formatDate(ticket.createdAt)}{' '}
-            {formatTime(ticket.createdAt)}
-          </p>
-        </div>
-        <Select
-          value={ticket.status}
-          onChange={(e) => update.mutate({ id: ticket._id, body: { status: e.target.value } })}
-          className="w-40"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s} className="capitalize">
-              {s.replace('_', ' ')}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      <p className="mt-3 whitespace-pre-wrap rounded-lg bg-secondary/60 p-3 text-sm">{ticket.message}</p>
-
-      {ticket.replies.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {ticket.replies.map((r, i) => (
-            <div
-              key={i}
-              className={`rounded-lg p-2.5 text-sm ${r.author === 'feedo' ? 'bg-accent/10' : 'bg-secondary/40'}`}
-            >
-              <p className="text-xs font-medium text-muted-foreground">
-                {r.author === 'feedo' ? 'Feedo Support' : (r.authorName ?? 'Restaurant')} ·{' '}
-                {formatDate(r.createdAt)}
+    <Dialog open={Boolean(ticket)} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        {ticket && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{ticket.subject}</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {ticket.restaurantName ?? 'Unknown'} · {ticket.createdByName ?? ''}
+                {ticket.createdByEmail ? ` (${ticket.createdByEmail})` : ''}
               </p>
-              <p className="mt-0.5 whitespace-pre-wrap">{r.message}</p>
+              <Select
+                value={ticket.status}
+                onChange={(e) => update.mutate({ id: ticket._id, body: { status: e.target.value } })}
+                className="w-36"
+              >
+                {STATUSES.map((s) => (
+                  <option key={s} value={s} className="capitalize">
+                    {s.replace('_', ' ')}
+                  </option>
+                ))}
+              </Select>
             </div>
-          ))}
-        </div>
-      )}
 
-      <form
-        className="mt-3 flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!reply.trim()) return;
-          update.mutate(
-            { id: ticket._id, body: { reply, status: 'in_progress' } },
-            { onSuccess: () => setReply('') },
-          );
-        }}
-      >
-        <Input placeholder="Reply to this ticket…" value={reply} onChange={(e) => setReply(e.target.value)} />
-        <Button type="submit" disabled={update.isPending || !reply.trim()}>
-          Send
-        </Button>
-      </form>
-    </Card>
+            <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+              <Bubble side="restaurant" name={ticket.createdByName ?? 'Restaurant'} at={ticket.createdAt} text={ticket.message} />
+              {ticket.replies.map((r, i) => (
+                <Bubble
+                  key={i}
+                  side={r.author === 'feedo' ? 'feedo' : 'restaurant'}
+                  name={r.author === 'feedo' ? 'Feedu Support' : (r.authorName ?? 'Restaurant')}
+                  at={r.createdAt}
+                  text={r.message}
+                />
+              ))}
+            </div>
+
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!message.trim()) return;
+                update.mutate(
+                  { id: ticket._id, body: { reply: message, status: 'in_progress' } },
+                  { onSuccess: () => setMessage('') },
+                );
+              }}
+            >
+              <Input placeholder="Reply to the restaurant…" value={message} onChange={(e) => setMessage(e.target.value)} />
+              <Button type="submit" disabled={update.isPending || !message.trim()}>
+                Send
+              </Button>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Bubble({ side, name, at, text }: { side: 'restaurant' | 'feedo'; name: string; at: string; text: string }) {
+  const mine = side === 'feedo';
+  return (
+    <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-accent text-accent-foreground' : 'bg-secondary'}`}>
+        <p className="whitespace-pre-wrap">{text}</p>
+      </div>
+      <p className="mt-1 px-1 text-[11px] text-muted-foreground">
+        {name} · {formatDate(at)} {formatTime(at)}
+      </p>
+    </div>
   );
 }
