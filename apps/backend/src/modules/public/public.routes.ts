@@ -104,8 +104,11 @@ async function loadMenu(restaurantId: string) {
 router.get(
   '/r/:slug',
   asyncHandler(async (req, res) => {
-    const restaurant = await Restaurant.findOne({ slug: req.params.slug, isLive: true }).lean();
+    // Tolerant lookup: trim + lowercase so a stray-case link still resolves.
+    const slug = (req.params.slug ?? '').trim().toLowerCase();
+    const restaurant = await Restaurant.findOne({ slug }).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     const menu = await loadMenu(String(restaurant._id));
     return ok(res, { restaurant, ...menu });
   }),

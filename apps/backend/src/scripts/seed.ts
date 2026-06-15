@@ -2,6 +2,7 @@ import { randomToken } from '@feedo/utils';
 import { connectDatabase, disconnectDatabase } from '../config/db.js';
 import {
   Category,
+  Employee,
   LoyaltyProgram,
   LoyaltyReward,
   Product,
@@ -22,12 +23,13 @@ import { logger } from '../utils/logger.js';
 async function seed() {
   await connectDatabase();
 
+  // Feedu staff live in their own collection (not tied to any restaurant).
   const superEmail = 'super@feedo.app';
-  if (!(await User.exists({ email: superEmail }))) {
-    await User.create({
+  if (!(await Employee.exists({ email: superEmail }))) {
+    await Employee.create({
       name: 'Feedu Super Admin',
       email: superEmail,
-      passwordHash: await User.hashPassword('password123'),
+      passwordHash: await Employee.hashPassword('password123'),
       role: 'super_admin',
     });
     logger.info(`Created super admin (${superEmail} / password123)`);

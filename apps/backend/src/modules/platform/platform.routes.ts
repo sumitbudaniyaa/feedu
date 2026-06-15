@@ -3,6 +3,7 @@ import { slugify } from '@feedo/utils';
 import {
   Category,
   Customer,
+  Employee,
   LoyaltyProgram,
   LoyaltyReward,
   Order,
@@ -118,36 +119,49 @@ router.get(
   }),
 );
 
-// All users across the platform (optionally filter by role/search).
+// All users across the platform: Feedu employees (separate collection) + restaurant users.
 router.get(
   '/users',
   asyncHandler(async (req, res) => {
-    const filter: Record<string, unknown> = {};
-    if (typeof req.query.role === 'string' && req.query.role) filter.role = req.query.role;
-    if (typeof req.query.search === 'string' && req.query.search) {
-      filter.$or = [
-        { name: { $regex: req.query.search, $options: 'i' } },
-        { email: { $regex: req.query.search, $options: 'i' } },
-      ];
-    }
-    const [users, restaurants] = await Promise.all([
-      User.find(filter).sort({ createdAt: -1 }).limit(200).lean(),
+    const search = typeof req.query.search === 'string' ? req.query.search : '';
+    const role = typeof req.query.role === 'string' ? req.query.role : '';
+    const searchOr = search
+      ? [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }]
+      : undefined;
+
+    const userFilter: Record<string, unknown> = {};
+    if (role) userFilter.role = role;
+    if (searchOr) userFilter.$or = searchOr;
+
+    const [employees, users, restaurants] = await Promise.all([
+      // Feedu team — only when not filtering to a restaurant-specific role.
+      role && role !== 'super_admin' ? [] : Employee.find(searchOr ? { $or: searchOr } : {}).sort({ createdAt: -1 }).lean(),
+      role === 'super_admin' ? [] : User.find(userFilter).sort({ createdAt: -1 }).limit(200).lean(),
       Restaurant.find().select('name').lean(),
     ]);
     const rName = new Map(restaurants.map((r) => [String(r._id), r.name]));
-    return ok(
-      res,
-      users.map((u) => ({
-        _id: u._id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        isActive: u.isActive,
-        createdAt: u.createdAt,
-        restaurantId: u.restaurantId ? String(u.restaurantId) : null,
-        restaurantName: u.restaurantId ? (rName.get(String(u.restaurantId)) ?? null) : null,
-      })),
-    );
+
+    const team = employees.map((e) => ({
+      _id: e._id,
+      name: e.name,
+      email: e.email,
+      role: 'super_admin' as const,
+      isActive: e.isActive,
+      createdAt: e.createdAt,
+      restaurantId: null,
+      restaurantName: null,
+    }));
+    const restaurantUsers = users.map((u) => ({
+      _id: u._id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      isActive: u.isActive,
+      createdAt: u.createdAt,
+      restaurantId: u.restaurantId ? String(u.restaurantId) : null,
+      restaurantName: u.restaurantId ? (rName.get(String(u.restaurantId)) ?? null) : null,
+    }));
+    return ok(res, [...team, ...restaurantUsers]);
   }),
 );
 
@@ -362,7 +376,7 @@ router.delete(
   }),
 );
 
-// Create a Feedu company employee (super admin) — never tied to a restaurant.
+// Create a Feedu company employee — stored in the separate `employees` collection.
 router.post(
   '/users',
   asyncHandler(async (req, res) => {
@@ -370,17 +384,17 @@ router.post(
     if (!name?.trim() || !email?.trim() || !password) {
       throw ApiError.badRequest('name, email and password are required');
     }
-    if (await User.exists({ email: email.toLowerCase() })) {
+    const lower = email.toLowerCase();
+    if ((await Employee.exists({ email: lower })) || (await User.exists({ email: lower }))) {
       throw ApiError.conflict('A user with this email already exists');
     }
-    const user = await User.create({
+    const emp = await Employee.create({
       name: name.trim(),
-      email: email.toLowerCase(),
-      passwordHash: await User.hashPassword(password),
+      email: lower,
+      passwordHash: await Employee.hashPassword(password),
       role: 'super_admin',
-      // No restaurantId — Feedu employees are not tied to any tenant.
     });
-    return ok(res, { _id: user._id, name: user.name, email: user.email, role: user.role }, 201);
+    return ok(res, { _id: emp._id, name: emp.name, email: emp.email, role: emp.role }, 201);
   }),
 );
 
@@ -418,16 +432,16 @@ router.patch(
   '/account',
   asyncHandler(async (req, res) => {
     const { name, email, password } = req.body as Record<string, string>;
-    const me = await User.findById(req.auth!.sub).select('+passwordHash');
+    const me = await Employee.findById(req.auth!.sub).select('+passwordHash');
     if (!me) throw ApiError.notFound('Account not found');
     if (email && email.toLowerCase() !== me.email) {
-      if (await User.exists({ email: email.toLowerCase() })) {
+      if ((await Employee.exists({ email: email.toLowerCase() })) || (await User.exists({ email: email.toLowerCase() }))) {
         throw ApiError.conflict('That email is already in use');
       }
       me.email = email.toLowerCase();
     }
     if (name) me.name = name;
-    if (password) me.passwordHash = await User.hashPassword(password);
+    if (password) me.passwordHash = await Employee.hashPassword(password);
     await me.save();
     return ok(res, { _id: me._id, name: me.name, email: me.email, role: me.role });
   }),

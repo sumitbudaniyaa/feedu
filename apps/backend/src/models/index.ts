@@ -1,4 +1,5 @@
 export { User } from './User.js';
+export { Employee } from './Employee.js';
 export { Restaurant } from './Restaurant.js';
 export { Category } from './Category.js';
 export { Product } from './Product.js';

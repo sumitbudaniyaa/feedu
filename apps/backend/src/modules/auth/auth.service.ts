@@ -3,6 +3,7 @@ import { slugify, randomToken } from '@feedo/utils';
 import { Restaurant } from '../../models/Restaurant.js';
 import { Subscription } from '../../models/Subscription.js';
 import { User } from '../../models/User.js';
+import { Employee } from '../../models/Employee.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt.js';
 
@@ -59,6 +60,20 @@ export async function register(input: RegisterInput) {
 }
 
 export async function login(input: LoginInput) {
+  // Feedu employees live in their own collection — check it first (no tenant).
+  const employee = await Employee.findOne({ email: input.email }).select('+passwordHash');
+  if (employee) {
+    if (!employee.isActive || !(await employee.comparePassword(input.password))) {
+      throw ApiError.unauthorized('Invalid credentials');
+    }
+    employee.lastLoginAt = new Date();
+    await employee.save();
+    return {
+      user: employee.toJSON(),
+      tokens: issueTokens({ id: employee.id, role: 'super_admin', restaurantId: null }),
+    };
+  }
+
   const user = await User.findOne({ email: input.email }).select('+passwordHash');
   if (!user || !user.isActive) throw ApiError.unauthorized('Invalid credentials');
 
@@ -79,6 +94,14 @@ export async function refresh(refreshToken: string) {
   } catch {
     throw ApiError.unauthorized('Invalid refresh token');
   }
+  const employee = await Employee.findById(payload.sub);
+  if (employee) {
+    if (!employee.isActive) throw ApiError.unauthorized('Account not found');
+    return {
+      user: employee.toJSON(),
+      tokens: issueTokens({ id: employee.id, role: 'super_admin', restaurantId: null }),
+    };
+  }
   const user = await User.findById(payload.sub);
   if (!user || !user.isActive) throw ApiError.unauthorized('Account not found');
 
@@ -89,6 +112,8 @@ export async function refresh(refreshToken: string) {
 }
 
 export async function me(userId: string) {
+  const employee = await Employee.findById(userId);
+  if (employee) return employee.toJSON();
   const user = await User.findById(userId);
   if (!user) throw ApiError.notFound('User not found');
   return user.toJSON();
