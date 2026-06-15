@@ -12,6 +12,7 @@ import { asyncHandler, ok } from '../../utils/http.js';
 const createSchema = createLoyaltyRewardSchema.extend({ productId: objectIdSchema });
 
 const handlers = crud({
+  level: 'brand',
   model: LoyaltyReward,
   createSchema,
   updateSchema: createSchema.partial(),

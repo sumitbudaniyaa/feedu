@@ -1,8 +1,20 @@
 import { z } from 'zod';
 
-/** User / staff roles. Drives RBAC across the platform. */
+/**
+ * User / staff roles. Drives RBAC across the platform.
+ * Multi-branch roles are added alongside the legacy ones (kept for back-compat):
+ *   owner ≈ brand_owner, manager ≈ branch_manager, kitchen ≈ kitchen_staff.
+ */
 export const UserRole = {
   SUPER_ADMIN: 'super_admin',
+  // Brand (tenant) level
+  BRAND_OWNER: 'brand_owner',
+  BRAND_ADMIN: 'brand_admin',
+  // Branch level
+  BRANCH_MANAGER: 'branch_manager',
+  KITCHEN_STAFF: 'kitchen_staff',
+  CASHIER: 'cashier',
+  // Legacy (still valid)
   OWNER: 'owner',
   MANAGER: 'manager',
   KITCHEN: 'kitchen',
@@ -11,6 +23,12 @@ export const UserRole = {
 } as const;
 export const userRoleSchema = z.enum([
   'super_admin',
+  'brand_owner',
+  'brand_admin',
+  'branch_manager',
+  'kitchen_staff',
+  'cashier',
+  // legacy
   'owner',
   'manager',
   'kitchen',
@@ -19,8 +37,18 @@ export const userRoleSchema = z.enum([
 ]);
 export type UserRoleType = z.infer<typeof userRoleSchema>;
 
-/** Staff roles assignable within a restaurant (excludes platform + customer). */
-export const staffRoleSchema = z.enum(['manager', 'kitchen', 'waiter']);
+/** Roles considered brand-wide (see all branches of their brand). */
+export const BRAND_WIDE_ROLES = ['owner', 'brand_owner', 'brand_admin'] as const;
+
+/** Staff roles assignable within a restaurant/branch (excludes platform + customer). */
+export const staffRoleSchema = z.enum([
+  'manager',
+  'kitchen',
+  'waiter',
+  'branch_manager',
+  'kitchen_staff',
+  'cashier',
+]);
 export type StaffRole = z.infer<typeof staffRoleSchema>;
 
 export const orderStatusSchema = z.enum([

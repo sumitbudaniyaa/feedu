@@ -8,6 +8,7 @@ import { crud } from '../../utils/crud.js';
 import { asyncHandler } from '../../utils/http.js';
 
 const handlers = crud({
+  level: 'brand',
   model: Product,
   createSchema: createProductSchema,
   updateSchema: updateProductSchema,

@@ -83,9 +83,9 @@ async function migrate() {
             brandId,
             branchId,
             productId: p._id,
-            priceOverride: null,
+            priceOverride: null, // inherit brand basePrice
             isAvailable: p.isAvailable ?? true,
-            stock: p.stock ?? null,
+            stock: null, // inherit product stock until a branch overrides it
             branchExclusive: false,
           },
         },

@@ -9,6 +9,7 @@ import { crud } from '../../utils/crud.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
 const handlers = crud({
+  level: 'brand',
   model: Section,
   createSchema: createSectionSchema,
   updateSchema: updateSectionSchema,
@@ -30,7 +31,7 @@ router.patch(
     const { orderedIds } = req.body as { orderedIds: string[] };
     await Promise.all(
       orderedIds.map((id, index) =>
-        Section.updateOne({ _id: id, restaurantId: req.restaurantId }, { order: index }),
+        Section.updateOne({ _id: id, brandId: req.brandId }, { order: index }),
       ),
     );
     return ok(res, { orderedIds });

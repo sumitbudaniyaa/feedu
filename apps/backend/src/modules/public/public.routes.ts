@@ -3,15 +3,12 @@ import { z } from 'zod';
 import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema, SOCKET_EVENTS, rooms } from '@feedo/types';
 import bcrypt from 'bcryptjs';
 import {
-  Category,
   Customer,
   LoyaltyReward,
   Order,
   Otp,
-  Product,
   Redemption,
   Restaurant,
-  Section,
   Subscription,
   Table,
 } from '../../models/index.js';
@@ -19,6 +16,7 @@ import { isValidObjectId } from 'mongoose';
 import { randomToken } from '@feedo/utils';
 import { validate } from '../../middleware/validate.js';
 import { optionalCustomerAuth, requireCustomer } from '../../middleware/customer.js';
+import { resolveBranchMenu } from '../menu/menu.service.js';
 import { otpLimiter } from '../../middleware/security.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { signCustomerToken } from '../../utils/jwt.js';
@@ -103,13 +101,9 @@ router.post(
   }),
 );
 
-async function loadMenu(restaurantId: string) {
-  const [categories, products, sections] = await Promise.all([
-    Category.find({ restaurantId, isActive: true }).sort({ order: 1 }).lean(),
-    Product.find({ restaurantId, isAvailable: true }).sort({ createdAt: -1 }).lean(),
-    Section.find({ restaurantId, isActive: true }).sort({ order: 1 }).lean(),
-  ]);
-  return { categories, products, sections };
+/** Effective menu for a branch = brand catalog merged with the branch's overrides. */
+function loadMenu(branchId: string, brandId?: string | null) {
+  return resolveBranchMenu({ brandId, branchId });
 }
 
 // Public restaurant + full menu by slug.
@@ -122,7 +116,7 @@ router.get(
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
-    const menu = await loadMenu(String(restaurant._id));
+    const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
     return ok(res, { restaurant, ...menu });
   }),
 );
@@ -137,7 +131,7 @@ router.get(
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
-    const menu = await loadMenu(String(restaurant._id));
+    const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
     return ok(res, { restaurant, table, ...menu });
   }),
 );
