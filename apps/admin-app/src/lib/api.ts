@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CustomerAnalytics, SupportTicket } from '@feedo/api';
+import { getActiveBranchId } from '../store/branch.js';
 import {
   ApiClient,
   createAuthHooks,
@@ -30,7 +31,8 @@ export const apiClient = new ApiClient({
   baseUrl,
   getAccessToken: () => useAuth.getState().tokens?.accessToken,
   getRefreshToken: () => useAuth.getState().tokens?.refreshToken,
-  getRestaurantId: () => undefined,
+  // Active branch → sent as x-restaurant-id (backend treats it as the active branch).
+  getRestaurantId: () => getActiveBranchId(),
   onTokensRefreshed: (tokens) => useAuth.getState().setTokens(tokens),
   onAuthError: () => useAuth.getState().clear(),
 });
@@ -90,6 +92,32 @@ export function useCustomerAnalytics(id?: string) {
     queryKey: ['customer-analytics', id],
     queryFn: () => apiClient.get<CustomerAnalytics>(`/customers/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+export interface Branch {
+  _id: string;
+  name: string;
+  slug: string;
+  isLive: boolean;
+  contactNumber?: string;
+  createdAt: string;
+}
+
+/** All branches of the active brand (for the branch switcher + Branches page). */
+export function useBranches() {
+  return useQuery({
+    queryKey: ['branches'],
+    queryFn: () => apiClient.get<Branch[]>('/restaurants/branches'),
+  });
+}
+
+export function useCreateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; contactNumber?: string }) =>
+      apiClient.post<Branch>('/restaurants/branches', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
   });
 }
 

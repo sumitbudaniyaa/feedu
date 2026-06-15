@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { OrdersPage } from './pages/OrdersPage.js';
 import { InventoryPage } from './pages/InventoryPage.js';
+import { BranchesPage } from './pages/BranchesPage.js';
 import { MenuPage } from './pages/MenuPage.js';
 import { LoyaltyPage } from './pages/LoyaltyPage.js';
 import { TablesPage } from './pages/TablesPage.js';
@@ -31,6 +32,7 @@ export function App() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/branches" element={<BranchesPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/menu" element={<MenuPage />} />

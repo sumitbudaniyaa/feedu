@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import {
   BarChart3,
   Boxes,
+  Building2,
   ChefHat,
   LayoutGrid,
   LifeBuoy,
@@ -30,9 +31,11 @@ import { useAuth, useLogout, useMe, useRestaurant, useSubscription } from '../li
 import { useLiveSync } from '../lib/useLiveSync.js';
 import { WaiterCallDrawer } from './WaiterCallDrawer.js';
 import { WaiterApp } from './WaiterApp.js';
+import { BranchSwitcher } from './BranchSwitcher.js';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/branches', label: 'Branches', icon: Building2, brandOnly: true },
   { to: '/orders', label: 'Orders', icon: ShoppingBag },
   { to: '/inventory', label: 'Inventory', icon: Boxes },
   { to: '/menu', label: 'Menu CMS', icon: ChefHat },
@@ -47,6 +50,8 @@ const NAV = [
 
 // Waiters get a trimmed app: just orders + inventory.
 const WAITER_PATHS = new Set(['/orders', '/inventory']);
+// Brand-wide roles see brand-level pages (e.g. Branches).
+const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
 
 export function DashboardLayout() {
   const user = useAuth((s) => s.user);
@@ -58,7 +63,10 @@ export function DashboardLayout() {
   const { setAccent } = useTheme();
 
   const isWaiter = user?.role === 'waiter';
-  const nav = isWaiter ? NAV.filter((n) => WAITER_PATHS.has(n.to)) : NAV;
+  const isBrandWide = BRAND_WIDE.has(user?.role ?? '');
+  const nav = isWaiter
+    ? NAV.filter((n) => WAITER_PATHS.has(n.to))
+    : NAV.filter((n) => !n.brandOnly || isBrandWide);
 
   // Keep waiters out of pages they can't access (deep-links / refresh land on Orders).
   useEffect(() => {
@@ -152,6 +160,7 @@ export function DashboardLayout() {
             <span className="text-lg font-black italic tracking-tight text-foreground">feedu</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <BranchSwitcher />
             <ThemeToggle />
             <Button
               variant="ghost"

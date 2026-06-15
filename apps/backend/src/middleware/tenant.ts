@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ApiError } from '../utils/ApiError.js';
+import { Restaurant } from '../models/index.js';
+
+const BRAND_WIDE_ROLES = new Set(['owner', 'brand_owner', 'brand_admin']);
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -26,10 +29,12 @@ declare global {
  *
  * - super_admin: targets any brand/branch via `x-brand-id` / `x-branch-id`
  *   (legacy `x-restaurant-id` still honoured).
- * - brand-wide roles: may switch branch via `x-branch-id` (must be in `branchIds`).
+ * - brand-wide roles: may switch branch via `x-branch-id` — to any branch in
+ *   their `branchIds` snapshot, or any branch belonging to their brand (covers
+ *   branches created after the token was issued, verified with a cheap lookup).
  * - branch roles: locked to their own branch from the token.
  */
-export function resolveTenant(req: Request, _res: Response, next: NextFunction) {
+export async function resolveTenant(req: Request, _res: Response, next: NextFunction) {
   if (!req.auth) return next(ApiError.unauthorized());
 
   if (req.auth.role === 'super_admin') {
@@ -47,6 +52,11 @@ export function resolveTenant(req: Request, _res: Response, next: NextFunction) 
   const requested = req.header('x-branch-id') ?? req.header('x-restaurant-id');
   if (requested && (branchIds.includes(requested) || req.auth.restaurantId === requested)) {
     req.branchId = requested;
+  } else if (requested && req.brandId && BRAND_WIDE_ROLES.has(req.auth.role)) {
+    // Branch not in the token snapshot — allow it iff it belongs to this brand.
+    // A malformed id throws a CastError; treat that as "not ours" and fall back.
+    const owns = await Restaurant.exists({ _id: requested, brandId: req.brandId }).catch(() => null);
+    req.branchId = owns ? requested : req.auth.restaurantId ?? branchIds[0];
   } else {
     req.branchId = req.auth.restaurantId ?? branchIds[0];
   }
