@@ -110,22 +110,25 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
       <motion.div
         layout
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="overflow-hidden rounded-2xl border border-border bg-card shadow-elevated"
+        className="overflow-hidden rounded-2xl shadow-elevated ring-1 ring-black/20"
       >
-        {/* Collapsed header — always visible, toggles expand */}
+        {/* Collapsed header — bold accent so it stands out on the dark menu */}
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex w-full items-center gap-3 px-4 py-3 text-left"
+          className="flex w-full items-center gap-3 px-4 py-3 text-left text-white"
+          style={{
+            background: 'linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent) / 0.82))',
+          }}
         >
           <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className={cn('absolute inline-flex h-full w-full animate-ping rounded-full opacity-60', meta.dot)} />
-            <span className={cn('relative inline-flex h-2.5 w-2.5 rounded-full', meta.dot)} />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-70" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">
+            <p className="truncate text-sm font-bold">
               Order #{order.orderNumber} · {meta.label}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/80">
               {['completed', 'served', 'ready'].includes(order.status)
                 ? unpaid
                   ? 'Payment pending'
@@ -135,8 +138,8 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
                   : 'Almost ready…'}
             </p>
           </div>
-          {unpaid && <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[11px] font-semibold text-destructive">Unpaid</span>}
-          <motion.span animate={{ rotate: expanded ? 180 : 0 }} className="text-muted-foreground">
+          {unpaid && <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">Unpaid</span>}
+          <motion.span animate={{ rotate: expanded ? 180 : 0 }} className="text-white/90">
             <ChevronUp className="h-4 w-4" />
           </motion.span>
         </button>
@@ -149,7 +152,7 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="border-t border-border"
+              className="bg-card"
             >
               <div className="space-y-3 p-4">
                 <div className="space-y-1.5">
