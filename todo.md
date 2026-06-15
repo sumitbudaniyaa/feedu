@@ -71,6 +71,24 @@ super-admin (Feedu company) portal. Rebranded to **feedu**. Hardening + polish o
 
 ---
 
+## Multi-branch evolution (Brand → Branches)
+Evolving "1 restaurant = 1 tenant" into "Brand (tenant) → Branches" without a rewrite.
+Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); add `Brand` on top.
+
+- [x] **Phase 0/1 — schema + backfill (done, additive, back-compat):**
+  - New `Brand` (tenant: name/slug/branding/tax) and `BranchMenu` (per-branch price/availability/
+    stock/exclusive overrides) collections.
+  - Additive nullable `brandId` on Restaurant(=branch), Product, Category, Section, Loyalty*,
+    Order, Customer, Subscription. No behaviour change.
+  - `npm run migrate:brands` — idempotent backfill: one brand per restaurant, stamps `brandId`,
+    seeds BranchMenu from current products. Verified on dev DB; re-run is a no-op.
+- [ ] **Phase 2 — auth:** JWT carries `brandId`/`branchIds`; `resolveTenant` sets `req.brandId` +
+  `req.branchId` (keeps `req.restaurantId` alias); `crud()` gains `level: 'brand' | 'branch'`.
+- [ ] **Phase 3 — menu/loyalty brand-ized** + public menu resolves brand menu ⊕ BranchMenu override.
+- [ ] **Phase 4 — portals:** admin branch switcher + Branches pages; super-admin Brand→Branch hierarchy.
+- [ ] **Phase 5 — analytics + sockets:** brand/branch aggregations, `brand:`/`branch:` rooms.
+- [ ] **Phase 6 — cleanup:** drop legacy `restaurant`/`x-restaurant-id` aliases + `Product.restaurantId` writes.
+
 ## Recently added
 
 ### Latest session — employees collection, customer analytics, call-waiter UX, inventory filters
