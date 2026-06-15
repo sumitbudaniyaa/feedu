@@ -131,47 +131,9 @@ export function OverviewPage() {
         </div>
       )}
 
-      {/* Channel mix across the platform */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Order channels</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {aLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10" />)
-          ) : analytics && analytics.channelMix.length > 0 ? (
-            (() => {
-              const total = analytics.channelMix.reduce((s, c) => s + c.revenue, 0) || 1;
-              return analytics.channelMix.map((c) => (
-                <div key={c.channel} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{CHANNEL_LABEL[c.channel] ?? c.channel}</span>
-                    <span className="text-muted-foreground">
-                      {c.orders} orders · {formatCurrency(c.revenue)}
-                    </span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((c.revenue / total) * 100)}%` }} />
-                  </div>
-                </div>
-              ));
-            })()
-          ) : (
-            <p className="py-6 text-center text-sm text-muted-foreground">No channel data yet.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
-
-const CHANNEL_LABEL: Record<string, string> = {
-  app: 'Feedo app',
-  counter: 'Counter',
-  zomato: 'Zomato',
-  swiggy: 'Swiggy',
-  district: 'District',
-};
 
 function Stat({ label, value, icon: Icon }: { label: string; value: string; icon: React.ComponentType<{ className?: string }> }) {
   return (

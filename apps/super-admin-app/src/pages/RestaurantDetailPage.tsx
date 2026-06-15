@@ -1,11 +1,33 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Boxes, IndianRupee, ReceiptText, UserRound, Users } from 'lucide-react';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@feedo/ui';
-import { formatCurrency, formatRelativeTime } from '@feedo/utils';
-import type { Order } from '@feedo/types';
-import { useRestaurantDetail } from '../lib/api.js';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Boxes, Check, IndianRupee, Power, ReceiptText, Trash2, UserRound, Users } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+  Skeleton,
+  useConfirm,
+} from '@feedo/ui';
+import { formatCurrency, formatDate, formatRelativeTime } from '@feedo/utils';
+import type { Order, SubscriptionPlan, SubscriptionStatus } from '@feedo/types';
+import {
+  useDeleteRestaurant,
+  useRestaurantDetail,
+  useToggleLive,
+  useUpdateSubscription,
+} from '../lib/api.js';
 import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
+
+const PLANS: SubscriptionPlan[] = ['trial', 'starter', 'growth', 'enterprise'];
+const STATUSES: SubscriptionStatus[] = ['active', 'past_due', 'cancelled', 'trialing'];
+const CYCLES = ['monthly', 'quarterly', 'yearly'] as const;
+type Cycle = (typeof CYCLES)[number];
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
   pending: 'warning',
@@ -20,8 +42,37 @@ const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning
 
 export function RestaurantDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data, isLoading } = useRestaurantDetail(id);
+  const toggleLive = useToggleLive();
+  const removeRestaurant = useDeleteRestaurant();
+  const confirm = useConfirm();
   const [selected, setSelected] = useState<Order | null>(null);
+
+  const suspend = async () => {
+    if (!data) return;
+    const live = data.restaurant.isLive;
+    const ok = await confirm({
+      title: live ? `Suspend ${data.restaurant.name}?` : `Reactivate ${data.restaurant.name}?`,
+      description: live
+        ? 'Their customer ordering goes offline immediately.'
+        : 'Their storefront goes live again.',
+      confirmText: live ? 'Suspend' : 'Reactivate',
+      destructive: live,
+    });
+    if (ok && id) toggleLive.mutate({ id, isLive: !live });
+  };
+
+  const remove = async () => {
+    if (!data || !id) return;
+    const ok = await confirm({
+      title: `Delete ${data.restaurant.name}?`,
+      description: 'Permanently removes the restaurant, staff, menu and orders. Cannot be undone.',
+      confirmText: 'Delete forever',
+      destructive: true,
+    });
+    if (ok) removeRestaurant.mutate(id, { onSuccess: () => navigate('/restaurants') });
+  };
 
   if (isLoading || !data) {
     return (
@@ -52,7 +103,10 @@ export function RestaurantDetailPage() {
           </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{r.name}</h1>
-            <p className="text-sm text-muted-foreground">/{r.slug}</p>
+            <p className="text-sm text-muted-foreground">
+              /{r.slug}
+              {r.contactNumber ? ` · 📞 ${String(r.contactNumber)}` : ''}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -68,6 +122,43 @@ export function RestaurantDetailPage() {
         <Stat label="Paid orders" value={String(data.paidOrders)} icon={ReceiptText} />
         <Stat label="Products" value={String(data.productCount)} icon={Boxes} />
         <Stat label="Customers" value={String(data.customerCount)} icon={UserRound} />
+      </div>
+
+      {/* Subscription & access management */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SubscriptionCard restaurantId={id!} subscription={data.subscription} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Access</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Storefront</p>
+                <p className="text-xs text-muted-foreground">
+                  {r.isLive ? 'Live — diners can order.' : 'Offline — the customer menu shows “not found”.'}
+                </p>
+              </div>
+              <Button variant={r.isLive ? 'outline' : 'default'} onClick={suspend} disabled={toggleLive.isPending}>
+                <Power className="h-4 w-4" /> {r.isLive ? 'Suspend' : 'Reactivate'}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <div>
+                <p className="text-sm font-medium">Danger zone</p>
+                <p className="text-xs text-muted-foreground">Permanently delete this restaurant.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={remove}
+                disabled={removeRestaurant.isPending}
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -150,6 +241,98 @@ function Stat({ label, value, icon: Icon }: { label: string; value: string; icon
           <Icon className="h-4 w-4 text-muted-foreground" />
         </div>
         <p className="mt-3 text-2xl font-semibold tracking-tight">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SubscriptionCard({
+  restaurantId,
+  subscription,
+}: {
+  restaurantId: string;
+  subscription: import('@feedo/api').RestaurantDetail['subscription'];
+}) {
+  const update = useUpdateSubscription();
+  const [plan, setPlan] = useState<SubscriptionPlan>((subscription?.plan as SubscriptionPlan) ?? 'starter');
+  const [status, setStatus] = useState<SubscriptionStatus>((subscription?.status as SubscriptionStatus) ?? 'active');
+  const [price, setPrice] = useState(String(subscription?.price ?? 0));
+  const [cycle, setCycle] = useState<Cycle>((subscription?.billingCycle as Cycle) ?? 'monthly');
+  const [saved, setSaved] = useState(false);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      { id: restaurantId, body: { plan, status, price: Number(price), billingCycle: cycle } },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2500);
+        },
+      },
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Subscription</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Plan</Label>
+              <Select value={plan} onChange={(e) => setPlan(e.target.value as SubscriptionPlan)}>
+                {PLANS.map((p) => (
+                  <option key={p} value={p} className="capitalize">
+                    {p}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={status} onChange={(e) => setStatus(e.target.value as SubscriptionStatus)}>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s} className="capitalize">
+                    {s.replace('_', ' ')}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Price (₹)</Label>
+              <Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Billing cycle</Label>
+              <Select value={cycle} onChange={(e) => setCycle(e.target.value as Cycle)}>
+                {CYCLES.map((c) => (
+                  <option key={c} value={c} className="capitalize">
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Expires{' '}
+            <span className="font-medium text-foreground">
+              {subscription?.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : '—'}
+            </span>{' '}
+            · set automatically from the billing cycle when you save.
+          </p>
+          <Button type="submit" variant={saved ? 'success' : 'default'} disabled={update.isPending}>
+            {update.isPending ? 'Saving…' : saved ? (
+              <>
+                <Check className="h-4 w-4" /> Saved
+              </>
+            ) : (
+              'Save subscription'
+            )}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

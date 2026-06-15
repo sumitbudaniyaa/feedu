@@ -248,15 +248,22 @@ router.patch(
   '/restaurants/:id/subscription',
   validateObjectId(),
   asyncHandler(async (req, res) => {
-    const { plan, status, features, seats, price, billingCycle, currentPeriodEnd } =
+    const { plan, status, features, seats, price, billingCycle } =
       req.body as Record<string, unknown>;
     const update: Record<string, unknown> = { plan, status, features, seats };
+    const cycle = (billingCycle as string) ?? undefined;
     if (price !== undefined) {
       update.price = Number(price);
-      update.mrr = toMrr(Number(price), (billingCycle as string) ?? 'monthly');
+      update.mrr = toMrr(Number(price), cycle ?? 'monthly');
     }
-    if (billingCycle !== undefined) update.billingCycle = billingCycle;
-    if (currentPeriodEnd !== undefined) update.currentPeriodEnd = currentPeriodEnd;
+    if (cycle !== undefined) update.billingCycle = cycle;
+    // Expiry is derived automatically from "now + billing duration" whenever the
+    // price or cycle is (re)set — never entered by hand.
+    if (price !== undefined || cycle !== undefined) {
+      const existing = await Subscription.findOne({ restaurantId: req.params.id }).select('billingCycle').lean();
+      const months = CYCLE_MONTHS[cycle ?? existing?.billingCycle ?? 'monthly'] ?? 1;
+      update.currentPeriodEnd = new Date(Date.now() + months * 30 * 86400000);
+    }
     // Drop undefined keys so we never overwrite with nulls.
     Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
     const sub = await Subscription.findOneAndUpdate({ restaurantId: req.params.id }, update, {
@@ -276,6 +283,7 @@ router.post(
       ownerName,
       email,
       password,
+      contactNumber,
       price = 0,
       billingCycle = 'monthly',
       plan = 'starter',
@@ -284,6 +292,9 @@ router.post(
 
     if (!restaurantName || !ownerName || !email || !password) {
       throw ApiError.badRequest('restaurantName, ownerName, email and password are required');
+    }
+    if (contactNumber && !/^\d{10}$/.test(String(contactNumber))) {
+      throw ApiError.badRequest('Mobile number must be 10 digits');
     }
     // Enforce uniqueness — no duplicate restaurant identity or owner login.
     const slug = slugify(String(restaurantName));
@@ -304,6 +315,7 @@ router.post(
       ownerId: owner._id,
       name: restaurantName,
       slug,
+      contactNumber: contactNumber ? String(contactNumber) : undefined,
       isLive: true,
       onboarding: { completed: true, currentStep: 0, progress: 100, completedSteps: [] },
     });
