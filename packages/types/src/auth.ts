@@ -35,5 +35,10 @@ export interface AuthSession {
 export interface JwtPayload {
   sub: string; // userId
   role: string;
+  /** Active branch (kept for backward compatibility — equals the active `branchId`). */
   restaurantId: string | null;
+  /** Tenant the user belongs to (multi-branch). */
+  brandId?: string | null;
+  /** Branches the user may access (brand-wide roles get all the brand's branches). */
+  branchIds?: string[];
 }

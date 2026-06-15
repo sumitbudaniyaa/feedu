@@ -1,5 +1,6 @@
 import type { LoginInput, RegisterInput } from '@feedo/types';
 import { slugify, randomToken } from '@feedo/utils';
+import { Brand } from '../../models/Brand.js';
 import { Restaurant } from '../../models/Restaurant.js';
 import { Subscription } from '../../models/Subscription.js';
 import { User } from '../../models/User.js';
@@ -7,12 +8,47 @@ import { Employee } from '../../models/Employee.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../utils/jwt.js';
 
-function issueTokens(user: { id: string; role: string; restaurantId: unknown }) {
+/** Brand-wide roles see every branch of their brand; others are scoped to their branch. */
+const BRAND_WIDE_ROLES = new Set(['owner', 'brand_owner', 'brand_admin']);
+
+function issueTokens(user: {
+  id: string;
+  role: string;
+  restaurantId: unknown;
+  brandId?: string | null;
+  branchIds?: string[];
+}) {
   const restaurantId = user.restaurantId ? String(user.restaurantId) : null;
   return {
-    accessToken: signAccessToken({ sub: user.id, role: user.role, restaurantId }),
+    accessToken: signAccessToken({
+      sub: user.id,
+      role: user.role,
+      restaurantId,
+      brandId: user.brandId ?? null,
+      branchIds: user.branchIds ?? (restaurantId ? [restaurantId] : []),
+    }),
     refreshToken: signRefreshToken({ sub: user.id }),
   };
+}
+
+/** Resolve a restaurant user's brand + accessible branches for token issuance. */
+async function brandContext(role: string, restaurantId: unknown) {
+  if (!restaurantId) return { brandId: null, branchIds: [] as string[] };
+  const branchId = String(restaurantId);
+  const branch = await Restaurant.findById(branchId).select('brandId').lean();
+  const brandId = branch?.brandId ? String(branch.brandId) : null;
+  let branchIds = [branchId];
+  if (brandId && BRAND_WIDE_ROLES.has(role)) {
+    const all = await Restaurant.find({ brandId }).select('_id').lean();
+    branchIds = all.map((r) => String(r._id));
+  }
+  return { brandId, branchIds };
+}
+
+/** Issue tokens for a restaurant user, including brand/branch context. */
+async function userTokens(user: { id: string; role: string; restaurantId: unknown }) {
+  const { brandId, branchIds } = await brandContext(user.role, user.restaurantId);
+  return issueTokens({ ...user, brandId, branchIds });
 }
 
 /** Owner self-signup: creates user + restaurant shell + trial subscription. */
@@ -33,7 +69,11 @@ export async function register(input: RegisterInput) {
     role: 'owner',
   });
 
+  // A self-signup creates a brand (tenant) with its first branch.
+  const brand = await Brand.create({ ownerId: owner._id, name: input.restaurantName, slug });
+
   const restaurant = await Restaurant.create({
+    brandId: brand._id,
     ownerId: owner._id,
     name: input.restaurantName,
     slug,
@@ -46,6 +86,7 @@ export async function register(input: RegisterInput) {
   const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
   await Subscription.create({
     restaurantId: restaurant._id,
+    brandId: brand._id,
     plan: 'trial',
     status: 'trialing',
     trialEndsAt,
@@ -55,6 +96,8 @@ export async function register(input: RegisterInput) {
     id: owner.id,
     role: owner.role,
     restaurantId: owner.restaurantId,
+    brandId: String(brand._id),
+    branchIds: [String(restaurant._id)],
   });
   return { user: owner.toJSON(), tokens, restaurant: restaurant.toJSON() };
 }
@@ -83,7 +126,7 @@ export async function login(input: LoginInput) {
   user.lastLoginAt = new Date();
   await user.save();
 
-  const tokens = issueTokens({ id: user.id, role: user.role, restaurantId: user.restaurantId });
+  const tokens = await userTokens({ id: user.id, role: user.role, restaurantId: user.restaurantId });
   return { user: user.toJSON(), tokens };
 }
 
@@ -107,7 +150,7 @@ export async function refresh(refreshToken: string) {
 
   return {
     user: user.toJSON(),
-    tokens: issueTokens({ id: user.id, role: user.role, restaurantId: user.restaurantId }),
+    tokens: await userTokens({ id: user.id, role: user.role, restaurantId: user.restaurantId }),
   };
 }
 

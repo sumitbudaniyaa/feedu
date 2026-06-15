@@ -12,19 +12,29 @@ interface CrudOptions<T> {
   defaultSort?: Record<string, 1 | -1>;
   /** Fields searched when `?search=` is provided. */
   searchFields?: string[];
-  /** Extra filter merged into every query (besides restaurantId). */
+  /** Extra filter merged into every query (besides the tenant key). */
   baseFilter?: (req: Request) => RootFilterQuery<T>;
+  /**
+   * Tenant key the resource is scoped by:
+   * - `branch` (default): `restaurantId` = active branch (unchanged behaviour).
+   * - `brand`: `brandId` = the tenant (shared resources like menu/loyalty).
+   */
+  level?: 'brand' | 'branch';
 }
 
 /**
- * Generates tenant-scoped CRUD handlers for a Mongoose model.
- * Every query is automatically constrained to `req.restaurantId`.
+ * Generates tenant-scoped CRUD handlers for a Mongoose model. Branch-level
+ * resources are constrained to `req.restaurantId`; brand-level resources to
+ * `req.brandId`.
  */
 export function crud<T>(opts: CrudOptions<T>) {
-  const { model, defaultSort = { createdAt: -1 }, searchFields = [] } = opts;
+  const { model, defaultSort = { createdAt: -1 }, searchFields = [], level = 'branch' } = opts;
+
+  const tenantFilter = (req: Request) =>
+    level === 'brand' ? { brandId: req.brandId } : { restaurantId: req.restaurantId };
 
   const scope = (req: Request): RootFilterQuery<T> => {
-    const base = { restaurantId: req.restaurantId } as RootFilterQuery<T>;
+    const base = tenantFilter(req) as RootFilterQuery<T>;
     return opts.baseFilter ? { ...base, ...opts.baseFilter(req) } : base;
   };
 
@@ -60,7 +70,13 @@ export function crud<T>(opts: CrudOptions<T>) {
 
     create: async (req: Request, res: Response) => {
       const payload = opts.createSchema ? opts.createSchema.parse(req.body) : req.body;
-      const doc = await model.create({ ...payload, restaurantId: req.restaurantId });
+      // Branch resources still stamp restaurantId; brand resources stamp brandId
+      // (+ restaurantId for back-compat reads during the transition).
+      const tenant =
+        level === 'brand'
+          ? { brandId: req.brandId, restaurantId: req.restaurantId }
+          : { restaurantId: req.restaurantId };
+      const doc = await model.create({ ...payload, ...tenant });
       return ok(res, doc, 201);
     },
 
