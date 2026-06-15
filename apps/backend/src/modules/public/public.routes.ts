@@ -12,6 +12,7 @@ import {
   Redemption,
   Restaurant,
   Section,
+  Subscription,
   Table,
 } from '../../models/index.js';
 import { isValidObjectId } from 'mongoose';
@@ -48,6 +49,16 @@ router.post(
     return ok(res, { called: true });
   }),
 );
+
+/** Block diner access when the restaurant's Feedu subscription is inactive/expired. */
+async function assertSubscriptionActive(restaurantId: string) {
+  const sub = await Subscription.findOne({ restaurantId }).select('status currentPeriodEnd').lean();
+  if (!sub) return; // legacy / no subscription on file — don't block
+  const expired = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) < new Date();
+  if (sub.status === 'past_due' || sub.status === 'cancelled' || expired) {
+    throw ApiError.notFound('This restaurant is currently unavailable');
+  }
+}
 
 // ─── Customer OTP login ──────────────────────────────────────────────────
 router.post(
@@ -109,6 +120,7 @@ router.get(
     const restaurant = await Restaurant.findOne({ slug }).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
+    await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id));
     return ok(res, { restaurant, ...menu });
   }),
@@ -122,6 +134,8 @@ router.get(
     if (!table) throw ApiError.notFound('Invalid QR code');
     const restaurant = await Restaurant.findById(table.restaurantId).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
+    await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id));
     return ok(res, { restaurant, table, ...menu });
   }),
@@ -172,6 +186,7 @@ router.post(
     const restaurant = await Restaurant.findOne({ slug: req.params.slug, isLive: true }).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     const restaurantId = String(restaurant._id);
+    await assertSubscriptionActive(restaurantId);
 
     const { customer, rewardId, paymentMethod, ...orderInput } = req.body as {
       customer: { name: string; phone: string };

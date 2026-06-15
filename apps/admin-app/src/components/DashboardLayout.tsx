@@ -5,6 +5,7 @@ import {
   ChefHat,
   LayoutGrid,
   LifeBuoy,
+  Lock,
   LogOut,
   QrCode,
   Settings,
@@ -25,7 +26,7 @@ import {
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth, useLogout, useMe, useRestaurant } from '../lib/api.js';
+import { useAuth, useLogout, useMe, useRestaurant, useSubscription } from '../lib/api.js';
 import { useLiveSync } from '../lib/useLiveSync.js';
 import { WaiterCallDrawer } from './WaiterCallDrawer.js';
 import { WaiterApp } from './WaiterApp.js';
@@ -72,6 +73,7 @@ export function DashboardLayout() {
   // Hydrate the current user (refresh-safe) and apply restaurant branding accent.
   const { data: me } = useMe();
   const { data: restaurant } = useRestaurant(Boolean(tokens?.accessToken));
+  const { data: subscription } = useSubscription();
 
   useEffect(() => {
     if (me && tokens) setSession(me, tokens);
@@ -80,6 +82,21 @@ export function DashboardLayout() {
   useEffect(() => {
     if (restaurant?.branding?.accent) setAccent(restaurant.branding.accent);
   }, [restaurant?.branding?.accent, setAccent]);
+
+  // Lock the whole app when the restaurant is suspended or its subscription lapsed.
+  const subExpired = Boolean(
+    subscription?.currentPeriodEnd && new Date(subscription.currentPeriodEnd) < new Date(),
+  );
+  const locked =
+    restaurant != null &&
+    (restaurant.isLive === false ||
+      subscription?.status === 'past_due' ||
+      subscription?.status === 'cancelled' ||
+      subExpired);
+
+  if (locked) {
+    return <LockScreen onLogout={() => { logout(); navigate('/login'); }} restaurantLive={restaurant?.isLive !== false} />;
+  }
 
   // Waiters get a dedicated mobile app (live table calls + orders).
   if (isWaiter) return <WaiterApp />;
@@ -161,6 +178,28 @@ export function DashboardLayout() {
           </div>
         </motion.main>
       </div>
+    </div>
+  );
+}
+
+function LockScreen({ onLogout, restaurantLive }: { onLogout: () => void; restaurantLive: boolean }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center text-foreground">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 text-destructive">
+        <Lock className="h-7 w-7" />
+      </div>
+      <h1 className="mt-5 text-xl font-semibold tracking-tight">
+        {restaurantLive ? 'Subscription inactive' : 'Restaurant suspended'}
+      </h1>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+        {restaurantLive
+          ? 'Your Feedu subscription is past due, cancelled or expired, so the dashboard and your ordering page are locked.'
+          : 'This restaurant has been suspended, so the dashboard and your ordering page are offline.'}{' '}
+        Please contact Feedu to restore access.
+      </p>
+      <Button variant="outline" className="mt-6" onClick={onLogout}>
+        <LogOut className="h-4 w-4" /> Log out
+      </Button>
     </div>
   );
 }
