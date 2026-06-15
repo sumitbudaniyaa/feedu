@@ -16,7 +16,7 @@ router.get(
   authorize('owner', 'manager'),
   asyncHandler(async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-    const filter: Record<string, unknown> = { restaurantId: req.restaurantId };
+    const filter: Record<string, unknown> = { restaurantId: req.branchId };
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -34,9 +34,9 @@ router.get(
   authorize('owner', 'manager'),
   validateObjectId(),
   asyncHandler(async (req, res) => {
-    const customer = await Customer.findOne({ _id: req.params.id, restaurantId: req.restaurantId }).lean();
+    const customer = await Customer.findOne({ _id: req.params.id, restaurantId: req.branchId }).lean();
     if (!customer) throw ApiError.notFound('Customer not found');
-    return ok(res, await getCustomerAnalytics(String(req.restaurantId), customer.phone));
+    return ok(res, await getCustomerAnalytics(String(req.branchId), customer.phone));
   }),
 );
 

@@ -27,7 +27,7 @@ router.get(
   '/redemptions',
   authorize('owner', 'manager'),
   asyncHandler(async (req, res) => {
-    const redemptions = await Redemption.find({ restaurantId: req.restaurantId })
+    const redemptions = await Redemption.find({ restaurantId: req.branchId })
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
@@ -45,7 +45,7 @@ router.patch(
       throw ApiError.badRequest('status must be fulfilled or cancelled');
     }
     const redemption = await Redemption.findOneAndUpdate(
-      { _id: req.params.id, restaurantId: req.restaurantId, status: 'pending' },
+      { _id: req.params.id, restaurantId: req.branchId, status: 'pending' },
       { status },
       { new: true },
     );

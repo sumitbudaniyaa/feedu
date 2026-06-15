@@ -2,9 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * Active branch for the admin app. Persisted to localStorage and read
- * synchronously by ApiClient (sent as `x-restaurant-id`, which the backend
- * resolveTenant treats as the active branch). Dependency-free store so we don't
- * pull zustand into this app.
+ * synchronously by ApiClient (sent as the `x-branch-id` tenant header).
+ * Dependency-free store so we don't pull zustand into this app.
  */
 const KEY = 'feedu-admin-branch';
 let current: string | null = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;

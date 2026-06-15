@@ -26,7 +26,7 @@ router.post(
   validate(createTableSchema),
   asyncHandler(async (req, res) => {
     const table = await Table.create({
-      restaurantId: req.restaurantId,
+      restaurantId: req.branchId,
       name: req.body.name,
       seats: req.body.seats ?? 2,
       qrToken: randomToken(10),
@@ -42,9 +42,9 @@ router.post(
   validate(generateTablesSchema),
   asyncHandler(async (req, res) => {
     const { count, prefix } = req.body as { count: number; prefix: string };
-    const existing = await Table.countDocuments({ restaurantId: req.restaurantId });
+    const existing = await Table.countDocuments({ restaurantId: req.branchId });
     const docs = Array.from({ length: count }, (_, i) => ({
-      restaurantId: req.restaurantId,
+      restaurantId: req.branchId,
       name: `${prefix} ${existing + i + 1}`,
       qrToken: randomToken(10),
     }));

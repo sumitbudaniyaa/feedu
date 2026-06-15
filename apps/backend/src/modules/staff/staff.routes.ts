@@ -18,7 +18,7 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const staff = await User.find({
-      restaurantId: req.restaurantId,
+      restaurantId: req.branchId,
       role: { $in: ['owner', ...STAFF_ROLES] },
     })
       .sort({ createdAt: 1 })
@@ -32,7 +32,7 @@ router.post(
   authorize('owner', 'manager'),
   validate(createStaffSchema),
   asyncHandler(async (req, res) => {
-    const exists = await User.findOne({ email: req.body.email, restaurantId: req.restaurantId });
+    const exists = await User.findOne({ email: req.body.email, restaurantId: req.branchId });
     if (exists) throw ApiError.conflict('A staff member with this email already exists');
 
     const user = await User.create({
@@ -41,7 +41,7 @@ router.post(
       phone: req.body.phone,
       role: req.body.role,
       permissions: req.body.permissions ?? [],
-      restaurantId: req.restaurantId,
+      restaurantId: req.branchId,
       passwordHash: await User.hashPassword(req.body.password),
     });
     return ok(res, user.toJSON(), 201);
@@ -61,7 +61,7 @@ router.patch(
     if (typeof email === 'string' && email) {
       const taken = await User.findOne({
         email: email.toLowerCase(),
-        restaurantId: req.restaurantId,
+        restaurantId: req.branchId,
         _id: { $ne: req.params.id },
       });
       if (taken) throw ApiError.conflict('Another staff member already uses this email');
@@ -72,7 +72,7 @@ router.patch(
       update.passwordHash = await User.hashPassword(password);
     }
     const user = await User.findOneAndUpdate(
-      { _id: req.params.id, restaurantId: req.restaurantId, role: { $ne: 'owner' } },
+      { _id: req.params.id, restaurantId: req.branchId, role: { $ne: 'owner' } },
       update,
       { new: true },
     );
@@ -88,7 +88,7 @@ router.delete(
   asyncHandler(async (req, res) => {
     const user = await User.findOneAndDelete({
       _id: req.params.id,
-      restaurantId: req.restaurantId,
+      restaurantId: req.branchId,
       role: { $ne: 'owner' },
     });
     if (!user) throw ApiError.notFound('Staff member not found');

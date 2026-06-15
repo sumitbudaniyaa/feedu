@@ -14,7 +14,7 @@ router.use(authenticate, resolveTenant, requireTenant);
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const result = await orders.listOrders(req.restaurantId!, {
+    const result = await orders.listOrders(req.branchId!, {
       status: typeof req.query.status === 'string' ? req.query.status : undefined,
       active: req.query.active === 'true',
       page: Number(req.query.page) || undefined,
@@ -37,7 +37,7 @@ router.post(
   asyncHandler(async (req, res) => {
     // Staff orders are taken in person → confirmed immediately (payment collected at counter).
     const order = await orders.createOrder({
-      restaurantId: req.restaurantId!,
+      restaurantId: req.branchId!,
       input: req.body,
       autoConfirm: true,
       paymentMethod: 'cash',
@@ -50,7 +50,7 @@ router.post(
 router.get(
   '/:id',
   validateObjectId(),
-  asyncHandler(async (req, res) => ok(res, await orders.getOrder(req.restaurantId!, req.params.id!))),
+  asyncHandler(async (req, res) => ok(res, await orders.getOrder(req.branchId!, req.params.id!))),
 );
 
 // Record a manual payment (admin marks an unpaid order paid, choosing the method).
@@ -60,7 +60,7 @@ router.patch(
   authorize('owner', 'manager', 'waiter'),
   validate(z.object({ method: manualPaymentMethodSchema })),
   asyncHandler(async (req, res) => {
-    const order = await orders.recordPayment(req.restaurantId!, req.params.id!, req.body.method);
+    const order = await orders.recordPayment(req.branchId!, req.params.id!, req.body.method);
     return ok(res, order);
   }),
 );
@@ -71,7 +71,7 @@ router.patch(
   authorize('owner', 'manager', 'kitchen', 'waiter'),
   validate(updateOrderStatusSchema),
   asyncHandler(async (req, res) => {
-    const order = await orders.updateStatus(req.restaurantId!, req.params.id!, req.body.status);
+    const order = await orders.updateStatus(req.branchId!, req.params.id!, req.body.status);
     return ok(res, order);
   }),
 );

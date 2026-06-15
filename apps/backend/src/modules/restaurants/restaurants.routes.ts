@@ -61,7 +61,7 @@ router.post(
 router.get(
   '/me',
   asyncHandler(async (req, res) => {
-    const restaurant = await Restaurant.findById(req.restaurantId).lean();
+    const restaurant = await Restaurant.findById(req.branchId).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     return ok(res, restaurant);
   }),
@@ -71,7 +71,7 @@ router.get(
 router.get(
   '/me/subscription',
   asyncHandler(async (req, res) => {
-    const sub = await Subscription.findOne({ restaurantId: req.restaurantId }).lean();
+    const sub = await Subscription.findOne({ restaurantId: req.branchId }).lean();
     return ok(res, sub);
   }),
 );
@@ -82,7 +82,7 @@ router.patch(
   authorize('owner', 'manager'),
   validate(updateRestaurantSchema),
   asyncHandler(async (req, res) => {
-    const restaurant = await Restaurant.findByIdAndUpdate(req.restaurantId, req.body, { new: true });
+    const restaurant = await Restaurant.findByIdAndUpdate(req.branchId, req.body, { new: true });
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     return ok(res, restaurant);
   }),
@@ -95,7 +95,7 @@ router.patch(
   validate(onboardingStateSchema.partial()),
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findByIdAndUpdate(
-      req.restaurantId,
+      req.branchId,
       { $set: Object.fromEntries(Object.entries(req.body).map(([k, v]) => [`onboarding.${k}`, v])) },
       { new: true },
     );
@@ -110,7 +110,7 @@ router.post(
   authorize('owner'),
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findByIdAndUpdate(
-      req.restaurantId,
+      req.branchId,
       { isLive: true, 'onboarding.completed': true, 'onboarding.progress': 100 },
       { new: true },
     );

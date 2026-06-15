@@ -12,7 +12,7 @@ router.use(authenticate, resolveTenant, requireTenant);
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const tickets = await SupportTicket.find({ restaurantId: req.restaurantId })
+    const tickets = await SupportTicket.find({ restaurantId: req.branchId })
       .sort({ updatedAt: -1 })
       .lean();
     return ok(res, tickets);
@@ -28,11 +28,11 @@ router.post(
       throw ApiError.badRequest('Subject and message are required');
     }
     const [restaurant, author] = await Promise.all([
-      Restaurant.findById(req.restaurantId).select('name').lean(),
+      Restaurant.findById(req.branchId).select('name').lean(),
       User.findById(req.auth!.sub).select('name email').lean(),
     ]);
     const ticket = await SupportTicket.create({
-      restaurantId: req.restaurantId,
+      restaurantId: req.branchId,
       restaurantName: restaurant?.name,
       subject: subject.trim(),
       message: message.trim(),
@@ -53,7 +53,7 @@ router.post(
     if (!message?.trim()) throw ApiError.badRequest('Message is required');
     const author = await User.findById(req.auth!.sub).select('name').lean();
     const ticket = await SupportTicket.findOneAndUpdate(
-      { _id: req.params.id, restaurantId: req.restaurantId },
+      { _id: req.params.id, restaurantId: req.branchId },
       {
         $push: { replies: { author: 'restaurant', authorName: author?.name, message: message.trim() } },
         status: 'open',

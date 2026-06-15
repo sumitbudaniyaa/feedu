@@ -32,8 +32,8 @@ export const apiClient = new ApiClient({
   baseUrl,
   getAccessToken: () => useAuth.getState().tokens?.accessToken,
   getRefreshToken: () => useAuth.getState().tokens?.refreshToken,
-  // Active branch → sent as x-restaurant-id (backend treats it as the active branch).
-  getRestaurantId: () => getActiveBranchId(),
+  // Active branch → sent as the x-branch-id tenant header.
+  getBranchId: () => getActiveBranchId(),
   onTokensRefreshed: (tokens) => useAuth.getState().setTokens(tokens),
   onAuthError: () => useAuth.getState().clear(),
 });

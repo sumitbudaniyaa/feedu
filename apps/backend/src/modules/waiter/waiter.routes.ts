@@ -19,7 +19,7 @@ router.post(
     const io = getIO() as unknown as {
       to: (room: string) => { emit: (event: string, payload: unknown) => void };
     };
-    io.to(rooms.restaurant(String(req.restaurantId))).emit(SOCKET_EVENTS.WAITER_ATTENDING, {
+    io.to(rooms.restaurant(String(req.branchId))).emit(SOCKET_EVENTS.WAITER_ATTENDING, {
       tableName,
       at: new Date().toISOString(),
     });

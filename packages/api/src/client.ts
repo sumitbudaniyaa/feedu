@@ -10,8 +10,8 @@ export interface ApiClientOptions {
   onTokensRefreshed: (tokens: AuthTokens) => void;
   /** Called when refresh fails — app should log out. */
   onAuthError: () => void;
-  /** Super-admin tenant targeting via header. */
-  getRestaurantId?: () => string | undefined;
+  /** Active branch sent as the `x-branch-id` tenant header. */
+  getBranchId?: () => string | undefined;
 }
 
 export class ApiError extends Error {
@@ -43,8 +43,8 @@ export class ApiClient {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const token = this.opts.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
-    const restaurantId = this.opts.getRestaurantId?.();
-    if (restaurantId) headers['x-restaurant-id'] = restaurantId;
+    const branchId = this.opts.getBranchId?.();
+    if (branchId) headers['x-branch-id'] = branchId;
 
     const res = await fetch(`${this.opts.baseUrl}${path}`, {
       method,
@@ -99,8 +99,8 @@ export class ApiClient {
     const headers: Record<string, string> = {};
     const token = this.opts.getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
-    const restaurantId = this.opts.getRestaurantId?.();
-    if (restaurantId) headers['x-restaurant-id'] = restaurantId;
+    const branchId = this.opts.getBranchId?.();
+    if (branchId) headers['x-branch-id'] = branchId;
 
     const res = await fetch(`${this.opts.baseUrl}${path}`, { method: 'POST', headers, body: form });
     const json = (await res.json().catch(() => null)) as ApiResponse<T> | null;

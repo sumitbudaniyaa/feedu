@@ -24,14 +24,14 @@ interface CrudOptions<T> {
 
 /**
  * Generates tenant-scoped CRUD handlers for a Mongoose model. Branch-level
- * resources are constrained to `req.restaurantId`; brand-level resources to
+ * resources are constrained to `req.branchId`; brand-level resources to
  * `req.brandId`.
  */
 export function crud<T>(opts: CrudOptions<T>) {
   const { model, defaultSort = { createdAt: -1 }, searchFields = [], level = 'branch' } = opts;
 
   const tenantFilter = (req: Request) =>
-    level === 'brand' ? { brandId: req.brandId } : { restaurantId: req.restaurantId };
+    level === 'brand' ? { brandId: req.brandId } : { restaurantId: req.branchId };
 
   const scope = (req: Request): RootFilterQuery<T> => {
     const base = tenantFilter(req) as RootFilterQuery<T>;
@@ -74,8 +74,8 @@ export function crud<T>(opts: CrudOptions<T>) {
       // (+ restaurantId for back-compat reads during the transition).
       const tenant =
         level === 'brand'
-          ? { brandId: req.brandId, restaurantId: req.restaurantId }
-          : { restaurantId: req.restaurantId };
+          ? { brandId: req.brandId, restaurantId: req.branchId }
+          : { restaurantId: req.branchId };
       const doc = await model.create({ ...payload, ...tenant });
       return ok(res, doc, 201);
     },

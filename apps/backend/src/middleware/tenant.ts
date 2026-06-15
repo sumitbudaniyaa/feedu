@@ -8,9 +8,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      /** Active branch — back-compat alias of `branchId` (every existing query uses this). */
-      restaurantId?: string;
-      /** Active branch (multi-branch). */
+      /** Active branch (multi-branch) — the outlet this request operates on. */
       branchId?: string;
       /** Tenant (brand) the request operates within. */
       brandId?: string;
@@ -23,12 +21,10 @@ declare global {
 /**
  * Resolve the active brand + branch for the request.
  *
- * Multi-branch model: `brandId` is the tenant, `branchId` the active outlet.
- * `req.restaurantId` is kept as an alias of `branchId` so every existing
- * tenant-scoped query keeps working unchanged.
+ * Multi-branch model: `brandId` is the tenant, `branchId` the active outlet
+ * (every tenant-scoped query filters by the branch's `restaurantId` field).
  *
- * - super_admin: targets any brand/branch via `x-brand-id` / `x-branch-id`
- *   (legacy `x-restaurant-id` still honoured).
+ * - super_admin: targets any brand/branch via `x-brand-id` / `x-branch-id`.
  * - brand-wide roles: may switch branch via `x-branch-id` — to any branch in
  *   their `branchIds` snapshot, or any branch belonging to their brand (covers
  *   branches created after the token was issued, verified with a cheap lookup).
@@ -39,8 +35,7 @@ export async function resolveTenant(req: Request, _res: Response, next: NextFunc
 
   if (req.auth.role === 'super_admin') {
     req.brandId = req.header('x-brand-id') ?? undefined;
-    req.branchId = req.header('x-branch-id') ?? req.header('x-restaurant-id') ?? undefined;
-    req.restaurantId = req.branchId;
+    req.branchId = req.header('x-branch-id') ?? undefined;
     return next();
   }
 
@@ -49,7 +44,7 @@ export async function resolveTenant(req: Request, _res: Response, next: NextFunc
   req.branchIds = branchIds;
 
   // A brand-wide user may pick a branch via header; everyone else uses their own.
-  const requested = req.header('x-branch-id') ?? req.header('x-restaurant-id');
+  const requested = req.header('x-branch-id');
   if (requested && (branchIds.includes(requested) || req.auth.restaurantId === requested)) {
     req.branchId = requested;
   } else if (requested && req.brandId && BRAND_WIDE_ROLES.has(req.auth.role)) {
@@ -64,13 +59,12 @@ export async function resolveTenant(req: Request, _res: Response, next: NextFunc
   if (!req.branchId && !req.brandId) {
     return next(ApiError.forbidden('No restaurant associated with this account'));
   }
-  req.restaurantId = req.branchId; // back-compat alias
   next();
 }
 
 /** Guard for routes that must operate within a branch (tenant). */
 export function requireTenant(req: Request, _res: Response, next: NextFunction) {
-  if (!req.restaurantId) return next(ApiError.badRequest('Restaurant context required'));
+  if (!req.branchId) return next(ApiError.badRequest('Restaurant context required'));
   next();
 }
 
