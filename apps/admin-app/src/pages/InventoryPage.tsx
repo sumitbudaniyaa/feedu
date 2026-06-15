@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, Image as ImageIcon, Pencil, Plus, Tag, Trash2, Upload } from 'lucide-react';
+import { Boxes, Image as ImageIcon, Pencil, Plus, Search, Tag, Trash2, Upload } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -32,6 +32,21 @@ export function InventoryPage() {
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('all');
+  const [status, setStatus] = useState('all'); // all | available | unavailable | low
+
+  const filtered = (products ?? []).filter((p) => {
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (cat !== 'all' && p.categoryId !== cat) return false;
+    const low = p.stock != null && p.stock <= p.lowStockThreshold;
+    if (status === 'available' && !p.isAvailable) return false;
+    if (status === 'unavailable' && p.isAvailable) return false;
+    if (status === 'low' && !low) return false;
+    return true;
+  });
 
   const deleteProduct = async (p: Product) => {
     if (await confirm({ title: `Delete ${p.name}?`, description: 'This removes the product permanently.', confirmText: 'Delete', destructive: true }))
@@ -67,15 +82,39 @@ export function InventoryPage() {
         </Card>
       )}
 
+      {/* Filters */}
+      {products && products.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[12rem] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search products…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-44">
+            <option value="all">All categories</option>
+            {(categories ?? []).map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-40">
+            <option value="all">All status</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+            <option value="low">Low stock</option>
+          </Select>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
-      ) : products && products.length > 0 ? (
+      ) : filtered.length > 0 ? (
         <Card className="divide-y divide-border">
-          {products.map((p) => (
+          {filtered.map((p) => (
             <div key={p._id} className="flex items-center gap-4 p-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-sm font-medium">
                 {p.image?.url ? (
@@ -113,6 +152,8 @@ export function InventoryPage() {
             </div>
           ))}
         </Card>
+      ) : products && products.length > 0 ? (
+        <EmptyState icon={Search} title="No products match" description="Try a different search, category or status." />
       ) : (
         <EmptyState
           icon={Boxes}
