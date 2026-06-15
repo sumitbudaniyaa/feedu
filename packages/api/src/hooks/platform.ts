@@ -4,6 +4,10 @@ import type { ApiClient } from '../client.js';
 
 export interface PlatformStats {
   totalMrr: number;
+  /** Feedo's own SaaS revenue (what restaurants pay us), normalised to monthly. */
+  saasMrr: number;
+  saasArr: number;
+  payingRestaurants: number;
   restaurants: number;
   liveRestaurants: number;
   activeStaff: number;
@@ -116,6 +120,26 @@ export function createPlatformHooks(client: ApiClient) {
         mutationFn: ({ id, isLive }: { id: string; isLive: boolean }) =>
           client.patch(`/platform/restaurants/${id}`, { isLive }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    useOnboardRestaurant() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (body: Record<string, unknown>) => client.post('/platform/restaurants', body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    useDeleteRestaurant() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (id: string) => client.delete(`/platform/restaurants/${id}`),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    useUpdateAccount() {
+      return useMutation({
+        mutationFn: (body: { name?: string; email?: string; password?: string }) =>
+          client.patch('/platform/account', body),
       });
     },
   };

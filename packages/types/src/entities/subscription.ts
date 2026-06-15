@@ -12,7 +12,11 @@ export const subscriptionSchema = z.object({
   features: z.record(z.boolean()).default({}),
   seats: z.number().int().min(1).default(5),
   mrr: z.number().min(0).default(0),
+  /** What the restaurant pays Feedo per billing cycle, and how often. */
+  price: z.number().min(0).default(0),
+  billingCycle: z.enum(['monthly', 'quarterly', 'yearly']).default('monthly'),
   trialEndsAt: z.coerce.date().optional(),
+  /** Subscription expiry / next renewal date. */
   currentPeriodEnd: z.coerce.date().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

@@ -1,11 +1,30 @@
 import { Router } from 'express';
-import { Customer, Order, Product, Restaurant, Subscription, User } from '../../models/index.js';
+import { slugify } from '@feedo/utils';
+import {
+  Category,
+  Customer,
+  LoyaltyProgram,
+  LoyaltyReward,
+  Order,
+  Product,
+  Restaurant,
+  Section,
+  Subscription,
+  Table,
+  User,
+} from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
 const PAID = ['confirmed', 'preparing', 'ready', 'served', 'completed'];
+
+const CYCLE_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
+/** Normalise a per-cycle price to monthly recurring revenue. */
+function toMrr(price = 0, cycle = 'monthly'): number {
+  return Math.round(price / (CYCLE_MONTHS[cycle] ?? 1));
+}
 
 const router = Router();
 // Platform endpoints are NOT tenant-scoped — super admin only.
@@ -27,9 +46,15 @@ router.get(
         ]),
         Order.countDocuments(),
       ]);
-    const totalMrr = subs.reduce((s, x) => s + (x.mrr ?? 0), 0);
+    // Feedo's own SaaS revenue (what restaurants pay us), normalised to monthly.
+    const saasMrr = subs.reduce((s, x) => s + toMrr(x.price, x.billingCycle), 0);
+    const payingRestaurants = subs.filter((s) => (s.price ?? 0) > 0 && s.status === 'active').length;
+    const totalMrr = saasMrr || subs.reduce((s, x) => s + (x.mrr ?? 0), 0);
     return ok(res, {
       totalMrr,
+      saasMrr,
+      saasArr: saasMrr * 12,
+      payingRestaurants,
       restaurants: restaurantCount,
       liveRestaurants: liveCount,
       activeStaff: staffCount,
@@ -217,18 +242,130 @@ router.get(
   }),
 );
 
-// Update a restaurant's subscription (plan / status / feature flags / mrr).
+// Update a restaurant's subscription (plan / status / price / billing cycle / expiry).
 router.patch(
   '/restaurants/:id/subscription',
   validateObjectId(),
   asyncHandler(async (req, res) => {
-    const { plan, status, features, mrr, seats } = req.body as Record<string, unknown>;
-    const sub = await Subscription.findOneAndUpdate(
-      { restaurantId: req.params.id },
-      { plan, status, features, mrr, seats },
-      { new: true, upsert: true },
-    );
+    const { plan, status, features, seats, price, billingCycle, currentPeriodEnd } =
+      req.body as Record<string, unknown>;
+    const update: Record<string, unknown> = { plan, status, features, seats };
+    if (price !== undefined) {
+      update.price = Number(price);
+      update.mrr = toMrr(Number(price), (billingCycle as string) ?? 'monthly');
+    }
+    if (billingCycle !== undefined) update.billingCycle = billingCycle;
+    if (currentPeriodEnd !== undefined) update.currentPeriodEnd = currentPeriodEnd;
+    // Drop undefined keys so we never overwrite with nulls.
+    Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
+    const sub = await Subscription.findOneAndUpdate({ restaurantId: req.params.id }, update, {
+      new: true,
+      upsert: true,
+    });
     return ok(res, sub);
+  }),
+);
+
+// Onboard a new restaurant: owner user + restaurant + subscription (all-or-nothing-ish).
+router.post(
+  '/restaurants',
+  asyncHandler(async (req, res) => {
+    const {
+      restaurantName,
+      ownerName,
+      email,
+      password,
+      price = 0,
+      billingCycle = 'monthly',
+      plan = 'starter',
+      durationDays,
+    } = req.body as Record<string, string | number>;
+
+    if (!restaurantName || !ownerName || !email || !password) {
+      throw ApiError.badRequest('restaurantName, ownerName, email and password are required');
+    }
+    // Enforce uniqueness — no duplicate restaurant identity or owner login.
+    const slug = slugify(String(restaurantName));
+    if (await Restaurant.exists({ slug })) {
+      throw ApiError.conflict('A restaurant with this name already exists');
+    }
+    if (await User.exists({ email: String(email).toLowerCase(), restaurantId: null })) {
+      throw ApiError.conflict('An owner account with this email already exists');
+    }
+
+    const owner = await User.create({
+      name: ownerName,
+      email: String(email).toLowerCase(),
+      passwordHash: await User.hashPassword(String(password)),
+      role: 'owner',
+    });
+    const restaurant = await Restaurant.create({
+      ownerId: owner._id,
+      name: restaurantName,
+      slug,
+      isLive: true,
+      onboarding: { completed: true, currentStep: 0, progress: 100, completedSteps: [] },
+    });
+    owner.restaurantId = restaurant._id;
+    await owner.save();
+
+    const days = Number(durationDays) || (CYCLE_MONTHS[String(billingCycle)] ?? 1) * 30;
+    const sub = await Subscription.create({
+      restaurantId: restaurant._id,
+      plan,
+      status: 'active',
+      price: Number(price),
+      billingCycle,
+      mrr: toMrr(Number(price), String(billingCycle)),
+      currentPeriodEnd: new Date(Date.now() + days * 86400000),
+    });
+
+    return ok(res, { restaurant, owner: { _id: owner._id, email: owner.email }, subscription: sub }, 201);
+  }),
+);
+
+// Permanently delete a restaurant and all of its data.
+router.delete(
+  '/restaurants/:id',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    const restaurant = await Restaurant.findById(id);
+    if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    await Promise.all([
+      Restaurant.deleteOne({ _id: id }),
+      Subscription.deleteMany({ restaurantId: id }),
+      User.deleteMany({ restaurantId: id }),
+      Category.deleteMany({ restaurantId: id }),
+      Product.deleteMany({ restaurantId: id }),
+      Table.deleteMany({ restaurantId: id }),
+      Order.deleteMany({ restaurantId: id }),
+      Customer.deleteMany({ restaurantId: id }),
+      Section.deleteMany({ restaurantId: id }),
+      LoyaltyProgram.deleteMany({ restaurantId: id }),
+      LoyaltyReward.deleteMany({ restaurantId: id }),
+    ]);
+    return ok(res, { deleted: true });
+  }),
+);
+
+// Super admin updates their own login credentials (name / email / password).
+router.patch(
+  '/account',
+  asyncHandler(async (req, res) => {
+    const { name, email, password } = req.body as Record<string, string>;
+    const me = await User.findById(req.auth!.sub).select('+passwordHash');
+    if (!me) throw ApiError.notFound('Account not found');
+    if (email && email.toLowerCase() !== me.email) {
+      if (await User.exists({ email: email.toLowerCase() })) {
+        throw ApiError.conflict('That email is already in use');
+      }
+      me.email = email.toLowerCase();
+    }
+    if (name) me.name = name;
+    if (password) me.passwordHash = await User.hashPassword(password);
+    await me.save();
+    return ok(res, { _id: me._id, name: me.name, email: me.email, role: me.role });
   }),
 );
 

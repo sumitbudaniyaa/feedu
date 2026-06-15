@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { onboardingStateSchema, updateRestaurantSchema } from '@feedo/types';
-import { Restaurant } from '../../models/index.js';
+import { Restaurant, Subscription } from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
@@ -17,6 +17,15 @@ router.get(
     const restaurant = await Restaurant.findById(req.restaurantId).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     return ok(res, restaurant);
+  }),
+);
+
+// Current restaurant's subscription (read-only for the owner — billing is managed by Feedo).
+router.get(
+  '/me/subscription',
+  asyncHandler(async (req, res) => {
+    const sub = await Subscription.findOne({ restaurantId: req.restaurantId }).lean();
+    return ok(res, sub);
   }),
 );
 

@@ -22,7 +22,15 @@ const subscriptionSchema = new Schema(
     features: { type: Map, of: Boolean, default: {} },
     seats: { type: Number, default: 5 },
     mrr: { type: Number, default: 0 },
+    /** What the restaurant pays Feedo per billing cycle. */
+    price: { type: Number, default: 0 },
+    billingCycle: {
+      type: String,
+      enum: ['monthly', 'quarterly', 'yearly'],
+      default: 'monthly',
+    },
     trialEndsAt: Date,
+    /** Subscription expiry / next renewal date. */
     currentPeriodEnd: Date,
   },
   { timestamps: true },
