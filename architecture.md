@@ -121,7 +121,7 @@ index.ts      Bootstrap: DB connect → http server → sockets → listen
 service (business logic + models) → ok() envelope`. Errors bubble to `errorHandler`.
 
 ### API surface (modules)
-- `/auth` — register / login / refresh / me
+- `/auth` — register / login / refresh / me / change-password (verifies current; any signed-in account)
 - `/restaurants` — profile, settings, onboarding state, go-live (tenant)
 - `/categories`, `/products`, `/sections`, `/loyalty`, `/rewards`, `/tables`, `/staff`,
   `/customers` — tenant-scoped CRUD/lists (most via a shared `crud()` factory that auto-scopes

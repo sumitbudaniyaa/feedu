@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Rocket } from 'lucide-react';
+import { Check, KeyRound, Rocket } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -7,6 +7,11 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Label,
   Skeleton,
@@ -18,7 +23,13 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AccentKey } from '@feedo/types';
 import { formatCurrency, formatDate } from '@feedo/utils';
-import { apiClient, useRestaurant, useSubscription, useUpdateRestaurant } from '../lib/api.js';
+import {
+  apiClient,
+  useChangePassword,
+  useRestaurant,
+  useSubscription,
+  useUpdateRestaurant,
+} from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 const ACCENTS: { key: AccentKey; hex: string }[] = [
@@ -50,6 +61,7 @@ export function SettingsPage() {
   const [gstPercent, setGstPercent] = useState('5');
   const [inclusive, setInclusive] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
 
   useEffect(() => {
     if (!restaurant) return;
@@ -238,6 +250,24 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Security */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Security</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Owner password</p>
+            <p className="text-xs text-muted-foreground">Change the password you use to sign in.</p>
+          </div>
+          <Button variant="outline" onClick={() => setPwOpen(true)}>
+            <KeyRound className="h-4 w-4" /> Change password
+          </Button>
+        </CardContent>
+      </Card>
+
+      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
+
       <div className="flex items-center justify-end gap-3">
         {update.isError && (
           <p className="text-sm text-destructive">
@@ -270,5 +300,90 @@ function SubRow({ label, children }: { label: string; children: React.ReactNode 
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <div className="flex items-center gap-2">{children}</div>
     </div>
+  );
+}
+
+function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const change = useChangePassword();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [done, setDone] = useState(false);
+
+  const reset = () => {
+    setCurrent('');
+    setNext('');
+    setConfirm('');
+    setDone(false);
+    change.reset();
+  };
+
+  const mismatch = Boolean(confirm) && next !== confirm;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mismatch || next.length < 8) return;
+    change.mutate(
+      { currentPassword: current, newPassword: next },
+      {
+        onSuccess: () => {
+          setDone(true);
+          setTimeout(() => {
+            onOpenChange(false);
+            reset();
+          }, 1200);
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) reset();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change owner password</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="space-y-1.5">
+            <Label>Current password</Label>
+            <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>New password</Label>
+            <Input type="password" minLength={8} value={next} onChange={(e) => setNext(e.target.value)} placeholder="Min 8 characters" required />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirm new password</Label>
+            <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+            {mismatch && <p className="text-xs text-destructive">Passwords don&apos;t match.</p>}
+          </div>
+          {change.isError && (
+            <p className="text-sm text-destructive">
+              {change.error instanceof Error ? change.error.message : 'Could not change password'}
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant={done ? 'success' : 'default'} disabled={change.isPending || mismatch || !next}>
+              {change.isPending ? 'Saving…' : done ? (
+                <>
+                  <Check className="h-4 w-4" /> Changed
+                </>
+              ) : (
+                'Update password'
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

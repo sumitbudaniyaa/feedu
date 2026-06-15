@@ -21,3 +21,9 @@ export async function me(req: Request, res: Response) {
   const user = await authService.me(req.auth!.sub);
   return ok(res, user);
 }
+
+export async function changePassword(req: Request, res: Response) {
+  const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+  const result = await authService.changePassword(req.auth!.sub, currentPassword, newPassword);
+  return ok(res, result);
+}

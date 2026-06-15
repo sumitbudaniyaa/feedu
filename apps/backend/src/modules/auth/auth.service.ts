@@ -118,3 +118,22 @@ export async function me(userId: string) {
   if (!user) throw ApiError.notFound('User not found');
   return user.toJSON();
 }
+
+/** Change the signed-in account's password (verifies the current one first). */
+export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  if (!newPassword || newPassword.length < 8) {
+    throw ApiError.badRequest('New password must be at least 8 characters');
+  }
+  // Works for both Feedu employees and restaurant users.
+  const account =
+    (await Employee.findById(userId).select('+passwordHash')) ??
+    (await User.findById(userId).select('+passwordHash'));
+  if (!account) throw ApiError.notFound('Account not found');
+  if (!(await account.comparePassword(currentPassword))) {
+    throw ApiError.badRequest('Current password is incorrect');
+  }
+  // Both models hash identically (bcrypt cost 12).
+  account.passwordHash = await User.hashPassword(newPassword);
+  await account.save();
+  return { changed: true };
+}

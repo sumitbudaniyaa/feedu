@@ -69,6 +69,14 @@ export const tables = createResource<Table>(apiClient, 'tables', '/tables');
 export const staff = createResource<User>(apiClient, 'staff', '/staff');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers');
 
+/** Change the signed-in account's password (verifies the current one). */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: { currentPassword: string; newPassword: string }) =>
+      apiClient.post('/auth/change-password', body),
+  });
+}
+
 /** Tell the diner a waiter is on the way (after accepting their table call). */
 export function useAttendCall() {
   return useMutation({

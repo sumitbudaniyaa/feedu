@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { loginSchema, refreshSchema, registerSchema } from '@feedo/types';
 import { authenticate } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
@@ -11,5 +12,11 @@ router.post('/register', validate(registerSchema), asyncHandler(controller.regis
 router.post('/login', validate(loginSchema), asyncHandler(controller.login));
 router.post('/refresh', validate(refreshSchema), asyncHandler(controller.refresh));
 router.get('/me', authenticate, asyncHandler(controller.me));
+router.post(
+  '/change-password',
+  authenticate,
+  validate(z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8) })),
+  asyncHandler(controller.changePassword),
+);
 
 export default router;
