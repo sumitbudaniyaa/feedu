@@ -25,4 +25,7 @@ export const {
   useAllCustomers,
   useUpdateSubscription,
   useToggleLive,
+  useOnboardRestaurant,
+  useDeleteRestaurant,
+  useUpdateAccount,
 } = platform;

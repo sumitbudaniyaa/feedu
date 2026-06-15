@@ -15,22 +15,47 @@ export function OverviewPage() {
         <p className="mt-1 text-sm text-muted-foreground">Everything happening across Feedo.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {isLoading || !stats ? (
-          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
-        ) : (
-          <>
-            <Stat label="Gross merchandise value" value={formatCurrency(stats.gmv)} icon={IndianRupee} />
-            <Stat label="Monthly recurring rev" value={formatCurrency(stats.totalMrr)} icon={TrendingUp} />
-            <Stat
-              label="Restaurants"
-              value={`${stats.liveRestaurants}/${stats.restaurants} live`}
-              icon={Building2}
-            />
-            <Stat label="Total orders" value={formatNumber(stats.orders)} icon={ReceiptText} />
-          </>
-        )}
-      </div>
+      {/* Feedo's own SaaS business — revenue we earn from subscribing restaurants. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Feedo SaaS revenue
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {isLoading || !stats ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+          ) : (
+            <>
+              <Stat label="Subscription MRR" value={formatCurrency(stats.saasMrr)} icon={IndianRupee} />
+              <Stat label="Subscription ARR" value={formatCurrency(stats.saasArr)} icon={TrendingUp} />
+              <Stat label="Paying restaurants" value={formatNumber(stats.payingRestaurants)} icon={Building2} />
+              <Stat
+                label="Customers (restaurants)"
+                value={`${stats.liveRestaurants}/${stats.restaurants} live`}
+                icon={UtensilsCrossed}
+              />
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Marketplace activity across all tenants (their diners' spend). */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Marketplace activity
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {isLoading || !stats ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+          ) : (
+            <>
+              <Stat label="Gross merchandise value" value={formatCurrency(stats.gmv)} icon={IndianRupee} />
+              <Stat label="Total orders" value={formatNumber(stats.orders)} icon={ReceiptText} />
+              <Stat label="Diners" value={formatNumber(stats.customers)} icon={Users} />
+              <Stat label="Active staff" value={formatNumber(stats.activeStaff)} icon={UtensilsCrossed} />
+            </>
+          )}
+        </div>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -96,14 +121,13 @@ export function OverviewPage() {
       </div>
 
       {stats && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MiniStat label="Customers" value={formatNumber(stats.customers)} icon={Users} />
-          <MiniStat label="Active staff" value={formatNumber(stats.activeStaff)} icon={UtensilsCrossed} />
+        <div className="grid gap-4 sm:grid-cols-2">
           <MiniStat
             label="Subscriptions"
             value={`${stats.activeSubscriptions} active · ${stats.trialing} trial`}
             icon={TrendingUp}
           />
+          <MiniStat label="Monthly recurring revenue" value={formatCurrency(stats.totalMrr)} icon={IndianRupee} />
         </div>
       )}
 
