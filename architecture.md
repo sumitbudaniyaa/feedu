@@ -126,18 +126,26 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 - `/categories`, `/products`, `/sections`, `/loyalty`, `/rewards`, `/tables`, `/staff`,
   `/customers` — tenant-scoped CRUD/lists (most via a shared `crud()` factory that auto-scopes
   every query to `req.restaurantId`). `/rewards` also exposes `/redemptions` (list + fulfil/cancel).
+  `/customers/:id` returns per-diner analytics (spend, AOV, most-ordered, reward claims, visits).
+  `/staff` create accepts a mobile number.
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
   "served" auto-completes; unpaid online orders excluded from staff lists)
+- `/support` — tenant: restaurants raise tickets + reply (chat); super-admin manages via `/platform/support`
+- `/waiter/attend` — tenant: a staff member accepted a table call → emits `waiter:attending`
 - `/analytics/dashboard` — range-scoped (day/week/month) revenue + orders (with change % vs the
   previous equivalent window), AOV, repeat %, revenue series, top products, peak hours, channel mix,
   and table-efficiency metrics: **revenue/table, table turnover, avg serve time** (placed→completed),
   plus `tableCount` and order-type split (all from real aggregations; cast `restaurantId` to ObjectId)
 - `/uploads` — authenticated image upload (multer → local `/uploads` static, CORP cross-origin)
-- `/platform/*` — super-admin, cross-tenant: `stats`, `analytics`, `users`, `orders`,
-  `customers`, `restaurants`, `restaurants/:id` (detail), subscription + suspend/reactivate
-- `/public/*` — customer, no staff auth: `/r/:slug` (menu), `/qr/:qrToken`, `checkout`,
-  `orders/:id/pay`, `orders/:id` (track), `auth/otp/request`, `auth/otp/verify`,
-  `r/:slug/account` + `r/:slug/redeem` (OTP-token gated)
+- `/platform/*` — super-admin, cross-tenant: `stats` (incl. Feedu SaaS MRR/ARR), `analytics`,
+  `users` (Feedu employees + restaurant users), `users` POST (create employee), `orders`,
+  `customers` (+ `?restaurantId=`/`?search=`), `customers/:id` (per-diner analytics), `support`
+  (list/update/reply), `account` (own credentials), `restaurants` (+ `restaurants` POST onboard,
+  `restaurants/:id` detail, `:id/subscription` price/cycle/auto-expiry, `:id` suspend, `:id` DELETE)
+- `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
+  `checkout` (optional manual `tableName`), `orders/:id/pay`, `orders/:id` (track),
+  `auth/otp/request`, `auth/otp/verify`, `r/:slug/account` + `r/:slug/redeem` (OTP-token gated),
+  `r/:slug/call-waiter` (rings staff)
 
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
 never trusted from the client.
@@ -245,9 +253,12 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
   refresh (7d) carries `{ sub }`.
 - **Register** (owner self-signup): creates `User(role=owner)` + `Restaurant` shell +
   trial `Subscription`, starts onboarding, returns session.
-- **Login**: verifies bcrypt hash, issues tokens.
-- **Refresh**: client `ApiClient` auto-calls `/auth/refresh` once on a 401, retries the
-  original request, or logs out on failure.
+- **Login**: verifies bcrypt hash, issues tokens. Checks the **`Employee`** collection first
+  (Feedu staff / super admins), then `User` (restaurant accounts).
+- **Refresh** / **me**: same dual lookup (Employee → User).
+- **Onboarding** (super-admin): `/platform/restaurants` POST creates owner `User` + `Restaurant`
+  + active `Subscription` (rejects duplicate slug/email). Feedu employees are created via
+  `/platform/users` POST in the `Employee` collection.
 - Passwords stored as bcrypt hashes (`passwordHash`, `select:false`, stripped from JSON).
 
 ### Roles (RBAC)
@@ -268,12 +279,19 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
 
 ## 8. Database Overview
 
-Collections: **User, Restaurant, Category, Product, Table, Order, LoyaltyProgram,
+Collections: **User, Employee, Restaurant, Category, Product, Table, Order, LoyaltyProgram,
 CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment, Notification,
-Subscription, Otp**.
+Subscription, SupportTicket, Otp**.
+
+- **`Employee`** is the **Feedu company staff** collection (super admins) — deliberately
+  separate from `User` and never tied to a restaurant. Auth (`login`/`refresh`/`me`) checks
+  `Employee` first, then `User`. `/platform/users` create + the portal Employees page use it.
+- **`Subscription`** carries `price` + `billingCycle` (monthly/quarterly/yearly) + `currentPeriodEnd`
+  (auto-derived expiry); MRR is normalised from price/cycle.
+- **`SupportTicket`** — `{ restaurantId, subject, message, category, priority, status, replies[] }`.
 
 Key indexes:
-- `User`: `{ email, restaurantId }` unique; `role`, `restaurantId`.
+- `User`: `{ email, restaurantId }` unique; `role`, `restaurantId`. `Employee`: `email` unique.
 - `Order`: `{ restaurantId, status, placedAt }`, `{ restaurantId, createdAt }`,
   `{ restaurantId, orderNumber }` unique. Carries snapshots (`tableName`, item `isVeg` /
   `prepTimeMinutes`), `customerName/Phone`, and reward fields (`isReward`,
@@ -293,7 +311,9 @@ Schemas mirror the Zod definitions in `@feedo/types`.
 - Initialized on the same HTTP server (`sockets/index.ts`), CORS-scoped to app origins.
 - **Rooms**: `restaurant:<id>`, `kitchen:<id>`, `order:<id>` (helpers in `@feedo/types`).
 - Clients emit `join:restaurant` / `join:order`; server emits `order:created`,
-  `order:updated`, `order:status_changed`, `notification:new`, `dashboard:refresh`.
+  `order:updated`, `order:status_changed`, `notification:new`, `dashboard:refresh`,
+  `waiter:called` (diner rang a table) and `waiter:attending` (a staff member accepted —
+  customer app shows an "on the way" pill, and all staff devices clear that table's call).
 - Event names + payload maps live in `@feedo/types` (`SOCKET_EVENTS`, `rooms`,
   `ServerToClientEvents`, `ClientToServerEvents`) so server and clients stay in sync.
 - Redis adapter is the planned horizontal-scaling path (architecture is Redis-ready).

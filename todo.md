@@ -1,10 +1,10 @@
-# Feedo — Development Tracker
+# Feedu — Development Tracker
 
 > Update immediately after every task. Keep tasks granular. Track blockers.
 
 **Current Phase:** Phases 1–5 complete — every app runs on real API data (no mock/placeholder UI),
 with customer OTP login, live Razorpay payments, an in-app loyalty-reward order flow, and a full
-super-admin console. Hardening + polish ongoing.
+super-admin (Feedu company) portal. Rebranded to **feedu**. Hardening + polish ongoing.
 
 ---
 
@@ -73,7 +73,35 @@ super-admin console. Hardening + polish ongoing.
 
 ## Recently added
 
-### Latest session — roles, SaaS ops, support, call-waiter, rebrand to "feedu"
+### Latest session — employees collection, customer analytics, call-waiter UX, inventory filters
+**Company portal (Feedu owner)**
+- [x] **Feedu employees in a separate `employees` Mongo collection** (not `users`); auth
+      login/refresh/me check employees first; existing super-admin migrated (id preserved)
+- [x] **Employees** nav/page shows only the Feedu team (+ add member); restaurant users removed
+      from the portal (managed inside each restaurant)
+- [x] **Customers grouped by restaurant cards** → drill into a restaurant's diners (searchable)
+- [x] Per-diner **analytics** dialog (spend, AOV, most-ordered, reward claims, first/last visit,
+      peak hour, recent orders) — redesigned with profile header, stat tiles, sectioned cards
+- [x] Support tickets open into a **chat/conversation view** on click (portal + admin)
+
+**Admin (restaurant)**
+- [x] Per-customer **analytics** on click (same shared insight dialog)
+- [x] **Inventory filter bar** (search + category + status) — also in the waiter app
+- [x] Staff creation captures a **mobile number**; removed the prefilled login email/password
+
+**Waiter**
+- [x] Dedicated **mobile waiter app** (Orders + Inventory tabs, floating pill nav)
+- [x] **Call-waiter** end-to-end: diner rings from the table → staff get a ringing notification
+      (admin = top non-blocking toast with **Attend** button; waiter = bottom **slide-to-attend**
+      drawer), accepting **clears it on every device** and shows the diner a green
+      **"waiter is on the way"** pill for 5s (WAITER_CALLED / WAITER_ATTENDING sockets)
+
+**Customer**
+- [x] Order page banner is **status-driven**: in-progress orders (even from history) show the live
+      tracking hero; finished orders show a plain summary. Order History links open via `?view=details`
+- [x] Reward **claim history** on the Rewards page (in-app ₹0 reward orders + legacy claims)
+
+### Prior session — roles, SaaS ops, support, call-waiter, rebrand to "feedu"
 **Customer**
 - [x] Landing screen uses the brand wordmark; entry field **slugifies** input so the
       restaurant name resolves (fixes most "Restaurant not found"); backend menu lookup
