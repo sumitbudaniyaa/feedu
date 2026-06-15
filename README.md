@@ -6,22 +6,28 @@ console. Built as a Turborepo monorepo.
 
 ## Stack
 
-React · Vite · TypeScript · Tailwind · shadcn-style UI · Framer Motion · Zustand ·
+React · Vite · TypeScript · Tailwind · **Poppins** · shadcn-style UI · Framer Motion · Zustand ·
 TanStack Query · Recharts · Node · Express · MongoDB · Mongoose · Socket.IO · Zod ·
 Razorpay · JWT.
 
 ## What it does
 
-- **Admin** — dashboard analytics (revenue/orders/AOV/peak hours), live orders, inventory
-  (with image upload, stock, prep time, per-item loyalty points), Menu CMS (carousel/hero/grid
-  sections), loyalty rewards catalog + claims, tables & downloadable QR codes, staff, customers,
-  settings (branding/tax/go-live), and downloadable invoices.
-- **Customer (mobile)** — QR/slug ordering, variants/add-ons, cart, **mobile-OTP login**,
-  **Razorpay checkout**, a loyalty wallet with **in-app free-reward orders** (₹0 line, points
-  spent), animated "preparing" tracking with ETA, and a downloadable vintage-ticket invoice.
-- **Kitchen** — real-time KDS, veg/non-veg markers, status-colored cards, one-tap status flow.
-- **Super-admin** — cross-tenant console: platform GMV/MRR, restaurants (+ detail), all orders,
-  customers, users, subscription management, suspend/reactivate.
+- **Admin** — range-aware dashboard (revenue/orders/AOV scoped to Day/Week/Month), live orders
+  with **Active / Pending-payment / All** tabs (count badges, mark-as-paid with method), inventory
+  (image upload, stock, prep time, per-item loyalty points, **configurable sizes/variants**),
+  Menu CMS (carousel/hero/grid sections), loyalty rewards catalog + **points-expiry** option,
+  Analytics (revenue/table, table turnover, avg serve time, peak hours, top products), tables &
+  downloadable QR codes, staff, customers, settings (branding/tax/go-live, with save confirmation),
+  and downloadable invoices. Compact/minimal, full-width, borderless-input UI.
+- **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
+  `feedo` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
+  **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, cart, **mobile-OTP login
+  (also enforced at guest checkout)**, **Razorpay checkout**, separate **Rewards** (wallet + in-app
+  free-reward orders) and **Account** (details, order history, log out) pages, and animated
+  order tracking with a downloadable ticket invoice. Dine-in only.
+- **Kitchen** — real-time KDS (`feedo` Kitchen), veg/non-veg markers, status-colored cards, one-tap flow.
+- **Super-admin** — cross-tenant console (`feedo` Platform): GMV/MRR, restaurants (+ detail), all
+  orders, customers, users, subscription management, suspend/reactivate. Same minimal admin styling.
 - **Realtime** — Socket.IO pushes new/updated orders to kitchen + admin instantly.
 - **Multi-tenant + secure** — every resource scoped by `restaurantId`; rate limiting, NoSQL-injection
   sanitization, HPP, helmet/CSP, RBAC, bcrypt, JWT.

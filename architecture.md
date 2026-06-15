@@ -57,7 +57,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 | App | Audience | Purpose | Default accent |
 |-----|----------|---------|----------------|
 | `admin-app` | Restaurant owner / manager | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings, onboarding | violet |
-| `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login, loyalty wallet + in-app reward orders, live order tracking (light-mode only) | per-restaurant |
+| `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login (incl. at guest checkout), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers (dark-optimized KDS) | emerald |
 | `super-admin-app` | Feedo internal | Restaurant management, subscriptions, platform analytics, feature toggles | blue |
 
@@ -128,7 +128,10 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   every query to `req.restaurantId`). `/rewards` also exposes `/redemptions` (list + fulfil/cancel).
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
   "served" auto-completes; unpaid online orders excluded from staff lists)
-- `/analytics/dashboard` — revenue series, top products, peak hours, AOV, repeat % (aggregations)
+- `/analytics/dashboard` — range-scoped (day/week/month) revenue + orders (with change % vs the
+  previous equivalent window), AOV, repeat %, revenue series, top products, peak hours, channel mix,
+  and table-efficiency metrics: **revenue/table, table turnover, avg serve time** (placed→completed),
+  plus `tableCount` and order-type split (all from real aggregations; cast `restaurantId` to ObjectId)
 - `/uploads` — authenticated image upload (multer → local `/uploads` static, CORP cross-origin)
 - `/platform/*` — super-admin, cross-tenant: `stats`, `analytics`, `users`, `orders`,
   `customers`, `restaurants`, `restaurants/:id` (detail), subscription + suspend/reactivate
@@ -161,7 +164,9 @@ Two layers: **earning** and **claiming/ordering**.
 **Earning** — products may define `loyaltyPoints` (per unit), summed into
 `order.loyaltyPointsEarned` at creation and credited to the guest's `Customer` record
 (keyed `restaurantId + phone`) when the order is paid. A points `LoyaltyProgram` (pts per ₹)
-is the fallback when items don't define their own points.
+is the fallback when items don't define their own points. A program can also set an optional
+**points expiry** (`expiryDays`) — configured in the admin loyalty form via a "can expire"
+toggle + days input.
 
 **Rewards are ordered in-app, never a counter code.** Admins manage a `LoyaltyReward`
 catalog where each reward **must link a menu item** (enforced in the admin form + the
@@ -188,8 +193,9 @@ the method actually used (`cash | upi | card | zomato | swiggy | district`); thi
 order paid, stamps the method, and writes a `Payment`. Online and ₹0/reward-only orders are
 finalized as paid at checkout. `finalizeOrder()` centralizes confirm + loyalty accrual +
 reward-spend; `markPaid` (online) and the cash path both call it. The admin Orders page has
-two tabs (Active / All); each row shows a Paid/Unpaid badge and opens a details dialog with
-customer info + the mark-paid control.
+three tabs (**Active / Pending payment / All**, with live count badges); each row shows a
+Paid/Unpaid badge and opens a details dialog with customer info + the mark-paid control.
+Orders are **dine-in only** — the customer app always sends `dine_in` and the backend defaults to it.
 
 Every order records a **`channel`** (`app | counter | zomato | swiggy | district`): the
 customer app sets `app`, staff orders `counter`, and the aggregator webhook sets the
@@ -298,12 +304,19 @@ Schemas mirror the Zod definitions in `@feedo/types`.
 
 - CSS variables (HSL) defined in `@feedo/ui/styles/globals.css`; Tailwind preset maps
   utilities to them. **Dark is primary** (#090909 / #111111 / #1A1A1A / #F5F5F5 / #9CA3AF).
+- **Font: Poppins** across all apps (loaded from Google Fonts in each `index.html`; set as
+  `fontFamily.sans` in the shared Tailwind preset). The brand mark is the lowercase italic
+  `feedo` wordmark used in every app header (admin, super-admin, kitchen `feedo` Kitchen,
+  customer hero) — text-only, no image asset.
 - `ThemeProvider` resolves `dark | light | system`, persists to localStorage, and sets
   `.dark` + `[data-accent]` on `<html>`. Six muted accents map to `[data-accent='…']`.
 - Per-restaurant branding (accent + theme mode) is stored on `Restaurant.branding`. The
-  customer app is **light-mode only** and applies the restaurant's accent as a gradient
-  header (overridden page background to a soft off-white so white cards lift); buttons there
-  are green (`success`) while the accent stays decorative.
+  **customer app is dark-only** (near-black `#0D0D0D`/`#171717`, Zomato-style) and applies the
+  restaurant's accent as the animated gradient hero (floating glows, staggered entrance);
+  buttons are green (`success`) while the accent stays decorative.
+- **Admin + super-admin** run a compact/minimal density: a 14px root font (rem-scales everything
+  down), tight `px-4 py-4` full-width content, and **filled, borderless, no-focus-ring** form
+  controls (overridden in each app's `index.css`).
 
 ---
 

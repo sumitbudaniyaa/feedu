@@ -37,7 +37,7 @@ super-admin console. Hardening + polish ongoing.
 - [x] Restaurants module (profile, settings, onboarding, go-live) API
 - [x] Categories + Products CRUD API (tenant-scoped, zod-validated, search)
 - [x] QR resolve endpoint (qrToken → restaurant + table + menu)
-- [x] Customer: live menu, light-mode only, 2-column grid, on-card quantity steppers
+- [x] Customer: live menu, 2-column grid, on-card quantity steppers (later redesigned dark, see below)
 - [x] Customer: product sheet for variants/add-ons; persisted cart store
 - [x] Customer: dedicated /cart page — name + mobile capture, Razorpay payment
 - [x] Razorpay integration (create order, HMAC signature verify; demo mode when keys unset)
@@ -72,6 +72,38 @@ super-admin console. Hardening + polish ongoing.
 ---
 
 ## Recently added
+
+### Latest session — dark customer redesign, branding, admin minimalism
+- [x] **Customer app → dark, Zomato-style** (whole app dark-only; near-black palette, theme-color meta)
+- [x] Animated gradient hero: `feedo` wordmark, floating glow blobs, staggered entrance,
+      frosted-glass search with a **rotating placeholder** (cycles real dish names)
+- [x] **VEG mode** toggle moved into the header (stacked VEG/MODE label + switch)
+- [x] Every product opens a full **detail bottom-sheet** (image, description, prep/points,
+      sizes, add-ons, qty + add) — taps anywhere on the card
+- [x] Curated admin sections highlighted (accent sparkle header) and still shown in VEG mode
+      (filtered to veg-eligible items; empty sections drop out)
+- [x] **Rewards** and **Account** split into separate pages (header buttons + cross-links);
+      Account = details + order history + red **Log out**; Rewards = wallet + claim + claims
+- [x] **OTP enforced at guest checkout** (name + phone → 6-digit verify before placing the order)
+- [x] Order-confirm/track page uses a back button (not Home/Menu)
+- [x] Receipt cleaned up: removed the perforation circles → rounded card (blended badly on dark)
+- [x] **Font → Poppins** across all apps; `feedo` italic wordmark logo in admin / super-admin
+      (`Platform`) / kitchen (`Kitchen`) / customer
+- [x] **Admin dashboard stats follow the selected range** (Day/Week/Month) with change %
+- [x] **Analytics page** gains revenue/table, table turnover, avg serve time (channel + service-type
+      cards dropped — single dine-in service type); dashboard reverted to its 4 core cards
+- [x] **Orders: Pending-payment tab** + live count badges on Active/Pending (count mirrors the
+      server's active filter exactly — fixed a phantom "served" count)
+- [x] Mark-as-paid closes the dialog so the list reflects payment immediately
+- [x] **Inventory: configurable sizes/variants** editor (label + price rows) → drives the customer
+      "Choose size" options (previously empty/hardcoded)
+- [x] **Loyalty points expiry** option (can-expire toggle + days) in the admin program form
+- [x] Settings save shows a green **"Saved ✓"** confirmation (+ inline error on failure)
+- [x] **Orders are dine-in only** (customer always sends `dine_in`; backend defaults to it)
+- [x] **Admin + super-admin minimal density**: 14px root font, tight full-width content,
+      filled borderless no-focus-ring inputs/selects
+
+### Earlier
 - [x] Customer mobile OTP login (request/verify, 6-digit, bcrypt-hashed, TTL, rate-limited);
       account + reward redemption now require the verified customer token (no more spoofing
       by typing someone's phone). Dev returns the code in the response + server log.
