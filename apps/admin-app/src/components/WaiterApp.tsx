@@ -85,10 +85,12 @@ export function WaiterApp() {
 
       <main className="flex-1 px-3 pb-20 pt-3">{tab === 'orders' ? <OrdersPage /> : <InventoryPage />}</main>
 
-      {/* Bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-md border-t border-border bg-card">
-        <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={ShoppingBag} label="Orders" />
-        <TabButton active={tab === 'inventory'} onClick={() => setTab('inventory')} icon={Boxes} label="Inventory" />
+      {/* Floating pill bottom nav */}
+      <nav className="fixed inset-x-0 bottom-5 z-20 flex justify-center">
+        <div className="flex items-center gap-1 rounded-full border border-border bg-card/95 p-1.5 shadow-elevated backdrop-blur">
+          <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={ShoppingBag} label="Orders" />
+          <TabButton active={tab === 'inventory'} onClick={() => setTab('inventory')} icon={Boxes} label="Inventory" />
+        </div>
       </nav>
 
       {/* Incoming table calls — drawer that rings until attended */}
@@ -139,9 +141,11 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs font-medium ${active ? 'text-accent' : 'text-muted-foreground'}`}
+      className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
+        active ? 'bg-accent text-accent-foreground shadow-soft' : 'text-muted-foreground hover:bg-secondary'
+      }`}
     >
-      <Icon className="h-5 w-5" />
+      <Icon className="h-4 w-4" />
       {label}
     </button>
   );
