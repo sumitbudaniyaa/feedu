@@ -21,7 +21,7 @@ export interface ServerToClientEvents {
   'order:status_changed': (payload: { orderId: string; status: Order['status'] }) => void;
   'notification:new': (notification: Notification) => void;
   'dashboard:refresh': () => void;
-  'waiter:called': (payload: { tableName: string; at: string }) => void;
+  'waiter:called': (payload: { tableName: string; at: string; reason?: 'assistance' | 'bill' }) => void;
   'waiter:attending': (payload: { tableName: string; at: string }) => void;
 }
 

@@ -8,6 +8,7 @@ import { SOCKET_EVENTS, type Product } from '@feedo/types';
 import { socket, useCallWaiter, useMenuByQr, useMenuBySlug } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { ProductSheet } from '../components/ProductSheet.js';
+import { OngoingOrderPill } from '../components/OngoingOrderPill.js';
 import { ProductCard } from '../components/ProductCard.js';
 import { SectionsBlock } from '../components/SectionsBlock.js';
 
@@ -402,6 +403,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Ongoing order — pay / request bill / status; sits above the cart pill if both show. */}
+      <OngoingOrderPill bottomClass={count > 0 ? 'bottom-[5.5rem]' : 'bottom-5'} />
 
       <ProductSheet product={selected} onClose={() => setSelected(null)} />
 

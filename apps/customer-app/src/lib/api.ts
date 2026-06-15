@@ -24,6 +24,7 @@ export const {
   usePlaceOrder,
   useCheckout,
   useCallWaiter,
+  useStartOrderPayment,
   usePayOrder,
   useAccount,
   useRedeem,

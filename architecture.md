@@ -149,7 +149,8 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 - `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
   `checkout` (optional manual `tableName`), `orders/:id/pay`, `orders/:id` (track),
   `auth/otp/request`, `auth/otp/verify`, `r/:slug/account` + `r/:slug/redeem` (OTP-token gated),
-  `r/:slug/call-waiter` (rings staff)
+  `r/:slug/call-waiter` (rings staff; `reason: assistance | bill`),
+  `orders/:id/razorpay` (start an online payment for an existing unpaid order — ongoing-order pill)
 
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
 never trusted from the client.

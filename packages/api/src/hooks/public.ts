@@ -109,11 +109,25 @@ export function createPublicHooks(client: ApiClient) {
         mutationFn: (body: CheckoutInput) => client.post<CheckoutResult>(`/public/r/${slug}/checkout`, body),
       });
     },
-    /** Ring a waiter to the diner's table. */
+    /** Ring a waiter to the diner's table (assistance or bill request). */
     useCallWaiter(slug: string) {
       return useMutation({
-        mutationFn: (tableName: string) =>
-          client.post<{ called: boolean }>(`/public/r/${slug}/call-waiter`, { tableName }),
+        mutationFn: (arg: string | { tableName: string; reason?: 'assistance' | 'bill' }) => {
+          const body = typeof arg === 'string' ? { tableName: arg } : arg;
+          return client.post<{ called: boolean }>(`/public/r/${slug}/call-waiter`, body);
+        },
+      });
+    },
+    /** Start an online payment for an existing (unpaid) order. */
+    useStartOrderPayment() {
+      return useMutation({
+        mutationFn: (orderId: string) =>
+          client.post<{
+            razorpay?: { orderId: string; amount: number; currency: string; keyId: string } | null;
+            demo?: boolean;
+            free?: boolean;
+            alreadyPaid?: boolean;
+          }>(`/public/orders/${orderId}/razorpay`),
       });
     },
     /** Confirm payment for an order (verifies Razorpay signature server-side). */

@@ -7,6 +7,7 @@ import { socket, useAttendCall, useAuth } from '../lib/api.js';
 interface Call {
   id: number;
   tableName: string;
+  reason: 'assistance' | 'bill';
 }
 
 /** Repeating attention ring + vibration. */
@@ -43,8 +44,8 @@ export function WaiterCallDrawer({ variant = 'drawer' }: { variant?: 'drawer' | 
 
   useEffect(() => {
     if (!restaurantId) return;
-    const onCalled = (p: { tableName: string }) =>
-      setCalls((prev) => [...prev, { id: Date.now() + Math.random(), tableName: p.tableName }]);
+    const onCalled = (p: { tableName: string; reason?: 'assistance' | 'bill' }) =>
+      setCalls((prev) => [...prev, { id: Date.now() + Math.random(), tableName: p.tableName, reason: p.reason ?? 'assistance' }]);
     // Someone (this or another device) accepted a table's call → clear it everywhere.
     const onAttending = (p: { tableName: string }) =>
       setCalls((prev) => prev.filter((c) => c.tableName !== p.tableName));
@@ -165,7 +166,9 @@ function CallCard({
           <BellRing className="h-6 w-6" />
         </motion.span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Table calling</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {call.reason === 'bill' ? 'Bill requested' : 'Needs assistance'}
+          </p>
           <p className="truncate text-xl font-black tracking-tight">{call.tableName}</p>
         </div>
         {mode === 'button' ? (

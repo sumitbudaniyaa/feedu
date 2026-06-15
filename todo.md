@@ -109,6 +109,10 @@ super-admin (Feedu company) portal. Rebranded to **feedu**. Hardening + polish o
       **"waiter is on the way"** pill for 5s (WAITER_CALLED / WAITER_ATTENDING sockets)
 
 **Customer**
+- [x] **Ongoing-order pill** on the menu (animated, expandable): shows live status + ETA, expands to
+      items/total/payment; **Pay now** for unpaid orders (Razorpay), and **Request bill** which rings
+      the waiter + admin (call-waiter `reason: 'bill'`). Auto-clears when the order is done + paid.
+      Backend: `POST /public/orders/:id/razorpay` (pay an existing order); call-waiter takes a `reason`.
 - [x] Order page banner is **status-driven**: in-progress orders (even from history) show the live
       tracking hero; finished orders show a plain summary. Order History links open via `?view=details`
 - [x] Reward **claim history** on the Rewards page (in-app ₹0 reward orders + legacy claims)

@@ -31,20 +31,21 @@ import { getIO } from '../../sockets/index.js';
 
 const router = Router();
 
-// ─── Call a waiter to a table ──────────────────────────────────────────────
+// ─── Call a waiter to a table (assistance or bill request) ─────────────────
 router.post(
   '/r/:slug/call-waiter',
-  validate(z.object({ tableName: z.string().min(1) })),
+  validate(z.object({ tableName: z.string().min(1), reason: z.enum(['assistance', 'bill']).optional() })),
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findOne({ slug: req.params.slug }).select('_id').lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
-    const { tableName } = req.body as { tableName: string };
+    const { tableName, reason } = req.body as { tableName: string; reason?: 'assistance' | 'bill' };
     const io = getIO() as unknown as {
       to: (room: string) => { emit: (event: string, payload: unknown) => void };
     };
     io.to(rooms.restaurant(String(restaurant._id))).emit(SOCKET_EVENTS.WAITER_CALLED, {
       tableName,
       at: new Date().toISOString(),
+      reason: reason ?? 'assistance',
     });
     return ok(res, { called: true });
   }),
@@ -266,6 +267,23 @@ router.post(
 
     const order = await orders.markPaid(req.params.id!, razorpayPaymentId);
     return ok(res, order);
+  }),
+);
+
+/** Start an online payment for an existing (unpaid) order — used by the ongoing-order pill. */
+router.post(
+  '/orders/:id/razorpay',
+  asyncHandler(async (req, res) => {
+    if (!isValidObjectId(req.params.id)) throw ApiError.badRequest('Invalid order id');
+    const order = await Order.findById(req.params.id).lean();
+    if (!order) throw ApiError.notFound('Order not found');
+    if (order.paymentStatus === 'paid') return ok(res, { alreadyPaid: true });
+    if (order.total <= 0) {
+      const finalized = await orders.markPaid(String(order._id));
+      return ok(res, { free: true, order: finalized });
+    }
+    const razorpay = await createRazorpayOrder(order.total, String(order._id));
+    return ok(res, { razorpay, demo: isDemoMode() });
   }),
 );
 

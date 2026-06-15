@@ -36,8 +36,11 @@ interface CartState {
   menuPath: string | null;
   lines: CartLine[];
   appliedReward: AppliedReward | null;
+  /** The diner's most recent in-progress order (for the ongoing-order pill). */
+  activeOrderId: string | null;
   setContext: (restaurant: CartRestaurant, tableId: string | null, menuPath: string) => void;
   setTableName: (tableName: string) => void;
+  setActiveOrder: (orderId: string | null) => void;
   setReward: (reward: AppliedReward | null) => void;
   add: (line: Omit<CartLine, 'key' | 'quantity'>, qty?: number) => void;
   setQty: (key: string, qty: number) => void;
@@ -62,6 +65,7 @@ export const useCart = create<CartState>()(
       tableId: null,
       tableName: null,
       menuPath: null,
+      activeOrderId: null,
       lines: [],
       appliedReward: null,
       setContext: (restaurant, tableId, menuPath) => {
@@ -71,6 +75,7 @@ export const useCart = create<CartState>()(
         set({ restaurant, tableId, menuPath });
       },
       setTableName: (tableName) => set({ tableName }),
+      setActiveOrder: (activeOrderId) => set({ activeOrderId }),
       setReward: (reward) => set({ appliedReward: reward }),
       add: (line, qty = 1) => {
         const key = lineKey(line);
