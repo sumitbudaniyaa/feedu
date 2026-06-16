@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, ChevronDown, ChevronRight, Plus, Power, Search, Store, X } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, CreditCard, Plus, Power, Search, Store, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -19,7 +19,15 @@ import {
 } from '@feedo/ui';
 import { formatCurrency, formatDate } from '@feedo/utils';
 import type { PlatformBrand } from '@feedo/api';
-import { useBrands, useOnboardBranch, useOnboardRestaurant, useToggleLive } from '../lib/api.js';
+import {
+  useBrands,
+  useDeleteBrand,
+  useOnboardBranch,
+  useOnboardRestaurant,
+  useSuspendBrand,
+  useToggleLive,
+  useUpdateBrandSubscription,
+} from '../lib/api.js';
 
 const CYCLES = ['monthly', 'quarterly', 'yearly'] as const;
 type Cycle = (typeof CYCLES)[number];
@@ -117,7 +125,10 @@ export function RestaurantsPage() {
 function BrandCard({ brand }: { brand: PlatformBrand }) {
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(false);
   const toggleLive = useToggleLive();
+  const suspendBrand = useSuspendBrand();
+  const deleteBrand = useDeleteBrand();
   const confirm = useConfirm();
 
   const suspend = async (branchId: string, name: string, live: boolean) => {
@@ -131,7 +142,29 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
     if (ok) toggleLive.mutate({ id: branchId, isLive: !live });
   };
 
+  const brandLive = brand.liveBranchCount > 0;
+  const suspendWholeBrand = async () => {
+    const ok = await confirm({
+      title: brandLive ? `Suspend ${brand.name}?` : `Reactivate ${brand.name}?`,
+      description: brandLive
+        ? `All ${brand.branchCount} branch(es) go offline — customers can't order at any of them.`
+        : `All ${brand.branchCount} branch(es) go back online.`,
+      confirmText: brandLive ? 'Suspend brand' : 'Reactivate brand',
+    });
+    if (ok) suspendBrand.mutate({ id: brand._id, isLive: !brandLive });
+  };
+
+  const removeBrand = async () => {
+    const ok = await confirm({
+      title: `Delete ${brand.name}?`,
+      description: `This permanently deletes the brand, all ${brand.branchCount} branch(es), and every order, menu, customer and staff record. This cannot be undone.`,
+      confirmText: 'Delete forever',
+    });
+    if (ok) deleteBrand.mutate(brand._id);
+  };
+
   const single = brand.accountType !== 'multi';
+  const sub = brand.subscription;
 
   return (
     <Card className="overflow-hidden">
@@ -168,6 +201,38 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
 
       {open && (
         <div className="border-t border-border bg-background/40 p-4">
+          {/* Brand-level plan + actions */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
+            <div className="text-xs text-muted-foreground">
+              {sub ? (
+                <>
+                  <span className="font-medium capitalize text-foreground">{sub.plan}</span> ·{' '}
+                  {formatCurrency(sub.price)}/{sub.billingCycle} ·{' '}
+                  <span className="capitalize">{sub.status}</span>
+                  {sub.currentPeriodEnd ? ` · expires ${formatDate(sub.currentPeriodEnd)}` : ''}
+                </>
+              ) : (
+                'No subscription'
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setEditingPlan(true)}>
+                <CreditCard className="h-3.5 w-3.5" /> Edit plan
+              </Button>
+              <Button
+                size="sm"
+                variant={brandLive ? 'outline' : 'default'}
+                onClick={suspendWholeBrand}
+                disabled={suspendBrand.isPending}
+              >
+                <Power className="h-3.5 w-3.5" /> {brandLive ? 'Suspend brand' : 'Reactivate brand'}
+              </Button>
+              <Button size="sm" variant="destructive" onClick={removeBrand} disabled={deleteBrand.isPending}>
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+            </div>
+          </div>
+
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {single ? 'Outlet' : 'Branches'}
@@ -208,7 +273,112 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
       )}
 
       <AddBranchDialog brand={brand} open={adding} onClose={() => setAdding(false)} />
+      <BrandPlanDialog brand={brand} open={editingPlan} onClose={() => setEditingPlan(false)} />
     </Card>
+  );
+}
+
+const PLANS = ['trial', 'starter', 'growth', 'enterprise'] as const;
+const STATUSES = ['active', 'trialing', 'past_due', 'cancelled'] as const;
+
+function BrandPlanDialog({ brand, open, onClose }: { brand: PlatformBrand; open: boolean; onClose: () => void }) {
+  const update = useUpdateBrandSubscription();
+  const sub = brand.subscription;
+  const [form, setForm] = useState({
+    plan: sub?.plan ?? 'starter',
+    status: sub?.status ?? 'active',
+    price: String(sub?.price ?? 0),
+    billingCycle: (sub?.billingCycle as Cycle) ?? 'monthly',
+    durationDays: '',
+  });
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{brand.name} — SaaS plan</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            update.mutate(
+              {
+                id: brand._id,
+                body: {
+                  plan: form.plan,
+                  status: form.status,
+                  price: Number(form.price),
+                  billingCycle: form.billingCycle,
+                  durationDays: form.durationDays ? Number(form.durationDays) : undefined,
+                },
+              },
+              { onSuccess: onClose },
+            );
+          }}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Plan</Label>
+              <Select value={form.plan} onChange={(e) => set('plan', e.target.value)}>
+                {PLANS.map((p) => (
+                  <option key={p} value={p} className="capitalize">{p}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onChange={(e) => set('status', e.target.value)}>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s} className="capitalize">{s}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{brand.accountType === 'multi' ? 'Combined fee (₹)' : 'Fee (₹)'}</Label>
+              <Input type="number" min="0" value={form.price} onChange={(e) => set('price', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Billing cycle</Label>
+              <Select value={form.billingCycle} onChange={(e) => set('billingCycle', e.target.value)}>
+                {CYCLES.map((c) => (
+                  <option key={c} value={c} className="capitalize">{c}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Duration override (days, optional)</Label>
+            <Input
+              type="number"
+              min="1"
+              placeholder="Leave blank to derive expiry from the billing cycle"
+              value={form.durationDays}
+              onChange={(e) => set('durationDays', e.target.value)}
+            />
+            {sub?.currentPeriodEnd && (
+              <p className="text-xs text-muted-foreground">Current expiry: {formatDate(sub.currentPeriodEnd)}</p>
+            )}
+          </div>
+          {update.isError && (
+            <p className="text-sm text-destructive">
+              {update.error instanceof Error ? update.error.message : 'Could not update plan'}
+            </p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? 'Saving…' : 'Save plan'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

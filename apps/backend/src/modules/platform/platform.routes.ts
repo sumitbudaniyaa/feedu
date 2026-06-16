@@ -297,6 +297,8 @@ router.get(
     ]);
     const ordersByR = new Map(orderCounts.map((o) => [String(o._id), o.count as number]));
     const subByR = new Map(subs.map((s) => [String(s.restaurantId), s]));
+    // The account's billing record (single per brand — combined for multi-store).
+    const subByBrand = new Map(subs.filter((s) => s.brandId).map((s) => [String(s.brandId), s]));
 
     // Group branches under their brand.
     const branchesByBrand = new Map<string, typeof restaurants>();
@@ -321,6 +323,8 @@ router.get(
       // multi-store brands bill once (one combined subscription); single-store
       // brands bill per branch, so sum across them.
       const mrr = branches.reduce((s, b) => s + (b.subscription?.mrr ?? 0), 0);
+      // The account's billing record (combined for multi; the lone branch's for single).
+      const sub = subByBrand.get(String(brand._id)) ?? branches[0]?.subscription ?? null;
       return {
         _id: String(brand._id),
         name: brand.name,
@@ -333,10 +337,102 @@ router.get(
         liveBranchCount: branches.filter((b) => b.isLive).length,
         totalOrders: branches.reduce((s, b) => s + b.orderCount, 0),
         mrr,
+        subscription: sub
+          ? {
+              plan: sub.plan,
+              status: sub.status,
+              price: sub.price ?? 0,
+              billingCycle: sub.billingCycle ?? 'monthly',
+              mrr: sub.mrr ?? 0,
+              currentPeriodEnd: sub.currentPeriodEnd ?? null,
+            }
+          : null,
         branches,
       };
     });
     return ok(res, data);
+  }),
+);
+
+// Suspend / reactivate an entire brand (flips isLive on every branch at once).
+router.patch(
+  '/brands/:id',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { isLive } = req.body as { isLive?: boolean };
+    if (typeof isLive !== 'boolean') throw ApiError.badRequest('isLive (boolean) required');
+    const brand = await Brand.findById(req.params.id).lean();
+    if (!brand) throw ApiError.notFound('Brand not found');
+    const result = await Restaurant.updateMany({ brandId: brand._id }, { isLive });
+    return ok(res, { isLive, branchesUpdated: result.modifiedCount ?? 0 });
+  }),
+);
+
+// Edit the brand's combined SaaS plan: fee, billing cycle, duration/expiry, status.
+router.patch(
+  '/brands/:id/subscription',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { plan, status, features, seats, price, billingCycle, durationDays } =
+      req.body as Record<string, unknown>;
+    const brand = await Brand.findById(req.params.id).lean();
+    if (!brand) throw ApiError.notFound('Brand not found');
+
+    const update: Record<string, unknown> = { plan, status, features, seats };
+    const cycle = (billingCycle as string) ?? undefined;
+    if (price !== undefined) {
+      update.price = Number(price);
+      update.mrr = toMrr(Number(price), cycle ?? 'monthly');
+    }
+    if (cycle !== undefined) update.billingCycle = cycle;
+    // Expiry: an explicit duration wins; otherwise it's derived from the cycle.
+    if (durationDays !== undefined) {
+      update.currentPeriodEnd = new Date(Date.now() + Number(durationDays) * 86400000);
+    } else if (price !== undefined || cycle !== undefined) {
+      const existing = await Subscription.findOne({ brandId: brand._id }).select('billingCycle').lean();
+      const months = CYCLE_MONTHS[cycle ?? existing?.billingCycle ?? 'monthly'] ?? 1;
+      update.currentPeriodEnd = new Date(Date.now() + months * 30 * 86400000);
+    }
+    Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
+
+    // One combined subscription per brand — keyed by brandId.
+    const sub = await Subscription.findOneAndUpdate({ brandId: brand._id }, update, {
+      new: true,
+      upsert: true,
+    });
+    return ok(res, sub);
+  }),
+);
+
+// Permanently delete a brand and every one of its branches + all their data.
+router.delete(
+  '/brands/:id',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const brandId = req.params.id;
+    const brand = await Brand.findById(brandId);
+    if (!brand) throw ApiError.notFound('Brand not found');
+    const branchIds = (await Restaurant.find({ brandId }).select('_id').lean()).map((r) => r._id);
+
+    await Promise.all([
+      // Branch-scoped data across every branch.
+      Restaurant.deleteMany({ brandId }),
+      Subscription.deleteMany({ brandId }),
+      Subscription.deleteMany({ restaurantId: { $in: branchIds } }),
+      User.deleteMany({ restaurantId: { $in: branchIds } }),
+      Table.deleteMany({ restaurantId: { $in: branchIds } }),
+      Order.deleteMany({ restaurantId: { $in: branchIds } }),
+      Customer.deleteMany({ restaurantId: { $in: branchIds } }),
+      // Brand-shared catalog + loyalty.
+      Category.deleteMany({ brandId }),
+      Product.deleteMany({ brandId }),
+      Section.deleteMany({ brandId }),
+      LoyaltyProgram.deleteMany({ brandId }),
+      LoyaltyReward.deleteMany({ brandId }),
+      BranchMenu.deleteMany({ brandId }),
+      Brand.deleteOne({ _id: brandId }),
+    ]);
+    return ok(res, { deleted: true, branchesDeleted: branchIds.length });
   }),
 );
 

@@ -52,6 +52,15 @@ export interface PlatformBrand {
   liveBranchCount: number;
   totalOrders: number;
   mrr: number;
+  /** The account's combined billing record (single subscription per brand). */
+  subscription: {
+    plan: string;
+    status: string;
+    price: number;
+    billingCycle: string;
+    mrr: number;
+    currentPeriodEnd: string | null;
+  } | null;
   branches: PlatformBranch[];
 }
 
@@ -154,6 +163,32 @@ export function createPlatformHooks(client: ApiClient) {
       return useMutation({
         mutationFn: ({ brandId, body }: { brandId: string; body: { name: string; contactNumber?: string } }) =>
           client.post(`/platform/brands/${brandId}/branches`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    /** Suspend / reactivate every branch of a brand at once. */
+    useSuspendBrand() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, isLive }: { id: string; isLive: boolean }) =>
+          client.patch(`/platform/brands/${id}`, { isLive }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    /** Edit a brand's combined SaaS plan (fee / cycle / duration / status). */
+    useUpdateBrandSubscription() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+          client.patch(`/platform/brands/${id}/subscription`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    /** Permanently delete a brand and all of its branches + data. */
+    useDeleteBrand() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (id: string) => client.delete(`/platform/brands/${id}`),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },
