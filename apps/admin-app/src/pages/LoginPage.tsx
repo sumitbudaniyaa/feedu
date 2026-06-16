@@ -2,43 +2,24 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import {
-  Button,
-  Input,
-  Label,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  ThemeToggle,
-} from '@feedo/ui';
-import { useAuth, useLogin, useRegister } from '../lib/api.js';
+import { Button, Input, Label, ThemeToggle } from '@feedo/ui';
+import { useAuth, useLogin } from '../lib/api.js';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const login = useLogin();
-  const register = useRegister();
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
   if (isAuthed) navigate('/', { replace: true });
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [restaurantName, setRestaurantName] = useState('');
   const [show, setShow] = useState(false);
 
-  const error = login.error ?? register.error;
+  const error = login.error;
 
   const onLogin = (e: React.FormEvent) => {
     e.preventDefault();
     login.mutate({ email, password }, { onSuccess: () => navigate('/', { replace: true }) });
-  };
-  const onRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    register.mutate(
-      { name, email, password, restaurantName },
-      { onSuccess: () => navigate('/', { replace: true }) },
-    );
   };
 
   const PasswordField = (
@@ -100,48 +81,19 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">Sign in to manage your restaurant.</p>
           </div>
 
-          <Tabs defaultValue="login">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Sign in</TabsTrigger>
-              <TabsTrigger value="register">Create account</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="login">
-              <form onSubmit={onLogin} className="space-y-4">
-                <Field label="Email">
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </Field>
-                <Field label="Password">{PasswordField}</Field>
-                {error && <ErrorText error={error} />}
-                <Button className="w-full" type="submit" disabled={login.isPending}>
-                  {login.isPending ? 'Signing in…' : 'Sign in'}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="register">
-              <form onSubmit={onRegister} className="space-y-4">
-                <Field label="Your name">
-                  <Input value={name} onChange={(e) => setName(e.target.value)} required />
-                </Field>
-                <Field label="Restaurant name">
-                  <Input
-                    value={restaurantName}
-                    onChange={(e) => setRestaurantName(e.target.value)}
-                    required
-                  />
-                </Field>
-                <Field label="Email">
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </Field>
-                <Field label="Password">{PasswordField}</Field>
-                {error && <ErrorText error={error} />}
-                <Button className="w-full" type="submit" disabled={register.isPending}>
-                  {register.isPending ? 'Creating…' : 'Create account'}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <form onSubmit={onLogin} className="space-y-4">
+            <Field label="Email">
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </Field>
+            <Field label="Password">{PasswordField}</Field>
+            {error && <ErrorText error={error} />}
+            <Button className="w-full" type="submit" disabled={login.isPending}>
+              {login.isPending ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Accounts are created by feedu. Contact us to onboard your restaurant.
+          </p>
         </motion.div>
       </div>
     </div>

@@ -40,7 +40,8 @@ export const apiClient = new ApiClient({
 
 export const socket = createSocket(socketUrl);
 
-export const { useLogin, useRegister, useLogout, useMe } = createAuthHooks({
+// Onboarding is super-admin-only — no self-signup in the admin app (useRegister omitted).
+export const { useLogin, useLogout, useMe } = createAuthHooks({
   client: apiClient,
   useAuth,
 });

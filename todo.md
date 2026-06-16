@@ -127,6 +127,19 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   multi. Admin gates branch features (switcher, Branches page, combined "All branches" analytics) on
   `GET /restaurants/me/brand` → `accountType === 'multi'`. Brands page shows the type + combined fee.
   Verified: multi onboarding, single→multi conversion, combined-sub resolution from a sub-less branch.
+- [x] **Multi-store onboarding with branches:** the super-admin onboard dialog asks single vs multi;
+  single keeps the one-outlet flow, multi collects brand details + inline branch list and creates the
+  brand + all branches + one combined subscription in a step (`POST /platform/restaurants` accepts
+  `branches: string[]`).
+- [x] **Super-admin combined "Brands & Restaurants" page:** Brands + Restaurants merged into one page
+  (brand → branches, single-store reads as one outlet) with an Onboard button and filters (search,
+  account type, status). `/brands` redirects to `/restaurants`; nav collapsed to one entry.
+- [x] **Brand-level controls:** per-brand **suspend/reactivate all branches** (`PATCH /platform/brands/:id`),
+  **edit combined SaaS plan** — fee/cycle/duration/expiry/status (`PATCH /platform/brands/:id/subscription`),
+  **delete brand + all branches + data** (`DELETE /platform/brands/:id`); brands rollup includes the
+  combined subscription summary. Per-branch suspend + add-branch stay inline.
+- [x] **Admin auth: removed self-signup** — onboarding is super-admin-only. The admin login page is
+  sign-in only (no "Create account" tab); `useRegister` dropped from the admin app.
 
 ## Recently added
 

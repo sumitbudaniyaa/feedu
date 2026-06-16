@@ -31,15 +31,25 @@ Razorpay · JWT.
 - **Kitchen** — real-time KDS (`feedu` Kitchen), prominent table number, veg/non-veg markers,
   status-colored cards, one-tap flow.
 - **Super-admin = the feedu company portal (you, the SaaS owner)** — separate **feedu SaaS revenue**
-  (MRR/ARR/paying restaurants) vs marketplace GMV; **onboard restaurants** (owner+restaurant+subscription,
-  unique slug/email, mobile); per-restaurant **subscription pricing + cycle (auto-expiry), suspend,
-  delete** on the detail page; **Users** split into a **feedu team** (own `employees` collection, no
-  tenant) + restaurant users, with **add-employee**; **support tickets** chat; **customers grouped by
-  restaurant** → drill in → per-diner analytics; change own credentials.
-- **Realtime** — Socket.IO pushes new/updated orders to kitchen + admin, and **waiter calls** to staff.
-- **Multi-tenant + secure** — every resource scoped by `restaurantId`; feedu staff isolated in a
-  separate `employees` collection; rate limiting, NoSQL-injection sanitization, HPP, helmet/CSP, RBAC,
-  bcrypt, JWT.
+  (MRR/ARR/paying restaurants) vs marketplace GMV; one combined **Brands & Restaurants** page (search +
+  account-type/status filters) that **onboards single-store or multi-store accounts** (a multi-store
+  brand is created with its branches inline and billed once for the whole brand); **brand-level**
+  controls (suspend/reactivate *all* branches, edit the combined SaaS plan — fee/cycle/duration/expiry/
+  status, delete the whole brand) **and** per-branch suspend / add-branch; **Users** split into a
+  **feedu team** (own `employees` collection, no tenant) + restaurant users, with **add-employee**;
+  **support tickets** chat; **customers grouped by restaurant** → drill in → per-diner analytics; change
+  own credentials.
+- **Multi-branch (Brand → Branches)** — a **Brand** is the tenant; each restaurant is a **branch**.
+  Brand-shared: menu, branding, loyalty, subscription. Branch-scoped: orders, tables, staff, inventory,
+  customers — with a per-branch **menu override** layer (price/availability/stock/exclusive). Brand-wide
+  owners get a **branch switcher**, a **Branches** page, a **combined "All branches" dashboard** + a
+  **branch comparison**. Single-store accounts stay simple (no branch UI). Fully backward-compatible
+  (`restaurantId` = branch id).
+- **Realtime** — Socket.IO pushes new/updated orders to kitchen + admin (fanned out to both the
+  **branch** and **brand** rooms), and **waiter calls** to staff.
+- **Multi-tenant + secure** — brand/branch scoping (`brandId` / `restaurantId`) via the `x-branch-id`
+  header; onboarding is super-admin-only (no public sign-up); feedu staff isolated in a separate
+  `employees` collection; rate limiting, NoSQL-injection sanitization, HPP, helmet/CSP, RBAC, bcrypt, JWT.
 
 ## Apps & ports
 

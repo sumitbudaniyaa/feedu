@@ -59,7 +59,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 | `admin-app` | Restaurant owner / manager | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings, onboarding | violet |
 | `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login (incl. at guest checkout), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers (dark-optimized KDS) | emerald |
-| `super-admin-app` | Feedu internal | Restaurant management, subscriptions, platform analytics, feature toggles | blue |
+| `super-admin-app` | Feedu internal | One combined **Brands & Restaurants** page (search + type/status filters), single/multi-store onboarding, brand-level + per-branch suspend, combined SaaS plan editing, delete; platform analytics | blue |
 
 ---
 
@@ -122,27 +122,38 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 
 ### API surface (modules)
 - `/auth` — register / login / refresh / me / change-password (verifies current; any signed-in account)
-- `/restaurants` — profile, settings, onboarding state, go-live (tenant)
-- `/categories`, `/products`, `/sections`, `/loyalty`, `/rewards`, `/tables`, `/staff`,
-  `/customers` — tenant-scoped CRUD/lists (most via a shared `crud()` factory that auto-scopes
-  every query to `req.restaurantId`). `/rewards` also exposes `/redemptions` (list + fulfil/cancel).
+- `/restaurants` — branch profile, settings, onboarding state, go-live; `/me/subscription`
+  (resolves the branch's own or the brand's combined plan), `/me/brand` (account type +
+  branch count → drives multi-branch UI), `GET/POST /branches` (list/create branches under the
+  brand)
+- `/branch-menu` — effective menu for the active branch + per-product override upsert (price/
+  availability/stock/exclusive)
+- `/products`, `/categories`, `/sections`, `/loyalty`, `/rewards` — **brand-level** CRUD (shared
+  catalog, scoped to `req.brandId` via `crud({ level: 'brand' })`); `/tables`, `/staff`,
+  `/customers` — **branch-level** CRUD (scoped to `req.branchId`). `/rewards` also exposes
+  `/redemptions` (list + fulfil/cancel).
   `/customers/:id` returns per-diner analytics (spend, AOV, most-ordered, reward claims, visits).
   `/staff` create + `:id` edit accept name/email/mobile/role/password (password optional on edit).
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
   "served" auto-completes; unpaid online orders excluded from staff lists)
 - `/support` — tenant: restaurants raise tickets + reply (chat); super-admin manages via `/platform/support`
 - `/waiter/attend` — tenant: a staff member accepted a table call → emits `waiter:attending`
-- `/analytics/dashboard` — range-scoped (day/week/month) revenue + orders (with change % vs the
-  previous equivalent window), AOV, repeat %, revenue series, top products, peak hours, channel mix,
-  and table-efficiency metrics: **revenue/table, table turnover, avg serve time** (placed→completed),
-  plus `tableCount` and order-type split (all from real aggregations; cast `restaurantId` to ObjectId)
+- `/analytics/dashboard` — range-scoped (day/week/month) revenue + orders (change % vs the
+  previous window), AOV, repeat %, revenue series, top products, peak hours, channel mix, and
+  table-efficiency metrics; `?scope=brand` returns the **combined "All branches"** view for
+  brand-wide roles (else the active branch). `/analytics/branches` — brand-wide **branch
+  comparison** (revenue/orders/AOV/share per branch). All from real aggregations.
 - `/uploads` — authenticated image upload (multer → local `/uploads` static, CORP cross-origin)
 - `/platform/*` — super-admin, cross-tenant: `stats` (incl. Feedu SaaS MRR/ARR), `analytics`,
   `users` (Feedu employees + restaurant users), `users` POST (create employee) + `users/:id`
-  PATCH (edit employee name/email/phone/password), `orders`,
-  `customers` (+ `?restaurantId=`/`?search=`), `customers/:id` (per-diner analytics), `support`
-  (list/update/reply), `account` (own credentials), `restaurants` (+ `restaurants` POST onboard,
-  `restaurants/:id` detail, `:id/subscription` price/cycle/auto-expiry, `:id` suspend, `:id` DELETE)
+  PATCH (edit employee), `orders`, `customers` (+ `?restaurantId=`/`?search=`), `customers/:id`
+  (per-diner analytics), `support` (list/update/reply), `account` (own credentials).
+  **Accounts:** `restaurants` POST (onboard single, or a brand with `accountType:'multi'` +
+  `branches:[]`), `restaurants/:id` (detail / suspend / DELETE one branch),
+  `restaurants/:id/subscription`. **Brand-level:** `brands` (brand→branches rollup with combined
+  subscription summary + account type), `brands/:id` PATCH (suspend/reactivate **all** branches),
+  `brands/:id/subscription` PATCH (edit the **combined** plan: fee/cycle/duration/expiry/status),
+  `brands/:id` DELETE (delete brand + all branches + data), `brands/:id/branches` POST (add a branch).
 - **Subscription gating**: public menu/QR/checkout call `assertSubscriptionActive` — a restaurant
   whose subscription is `past_due`/`cancelled`/expired (or is suspended `isLive:false`) is blocked
   from the customer app; the admin app shows a full lock screen for that restaurant.
@@ -167,9 +178,11 @@ own wallet. The customer app stores the token in its auth store; `ApiClient` sen
 ### Platform (super-admin)
 `/platform/*` is super-admin-only and cross-tenant: `stats` (GMV, MRR, live/total restaurants,
 orders, customers), `analytics` (14-day GMV series + top restaurants), `users`, `orders`,
-`customers`, and `restaurants/:id` (full detail: revenue, staff, products, recent orders).
-The console is a sidebar app (Overview / Restaurants / Orders / Customers / Users) and can edit
-subscriptions and suspend/reactivate restaurants.
+`customers`, `restaurants/:id` (full detail), and the `brands` rollup. The console is a sidebar
+app (Overview / **Brands & Restaurants** / Orders / Customers / Employees / Support / Account):
+one combined accounts page lists every brand with its branches (search + type/status filters),
+onboards single- or multi-store accounts, and offers **brand-level** suspend / combined-plan
+editing / delete **and** per-branch suspend / add-branch.
 
 ### Loyalty & rewards
 Two layers: **earning** and **claiming/ordering**.
@@ -254,45 +267,81 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
 
 ## 6. Authentication Flow
 
-- **JWT access + refresh** tokens. Access (15m) carries `{ sub, role, restaurantId }`;
-  refresh (7d) carries `{ sub }`.
-- **Register** (owner self-signup): creates `User(role=owner)` + `Restaurant` shell +
-  trial `Subscription`, starts onboarding, returns session.
+- **JWT access + refresh** tokens. Access (15m) carries
+  `{ sub, role, restaurantId, brandId, branchIds }` (`restaurantId` = the user's home branch;
+  `branchIds` = every branch a brand-wide role may manage); refresh (7d) carries `{ sub }`.
 - **Login**: verifies bcrypt hash, issues tokens. Checks the **`Employee`** collection first
-  (Feedu staff / super admins), then `User` (restaurant accounts).
+  (Feedu staff / super admins), then `User` (restaurant accounts). Token brand context is
+  recomputed on login/refresh, so newly added branches appear after the next refresh.
 - **Refresh** / **me**: same dual lookup (Employee → User).
-- **Onboarding** (super-admin): `/platform/restaurants` POST creates owner `User` + `Restaurant`
-  + active `Subscription` (rejects duplicate slug/email). Feedu employees are created via
-  `/platform/users` POST in the `Employee` collection.
+- **Onboarding is super-admin-only** — there is no owner self-signup. `/platform/restaurants`
+  POST creates the owner `User` + a `Brand` (with `accountType`) + one or more branches
+  (`Restaurant`) + a `Subscription` (per-branch for single, one combined for multi), rejecting
+  duplicate slug/email. Feedu employees are created via `/platform/users` POST in the
+  `Employee` collection. (A `register` service still exists for tests/seeding and creates a
+  Brand + first branch + trial subscription, but is not exposed in the admin UI.)
 - Passwords stored as bcrypt hashes (`passwordHash`, `select:false`, stripped from JSON).
 
 ### Roles (RBAC)
-`super_admin · owner · manager · kitchen · waiter · customer`.
-`authorize(...roles)` guards routes; `resolveTenant` scopes the request to a restaurant.
+`super_admin · brand_owner · brand_admin · branch_manager · kitchen_staff · cashier`
+plus the legacy `owner · manager · kitchen · waiter · customer` (kept for back-compat).
+`BRAND_WIDE_ROLES` = `owner · brand_owner · brand_admin` (see every branch of their brand);
+other roles are scoped to a single branch. `authorize(...roles)` guards routes; `resolveTenant`
+scopes the request to a brand + active branch.
 
 ---
 
-## 7. Multi-Tenant Strategy
+## 7. Multi-Tenant Strategy — Brand → Branch
 
-- Single database, **`restaurantId` on every tenant-scoped collection** (indexed).
-- `resolveTenant` middleware sets `req.restaurantId` from the token; `super_admin` may
-  target any tenant via the `x-restaurant-id` header.
-- Services must always filter queries by `req.restaurantId`. Unique constraints are
-  scoped per tenant where relevant (e.g. user email, order number).
+Feedu is a **multi-branch** hierarchy: a **Brand** is the tenant, and each
+**Restaurant document is a branch** of that brand (`restaurantId === branchId`).
+A single-store account is simply a brand with one branch.
+
+- **Brand (tenant)** owns the shared catalog/branding/loyalty/subscription. **Branch
+  (`Restaurant`)** owns its own orders/tables/staff/customers and references its brand
+  via `brandId`.
+- **`accountType`** on `Brand` — `single` (one outlet, billed on its own) or `multi`
+  (a chain billed **once** for the whole brand via one combined subscription). Adding a
+  second branch auto-upgrades a brand to `multi`.
+- **Per-branch menu overrides** — the brand owns the `Product`/`Category`/`Section`
+  catalog; a branch may override price/availability/stock or flag an item branch-exclusive
+  via `BranchMenu`. `resolveBranchMenu` / `resolveOrderProducts` merge brand catalog +
+  branch overrides (`price = override ?? base`, `stock = override ?? product`,
+  `available = (override ?? true) && product`).
+- **`resolveTenant`** sets `req.brandId`, `req.branchId` and `req.branchIds` from the JWT.
+  The active branch is chosen via the **`x-branch-id`** header; a brand-wide role may switch
+  to any branch in its token snapshot **or** any branch belonging to its brand (verified with
+  a cheap lookup, covering branches created after the token was issued). `super_admin` targets
+  any brand/branch via `x-brand-id` / `x-branch-id`.
+- Tenant-scoped collections still carry **`restaurantId`** (the branch FK) and most queries
+  filter by `req.branchId`; brand-shared collections carry **`brandId`** and are scoped by
+  `req.brandId`. The `crud()` factory takes `level: 'branch' | 'brand'` to pick the scope.
+- **Subscription resolution** (`findEffectiveSubscription`): a branch resolves to its own
+  subscription (single-store) or the brand's one combined subscription (multi-store).
+- Backward-compatible by design: existing single-outlet restaurants were migrated to one
+  brand each (`npm run migrate:brands`), so legacy data and single-branch flows are unchanged.
 
 ---
 
 ## 8. Database Overview
 
-Collections: **User, Employee, Restaurant, Category, Product, Table, Order, LoyaltyProgram,
-CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment, Notification,
-Subscription, SupportTicket, Otp**.
+Collections: **Brand, User, Employee, Restaurant, Category, Product, BranchMenu, Table, Order,
+LoyaltyProgram, CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment,
+Notification, Subscription, SupportTicket, Otp**.
 
+- **`Brand`** is the **tenant** — `{ ownerId, name, slug (unique), accountType: single|multi,
+  branding, tax, currency }`. `Restaurant` is a **branch** with `brandId`.
+- **`BranchMenu`** — per-branch overrides on the brand catalog:
+  `{ brandId, branchId, productId, priceOverride, isAvailable, stock, branchExclusive }`,
+  unique on `{ branchId, productId }`.
+- Brand-shared collections (`Product`/`Category`/`Section`/`LoyaltyProgram`/`LoyaltyReward`)
+  carry `brandId`; `restaurantId` on them is optional/legacy (the brand's home branch).
 - **`Employee`** is the **Feedu company staff** collection (super admins; name/email/phone) —
   deliberately separate from `User` and never tied to a restaurant. Auth (`login`/`refresh`/`me`)
   checks `Employee` first, then `User`. `/platform/users` create/edit + the portal Employees page use it.
-- **`Subscription`** carries `price` + `billingCycle` (monthly/quarterly/yearly) + `currentPeriodEnd`
-  (auto-derived expiry); MRR is normalised from price/cycle.
+- **`Subscription`** carries `brandId` + `price` + `billingCycle` (monthly/quarterly/yearly) +
+  `currentPeriodEnd` (auto-derived expiry); MRR is normalised from price/cycle. A multi-store
+  brand has **one** combined subscription covering all branches; single-store has one per branch.
 - **`SupportTicket`** — `{ restaurantId, subject, message, category, priority, status, replies[] }`.
 
 Key indexes:
@@ -314,8 +363,10 @@ Schemas mirror the Zod definitions in `@feedo/types`.
 ## 9. Socket.IO Architecture
 
 - Initialized on the same HTTP server (`sockets/index.ts`), CORS-scoped to app origins.
-- **Rooms**: `restaurant:<id>`, `kitchen:<id>`, `order:<id>` (helpers in `@feedo/types`).
-- Clients emit `join:restaurant` / `join:order`; server emits `order:created`,
+- **Rooms**: `restaurant:<id>` (alias `branch:<id>`), `brand:<id>`, `kitchen:<id>`,
+  `order:<id>` (helpers in `@feedo/types`). Order events fan out to both the branch room and
+  the **brand room**, so brand-wide dashboards watch every branch live.
+- Clients emit `join:restaurant` / `join:brand` / `join:order`; server emits `order:created`,
   `order:updated`, `order:status_changed`, `notification:new`, `dashboard:refresh`,
   `waiter:called` (diner rang a table) and `waiter:attending` (a staff member accepted —
   customer app shows an "on the way" pill, and all staff devices clear that table's call).
