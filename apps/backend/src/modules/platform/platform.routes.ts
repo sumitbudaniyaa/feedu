@@ -441,14 +441,26 @@ router.post(
     if (contactNumber && !/^\d{10}$/.test(String(contactNumber))) {
       throw ApiError.badRequest('Mobile number must be 10 digits');
     }
-    // Enforce uniqueness — no duplicate restaurant identity or owner login.
-    const slug = slugify(String(restaurantName));
-    if (await Restaurant.exists({ slug })) {
-      throw ApiError.conflict('A restaurant with this name already exists');
-    }
+
+    // For multi-store, `restaurantName` is the brand and `branches` are its outlets.
+    // For single-store, the one branch is named after the restaurant.
+    const branchNames = (
+      type === 'multi' && Array.isArray((req.body as { branches?: unknown }).branches)
+        ? ((req.body as { branches: unknown[] }).branches.map((b) => String(b).trim()).filter(Boolean))
+        : []
+    );
+    if (branchNames.length === 0) branchNames.push(String(restaurantName));
+
     if (await User.exists({ email: String(email).toLowerCase(), restaurantId: null })) {
       throw ApiError.conflict('An owner account with this email already exists');
     }
+    // The brand slug is unique among brands; single-store also reserves it as the
+    // outlet slug (preserving the "name already exists" guard for single).
+    let brandSlug = slugify(String(restaurantName));
+    if (type === 'single' && (await Restaurant.exists({ slug: brandSlug }))) {
+      throw ApiError.conflict('A restaurant with this name already exists');
+    }
+    if (await Brand.exists({ slug: brandSlug })) brandSlug = `${brandSlug}-${randomToken(3)}`;
 
     const owner = await User.create({
       name: ownerName,
@@ -456,24 +468,42 @@ router.post(
       passwordHash: await User.hashPassword(String(password)),
       role: 'owner',
     });
-    // Onboarding creates a brand (tenant) with its first branch, matching self-signup.
-    // A multi-store account bills once for the brand; branches are added afterwards.
-    const brand = await Brand.create({ ownerId: owner._id, name: restaurantName, slug, accountType: type });
-    const restaurant = await Restaurant.create({
-      brandId: brand._id,
+    const brand = await Brand.create({
       ownerId: owner._id,
       name: restaurantName,
-      slug,
-      contactNumber: contactNumber ? String(contactNumber) : undefined,
-      isLive: true,
-      onboarding: { completed: true, currentStep: 0, progress: 100, completedSteps: [] },
+      slug: brandSlug,
+      accountType: type,
     });
-    owner.restaurantId = restaurant._id;
+
+    // Create every branch under the brand (inheriting brand branding/tax/currency).
+    const created = [];
+    for (let i = 0; i < branchNames.length; i++) {
+      let slug = slugify(branchNames[i]!);
+      if (await Restaurant.exists({ slug })) slug = `${slug}-${randomToken(3)}`;
+      created.push(
+        await Restaurant.create({
+          brandId: brand._id,
+          ownerId: owner._id,
+          name: branchNames[i],
+          slug,
+          // Contact applies to the first/home outlet.
+          contactNumber: i === 0 && contactNumber ? String(contactNumber) : undefined,
+          branding: brand.branding,
+          tax: brand.tax,
+          currency: brand.currency,
+          isLive: true,
+          onboarding: { completed: true, currentStep: 0, progress: 100, completedSteps: [] },
+        }),
+      );
+    }
+    const home = created[0]!;
+    owner.restaurantId = home._id;
     await owner.save();
 
+    // One subscription covers the account — per-branch for single, combined for multi.
     const days = Number(durationDays) || (CYCLE_MONTHS[String(billingCycle)] ?? 1) * 30;
     const sub = await Subscription.create({
-      restaurantId: restaurant._id,
+      restaurantId: home._id,
       brandId: brand._id,
       plan,
       status: 'active',
@@ -483,7 +513,17 @@ router.post(
       currentPeriodEnd: new Date(Date.now() + days * 86400000),
     });
 
-    return ok(res, { restaurant, owner: { _id: owner._id, email: owner.email }, subscription: sub }, 201);
+    return ok(
+      res,
+      {
+        brand: { _id: brand._id, name: brand.name, accountType: type },
+        restaurant: home,
+        branches: created.map((r) => ({ _id: r._id, name: r.name, slug: r.slug })),
+        owner: { _id: owner._id, email: owner.email },
+        subscription: sub,
+      },
+      201,
+    );
   }),
 );
 

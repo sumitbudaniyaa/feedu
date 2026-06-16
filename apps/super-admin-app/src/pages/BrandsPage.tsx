@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Boxes, ChevronDown, ChevronRight, Plus, Store } from 'lucide-react';
+import { Boxes, ChevronDown, ChevronRight, Plus, Power, Store } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -14,10 +14,11 @@ import {
   Input,
   Label,
   Skeleton,
+  useConfirm,
 } from '@feedo/ui';
 import { formatCurrency, formatDate } from '@feedo/utils';
 import type { PlatformBrand } from '@feedo/api';
-import { useBrands, useOnboardBranch } from '../lib/api.js';
+import { useBrands, useOnboardBranch, useToggleLive } from '../lib/api.js';
 
 export function BrandsPage() {
   const { data, isLoading } = useBrands();
@@ -51,8 +52,21 @@ export function BrandsPage() {
 }
 
 function BrandCard({ brand }: { brand: PlatformBrand }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
+  const toggleLive = useToggleLive();
+  const confirm = useConfirm();
+
+  const suspend = async (branchId: string, name: string, live: boolean) => {
+    const ok = await confirm({
+      title: live ? `Suspend ${name}?` : `Reactivate ${name}?`,
+      description: live
+        ? 'The branch goes offline — its customer menu shows “not found” and staff are locked out.'
+        : 'The branch goes back online and can take orders again.',
+      confirmText: live ? 'Suspend' : 'Reactivate',
+    });
+    if (ok) toggleLive.mutate({ id: branchId, isLive: !live });
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -97,21 +111,30 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
           </div>
           <div className="space-y-2">
             {brand.branches.map((b) => (
-              <Link
+              <div
                 key={b._id}
-                to={`/restaurants/${b._id}`}
-                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-secondary/50"
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
               >
                 <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{b.name}</p>
+                <Link to={`/restaurants/${b._id}`} className="group min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium group-hover:underline">{b.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     /{b.slug} · {b.orderCount} orders
                   </p>
-                </div>
+                </Link>
                 <Badge variant={b.isLive ? 'success' : 'warning'}>{b.isLive ? 'Live' : 'Offline'}</Badge>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </Link>
+                <Button
+                  size="sm"
+                  variant={b.isLive ? 'outline' : 'default'}
+                  onClick={() => suspend(b._id, b.name, b.isLive)}
+                  disabled={toggleLive.isPending}
+                >
+                  <Power className="h-3.5 w-3.5" /> {b.isLive ? 'Suspend' : 'Reactivate'}
+                </Button>
+                <Link to={`/restaurants/${b._id}`} aria-label="Open branch" className="text-muted-foreground hover:text-foreground">
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
             ))}
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, ChevronRight, Plus } from 'lucide-react';
+import { Building2, ChevronRight, Plus, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -93,11 +93,19 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
     accountType: 'single' as 'single' | 'multi',
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  // Multi-store: the brand's outlets, entered during onboarding.
+  const [branches, setBranches] = useState<string[]>(['']);
+  const setBranch = (i: number, v: string) => setBranches((b) => b.map((x, idx) => (idx === i ? v : x)));
+  const addBranch = () => setBranches((b) => [...b, '']);
+  const removeBranch = (i: number) => setBranches((b) => (b.length > 1 ? b.filter((_, idx) => idx !== i) : b));
 
-  const reset = () =>
+  const reset = () => {
     setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly', accountType: 'single' });
+    setBranches(['']);
+  };
 
   const isMulti = form.accountType === 'multi';
+  const cleanBranches = branches.map((b) => b.trim()).filter(Boolean);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +119,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
         price: Number(form.price),
         billingCycle: form.billingCycle,
         accountType: form.accountType,
+        branches: isMulti ? cleanBranches : undefined,
       },
       {
         onSuccess: () => {
@@ -182,6 +191,38 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
               <Input type="text" value={form.password} onChange={(e) => set('password', e.target.value)} required minLength={6} />
             </div>
           </div>
+
+          {/* Multi-store: the brand's outlets, added during onboarding. */}
+          {isMulti && (
+            <div className="space-y-1.5 rounded-lg border border-border p-3">
+              <div className="flex items-center justify-between">
+                <Label>Branches</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addBranch}>
+                  <Plus className="h-3.5 w-3.5" /> Add branch
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {branches.map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      value={b}
+                      onChange={(e) => setBranch(i, e.target.value)}
+                      placeholder={`Branch ${i + 1} name (e.g. Indiranagar)`}
+                    />
+                    {branches.length > 1 && (
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeBranch(i)} aria-label="Remove branch">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                One combined fee covers all branches. You can add more later from the Brands page.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{isMulti ? 'Combined brand fee (₹)' : 'Price (₹)'}</Label>
@@ -211,8 +252,8 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={onboard.isPending}>
-              {onboard.isPending ? 'Creating…' : 'Create restaurant'}
+            <Button type="submit" disabled={onboard.isPending || (isMulti && cleanBranches.length === 0)}>
+              {onboard.isPending ? 'Creating…' : isMulti ? 'Create brand' : 'Create restaurant'}
             </Button>
           </DialogFooter>
         </form>
