@@ -143,7 +143,8 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   table-efficiency metrics; `?scope=brand` returns the **combined "All branches"** view for
   brand-wide roles (else the active branch). `/analytics/branches` — brand-wide **branch
   comparison** (revenue/orders/AOV/share per branch). All from real aggregations.
-- `/uploads` — authenticated image upload (multer → local `/uploads` static, CORP cross-origin)
+- `/uploads` — authenticated image upload (multer in-memory → **Cloudinary** when
+  `CLOUDINARY_*` is set, foldered by brand; falls back to local `/uploads` static in dev). Returns an absolute URL.
 - `/platform/*` — super-admin, cross-tenant: `stats` (incl. Feedu SaaS MRR/ARR), `analytics`,
   `users` (Feedu employees + restaurant users), `users` POST (create employee) + `users/:id`
   PATCH (edit employee), `orders`, `customers` (+ `?restaurantId=`/`?search=`), `customers/:id`

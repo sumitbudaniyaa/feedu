@@ -23,6 +23,10 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   // Shared secret for aggregator (Zomato/Swiggy/middleware) order ingestion webhooks.
   INTEGRATION_SECRET: z.string().optional(),
+  // Cloudinary image hosting (optional — falls back to local /uploads when unset).
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -36,4 +40,9 @@ export const env = {
   corsOrigins: parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()),
   isProd: parsed.data.NODE_ENV === 'production',
   razorpayConfigured: Boolean(parsed.data.RAZORPAY_KEY_ID && parsed.data.RAZORPAY_KEY_SECRET),
+  cloudinaryConfigured: Boolean(
+    parsed.data.CLOUDINARY_CLOUD_NAME &&
+      parsed.data.CLOUDINARY_API_KEY &&
+      parsed.data.CLOUDINARY_API_SECRET,
+  ),
 };
