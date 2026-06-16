@@ -105,6 +105,22 @@ export interface Branch {
   createdAt: string;
 }
 
+export interface BrandInfo {
+  _id: string;
+  name: string;
+  slug: string;
+  accountType: 'single' | 'multi';
+  branchCount: number;
+}
+
+/** The signed-in account's brand — drives whether multi-branch features show. */
+export function useBrand() {
+  return useQuery({
+    queryKey: ['brand', 'me'],
+    queryFn: () => apiClient.get<BrandInfo | null>('/restaurants/me/brand'),
+  });
+}
+
 /** All branches of the active brand (for the branch switcher + Branches page). */
 export function useBranches() {
   return useQuery({

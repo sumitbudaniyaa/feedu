@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { onboardingStateSchema, updateRestaurantSchema } from '@feedo/types';
 import { slugify, randomToken } from '@feedo/utils';
-import { Brand, Restaurant, Subscription } from '../../models/index.js';
+import { Brand, Restaurant } from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
 import { requireBrand, requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
+import { findEffectiveSubscription } from '../../utils/subscription.js';
 
 const router = Router();
 router.use(authenticate, resolveTenant, requireTenant);
@@ -67,12 +68,34 @@ router.get(
   }),
 );
 
-// Current restaurant's subscription (read-only for the owner — billing is managed by Feedu).
+// Current restaurant's subscription (read-only for the owner — billing is managed
+// by Feedu). For a multi-store brand this resolves to the brand's combined plan.
 router.get(
   '/me/subscription',
   asyncHandler(async (req, res) => {
-    const sub = await Subscription.findOne({ restaurantId: req.branchId }).lean();
+    const sub = await findEffectiveSubscription(req.branchId, req.brandId);
     return ok(res, sub);
+  }),
+);
+
+// The active brand (tenant) for the signed-in account: account type + branch count.
+// Drives whether the admin shows multi-branch features.
+router.get(
+  '/me/brand',
+  asyncHandler(async (req, res) => {
+    if (!req.brandId) return ok(res, null);
+    const [brand, branchCount] = await Promise.all([
+      Brand.findById(req.brandId).select('name slug accountType').lean(),
+      Restaurant.countDocuments({ brandId: req.brandId }),
+    ]);
+    if (!brand) return ok(res, null);
+    return ok(res, {
+      _id: String(brand._id),
+      name: brand.name,
+      slug: brand.slug,
+      accountType: brand.accountType ?? 'single',
+      branchCount,
+    });
   }),
 );
 

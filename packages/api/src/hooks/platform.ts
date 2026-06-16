@@ -44,6 +44,7 @@ export interface PlatformBrand {
   _id: string;
   name: string;
   slug: string;
+  accountType: 'single' | 'multi';
   cuisineType: string[];
   accent: string;
   createdAt: string;

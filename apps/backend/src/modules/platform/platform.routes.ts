@@ -318,11 +318,14 @@ router.get(
         orderCount: ordersByR.get(String(r._id)) ?? 0,
         subscription: subByR.get(String(r._id)) ?? null,
       }));
+      // multi-store brands bill once (one combined subscription); single-store
+      // brands bill per branch, so sum across them.
       const mrr = branches.reduce((s, b) => s + (b.subscription?.mrr ?? 0), 0);
       return {
         _id: String(brand._id),
         name: brand.name,
         slug: brand.slug,
+        accountType: brand.accountType ?? 'single',
         cuisineType: brand.cuisineType ?? [],
         accent: brand.branding?.accent ?? 'violet',
         createdAt: brand.createdAt,
@@ -365,6 +368,10 @@ router.post(
       isLive: true,
       onboarding: { completed: true, currentStep: 0, progress: 100, completedSteps: [] },
     });
+    // A second outlet makes this a chain — bill it once for the whole brand.
+    if (brand.accountType !== 'multi') {
+      await Brand.updateOne({ _id: brand._id }, { accountType: 'multi' });
+    }
     return ok(res, branch, 201);
   }),
 );
@@ -383,19 +390,29 @@ router.patch(
       update.mrr = toMrr(Number(price), cycle ?? 'monthly');
     }
     if (cycle !== undefined) update.billingCycle = cycle;
+
+    // A multi-store brand bills once: edit the brand's combined subscription, not
+    // a per-branch one. Single-store edits its own branch subscription.
+    const restaurant = await Restaurant.findById(req.params.id).select('brandId').lean();
+    if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    const brand = restaurant.brandId
+      ? await Brand.findById(restaurant.brandId).select('accountType').lean()
+      : null;
+    const subFilter =
+      brand?.accountType === 'multi' && restaurant.brandId
+        ? { brandId: restaurant.brandId }
+        : { restaurantId: req.params.id };
+
     // Expiry is derived automatically from "now + billing duration" whenever the
     // price or cycle is (re)set — never entered by hand.
     if (price !== undefined || cycle !== undefined) {
-      const existing = await Subscription.findOne({ restaurantId: req.params.id }).select('billingCycle').lean();
+      const existing = await Subscription.findOne(subFilter).select('billingCycle').lean();
       const months = CYCLE_MONTHS[cycle ?? existing?.billingCycle ?? 'monthly'] ?? 1;
       update.currentPeriodEnd = new Date(Date.now() + months * 30 * 86400000);
     }
     // Drop undefined keys so we never overwrite with nulls.
     Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
-    const sub = await Subscription.findOneAndUpdate({ restaurantId: req.params.id }, update, {
-      new: true,
-      upsert: true,
-    });
+    const sub = await Subscription.findOneAndUpdate(subFilter, update, { new: true, upsert: true });
     return ok(res, sub);
   }),
 );
@@ -414,11 +431,13 @@ router.post(
       billingCycle = 'monthly',
       plan = 'starter',
       durationDays,
+      accountType = 'single',
     } = req.body as Record<string, string | number>;
 
     if (!restaurantName || !ownerName || !email || !password) {
       throw ApiError.badRequest('restaurantName, ownerName, email and password are required');
     }
+    const type = accountType === 'multi' ? 'multi' : 'single';
     if (contactNumber && !/^\d{10}$/.test(String(contactNumber))) {
       throw ApiError.badRequest('Mobile number must be 10 digits');
     }
@@ -438,7 +457,8 @@ router.post(
       role: 'owner',
     });
     // Onboarding creates a brand (tenant) with its first branch, matching self-signup.
-    const brand = await Brand.create({ ownerId: owner._id, name: restaurantName, slug });
+    // A multi-store account bills once for the brand; branches are added afterwards.
+    const brand = await Brand.create({ ownerId: owner._id, name: restaurantName, slug, accountType: type });
     const restaurant = await Restaurant.create({
       brandId: brand._id,
       ownerId: owner._id,

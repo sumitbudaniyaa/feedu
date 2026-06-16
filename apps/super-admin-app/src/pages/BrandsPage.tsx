@@ -76,7 +76,12 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
             {brand.totalOrders} orders · joined {formatDate(brand.createdAt)}
           </p>
         </div>
-        <span className="hidden text-sm font-medium sm:block">{formatCurrency(brand.mrr)}/mo</span>
+        <span className="hidden text-sm font-medium sm:block">
+          {formatCurrency(brand.mrr)}/mo{brand.accountType === 'multi' ? ' combined' : ''}
+        </span>
+        <Badge variant={brand.accountType === 'multi' ? 'accent' : 'outline'}>
+          {brand.accountType === 'multi' ? 'Multi-store' : 'Single store'}
+        </Badge>
         <Badge variant="outline">
           {brand.liveBranchCount}/{brand.branchCount} live
         </Badge>

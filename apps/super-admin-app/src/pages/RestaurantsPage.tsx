@@ -90,11 +90,14 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
     password: '',
     price: '0',
     billingCycle: 'monthly' as Cycle,
+    accountType: 'single' as 'single' | 'multi',
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const reset = () =>
-    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly' });
+    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly', accountType: 'single' });
+
+  const isMulti = form.accountType === 'multi';
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +110,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
         password: form.password,
         price: Number(form.price),
         billingCycle: form.billingCycle,
+        accountType: form.accountType,
       },
       {
         onSuccess: () => {
@@ -121,11 +125,34 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Onboard a restaurant</DialogTitle>
+          <DialogTitle>Onboard {isMulti ? 'a brand' : 'a restaurant'}</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
+          {/* Single store vs multi-store chain. */}
           <div className="space-y-1.5">
-            <Label>Restaurant name</Label>
+            <Label>Account type</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['single', 'multi'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => set('accountType', t)}
+                  className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                    form.accountType === t
+                      ? 'border-accent bg-accent/10'
+                      : 'border-border hover:bg-secondary/50'
+                  }`}
+                >
+                  <span className="font-medium">{t === 'single' ? 'Single store' : 'Multi-store'}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t === 'single' ? 'One outlet, billed on its own' : 'A chain billed once for all branches'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{isMulti ? 'Brand name' : 'Restaurant name'}</Label>
             <Input value={form.restaurantName} onChange={(e) => set('restaurantName', e.target.value)} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -157,7 +184,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Price (₹)</Label>
+              <Label>{isMulti ? 'Combined brand fee (₹)' : 'Price (₹)'}</Label>
               <Input type="number" min="0" value={form.price} onChange={(e) => set('price', e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -173,6 +200,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
           <p className="text-xs text-muted-foreground">
             Expiry is set automatically from the billing cycle.
+            {isMulti && ' This single fee covers every branch — add branches from the Brands page.'}
           </p>
           {onboard.isError && (
             <p className="text-sm text-destructive">

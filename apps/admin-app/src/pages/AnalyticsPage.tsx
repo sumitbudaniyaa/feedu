@@ -4,7 +4,7 @@ import { BarChart3, Clock, IndianRupee, Repeat, RefreshCw, Store, Table2, Trendi
 import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { BranchComparison } from '@feedo/types';
-import { useAuth, useBranchComparison, useDashboard } from '../lib/api.js';
+import { useAuth, useBrand, useBranchComparison, useDashboard } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
@@ -13,9 +13,10 @@ export function AnalyticsPage() {
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
   const [scope, setScope] = useState<'brand' | 'branch'>('brand');
   const role = useAuth((s) => s.user?.role);
-  const isBrandWide = BRAND_WIDE.has(role ?? '');
-  const { data: comparison } = useBranchComparison(range, isBrandWide);
-  const multiBranch = isBrandWide && (comparison?.totals.branchCount ?? 0) > 1;
+  const { data: brand } = useBrand();
+  // Combined + per-branch views only for brand-wide roles on a multi-store account.
+  const multiBranch = BRAND_WIDE.has(role ?? '') && brand?.accountType === 'multi';
+  const { data: comparison } = useBranchComparison(range, multiBranch);
   // Brand-wide users default to the combined view; single-branch brands stay per-branch.
   const effectiveScope = multiBranch ? scope : 'branch';
   const { data, isLoading } = useDashboard(range, effectiveScope);
@@ -130,8 +131,8 @@ export function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Brand-wide: how each branch is performing this range. */}
-      {isBrandWide && comparison && comparison.branches.length > 1 && (
+      {/* Multi-store: how each branch is performing this range. */}
+      {multiBranch && comparison && comparison.branches.length > 1 && (
         <BranchComparisonCard comparison={comparison} />
       )}
     </div>

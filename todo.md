@@ -120,6 +120,13 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
     is now optional on Product/Category/Section/LoyaltyProgram/LoyaltyReward. Branch delete only drops the
     brand catalog/loyalty when removing the brand's last branch. Verified: new brand product persists
     `brandId` only, is shared to all branches, and all read paths still work.
+- [x] **Account type (single vs multi-store):** `Brand.accountType`. Super-admin onboarding offers
+  single/multi; **multi bills once** (one combined brand subscription covers every branch). Adding a 2nd
+  branch auto-upgrades a brand to multi. `findEffectiveSubscription(branch, brand)` resolves a branch to
+  its own sub (single) or the brand's combined sub (multi); subscription PATCH targets the brand sub for
+  multi. Admin gates branch features (switcher, Branches page, combined "All branches" analytics) on
+  `GET /restaurants/me/brand` → `accountType === 'multi'`. Brands page shows the type + combined fee.
+  Verified: multi onboarding, single→multi conversion, combined-sub resolution from a sub-less branch.
 
 ## Recently added
 

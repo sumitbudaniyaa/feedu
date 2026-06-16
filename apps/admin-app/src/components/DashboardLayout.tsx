@@ -27,7 +27,7 @@ import {
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth, useLogout, useMe, useRestaurant, useSubscription } from '../lib/api.js';
+import { useAuth, useBrand, useLogout, useMe, useRestaurant, useSubscription } from '../lib/api.js';
 import { useLiveSync } from '../lib/useLiveSync.js';
 import { WaiterCallDrawer } from './WaiterCallDrawer.js';
 import { WaiterApp } from './WaiterApp.js';
@@ -62,11 +62,14 @@ export function DashboardLayout() {
   const location = useLocation();
   const { setAccent } = useTheme();
 
+  const { data: brand } = useBrand();
   const isWaiter = user?.role === 'waiter';
   const isBrandWide = BRAND_WIDE.has(user?.role ?? '');
+  // Branch features only for brand-wide roles on a multi-store account.
+  const isMultiStore = isBrandWide && brand?.accountType === 'multi';
   const nav = isWaiter
     ? NAV.filter((n) => WAITER_PATHS.has(n.to))
-    : NAV.filter((n) => !n.brandOnly || isBrandWide);
+    : NAV.filter((n) => !n.brandOnly || isMultiStore);
 
   // Keep waiters out of pages they can't access (deep-links / refresh land on Orders).
   useEffect(() => {
@@ -160,7 +163,7 @@ export function DashboardLayout() {
             <span className="text-lg font-black italic tracking-tight text-foreground">feedu</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <BranchSwitcher />
+            {isMultiStore && <BranchSwitcher />}
             <ThemeToggle />
             <Button
               variant="ghost"

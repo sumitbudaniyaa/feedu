@@ -13,6 +13,11 @@ const brandSchema = new Schema(
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, index: true },
+    /**
+     * single = one outlet billed on its own; multi = a chain billed once for the
+     * whole brand (a single combined subscription covers every branch).
+     */
+    accountType: { type: String, enum: ['single', 'multi'], default: 'single', index: true },
     description: String,
     cuisineType: { type: [String], default: [] },
     branding: {
