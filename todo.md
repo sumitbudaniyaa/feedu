@@ -140,6 +140,22 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   combined subscription summary. Per-branch suspend + add-branch stay inline.
 - [x] **Admin auth: removed self-signup** — onboarding is super-admin-only. The admin login page is
   sign-in only (no "Create account" tab); `useRegister` dropped from the admin app.
+- [x] **Branch managers:** brand-wide owners create branch-locked `branch_manager` logins per branch
+  (`/restaurants/branches/:id/managers` CRUD + reset password). The manager's portal is scoped to its
+  one branch (no switcher/Branches/combined). Fixed the User model role enum (was missing the
+  multi-branch roles + `brandId`, which broke creating any such user).
+- [x] **Centralized vs per-branch inventory:** the branch switcher defaults to **All branches**
+  (centralized); Dashboard/Analytics derive scope from it. Inventory in a branch writes `BranchMenu`
+  availability/stock **overrides** — marking an item off at one branch no longer affects others.
+- [x] **Admin branch management:** edit / suspend / delete branches and manage managers from the
+  Branches page (`PATCH/DELETE /restaurants/branches/:id`).
+- [x] **Brand Settings:** brand-wide owners edit **brand** name/branding/tax (`GET/PATCH
+  /restaurants/me/brand`); branding/tax/currency propagate to every branch.
+- [x] **Toasts everywhere:** `@feedo/ui` `Toaster`/`toast()` wired via the MutationCache in admin +
+  super-admin — success toast on every action, error message on failure.
+- [x] **Cloudinary image hosting:** `/uploads` streams to Cloudinary (foldered by brand) when
+  `CLOUDINARY_*` is set; local `/uploads` fallback in dev.
+- [x] **Customer header:** brand name big, branch name small (`📍 Branch`) on multi-store.
 
 ## Recently added
 

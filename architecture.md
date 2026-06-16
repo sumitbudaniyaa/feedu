@@ -56,7 +56,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 
 | App | Audience | Purpose | Default accent |
 |-----|----------|---------|----------------|
-| `admin-app` | Restaurant owner / manager | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings, onboarding | violet |
+| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
 | `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login (incl. at guest checkout), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers (dark-optimized KDS) | emerald |
 | `super-admin-app` | Feedu internal | One combined **Brands & Restaurants** page (search + type/status filters), single/multi-store onboarding, brand-level + per-branch suspend, combined SaaS plan editing, delete; platform analytics | blue |
@@ -75,7 +75,8 @@ Packages never import from apps. `types` is the lowest-level shared package.
 - **@feedo/ui** — `ThemeProvider`/`useTheme`/`ThemeToggle` + a shadcn-style component
   set (Button — incl. `accent`/`success` variants, Card, Input, Textarea, Select, Label,
   Badge, Skeleton, Spinner, Avatar, Separator, Switch, Dialog, Tabs, DropdownMenu, Tooltip,
-  EmptyState) and `styles/globals.css`.
+  EmptyState, `useConfirm` confirm dialogs, and a dependency-free `Toaster` + `toast()`) and
+  `styles/globals.css`.
 - **@feedo/api** — `ApiClient` (fetch + auto refresh + multipart `upload`), `createAuthStore`
   (Zustand + persist, namespaced per app), and hook factories: `createAuthHooks`,
   `createDomainHooks` (restaurant/dashboard/orders/redemptions), `createResource` (generic
@@ -90,7 +91,12 @@ Packages never import from apps. `types` is the lowest-level shared package.
 - **Routing**: React Router (admin-app uses protected routes + dashboard layout).
 - **Server state**: TanStack Query, configured per app in `main.tsx`.
 - **Client/auth state**: Zustand store from `@feedo/api`, persisted to localStorage with
-  an app-namespaced key (e.g. `feedo-admin-auth`).
+  an app-namespaced key (e.g. `feedo-admin-auth`). The admin app also keeps a tiny
+  dependency-free **active-branch** store (`feedu-admin-branch`); empty = "All branches"
+  (centralized), and `ApiClient` sends the selection as the `x-branch-id` header.
+- **Toasts**: `@feedo/ui` exports a dependency-free `Toaster` + `toast()`. Admin and
+  super-admin wire it into the TanStack Query **MutationCache** so every create/update/delete
+  shows a success toast (or the API error message on failure).
 - **Styling**: Tailwind via the shared preset; each app's `tailwind.config.cjs` also
   scans `@feedo/ui` source so shared class names survive purge.
 - **Animation**: Framer Motion (subtle, premium — fades, slide-ups, layout).
@@ -123,9 +129,12 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 ### API surface (modules)
 - `/auth` — register / login / refresh / me / change-password (verifies current; any signed-in account)
 - `/restaurants` — branch profile, settings, onboarding state, go-live; `/me/subscription`
-  (resolves the branch's own or the brand's combined plan), `/me/brand` (account type +
-  branch count → drives multi-branch UI), `GET/POST /branches` (list/create branches under the
-  brand)
+  (resolves the branch's own or the brand's combined plan), `/me/brand` GET (account type, branding,
+  tax → drives the multi-branch UI) + PATCH (brand-wide: name/branding/tax — **propagated to every
+  branch**). Branches: `GET/POST /branches`, `PATCH/DELETE /branches/:id` (edit / suspend / delete,
+  brand-wide; never the last branch). Branch managers: `GET/POST /branches/:id/managers` and
+  `PATCH/DELETE /branches/:id/managers/:userId` — create a **branch-locked** `branch_manager` login,
+  reset its password, or remove it.
 - `/branch-menu` — effective menu for the active branch + per-product override upsert (price/
   availability/stock/exclusive)
 - `/products`, `/categories`, `/sections`, `/loyalty`, `/rewards` — **brand-level** CRUD (shared

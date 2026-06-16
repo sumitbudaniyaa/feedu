@@ -15,12 +15,20 @@ Razorpay · JWT.
 - **Admin (restaurant owner — your client)** — range-aware dashboard (revenue/orders/AOV scoped to
   Day/Week/Month), live orders with **Active / Pending-payment / All** tabs (count badges, prominent
   table number, mark-as-paid with method), inventory (image upload, stock, prep time, per-item loyalty
-  points, **configurable sizes/variants**), Menu CMS, loyalty rewards + **points-expiry**, Analytics
-  (revenue/table, table turnover, avg serve time, peak hours, top products), tables & QR codes, **staff
-  (with mobile number)**, **customer analytics** (click a diner → spend, most-ordered, reward claims,
-  visits), settings (branding/tax/go-live + **subscription details**), **support tickets** (chat),
-  downloadable invoices. **Waiter role** is limited to a **dedicated mobile waiter app** (live table
-  **calls ring** with sound/vibrate + **slide-to-attend**, plus orders).
+  points, **configurable sizes/variants**, **Cloudinary** image hosting), Menu CMS, loyalty rewards +
+  **points-expiry**, Analytics (revenue/table, table turnover, avg serve time, peak hours, top products),
+  tables & QR codes, **staff (with mobile number)**, **customer analytics** (click a diner → spend,
+  most-ordered, reward claims, visits), settings (branding/tax/go-live + **subscription details**),
+  **support tickets** (chat), downloadable invoices. **Waiter role** is limited to a **dedicated mobile
+  waiter app** (live table **calls ring** with sound/vibrate + **slide-to-attend**, plus orders).
+  - **Multi-store owner**: a default **"All branches"** (centralized) view — combined dashboard +
+    branch comparison — or drill into one branch via the switcher; a **Branches** page to add / edit /
+    suspend / delete branches and **create branch-manager logins**; **brand-level Settings** (name /
+    branding / tax apply to every branch). Inventory is centralized by default; per branch you can
+    override **availability/stock without affecting other branches**.
+  - **Branch manager**: a branch-locked login — every tab (orders, tables, inventory, staff, customers,
+    analytics) shows only their branch; no switcher or brand-wide views.
+  - Every action raises a **toast**; onboarding is super-admin-only (no self-signup).
 - **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
   `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
   **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **call-waiter** from the
