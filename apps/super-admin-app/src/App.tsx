@@ -3,7 +3,6 @@ import { useAuth } from './lib/api.js';
 import { ConsoleLayout } from './components/ConsoleLayout.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { OverviewPage } from './pages/OverviewPage.js';
-import { BrandsPage } from './pages/BrandsPage.js';
 import { RestaurantsPage } from './pages/RestaurantsPage.js';
 import { RestaurantDetailPage } from './pages/RestaurantDetailPage.js';
 import { UsersPage } from './pages/UsersPage.js';
@@ -29,7 +28,7 @@ export function App() {
         }
       >
         <Route path="/" element={<OverviewPage />} />
-        <Route path="/brands" element={<BrandsPage />} />
+        <Route path="/brands" element={<Navigate to="/restaurants" replace />} />
         <Route path="/restaurants" element={<RestaurantsPage />} />
         <Route path="/restaurants/:id" element={<RestaurantDetailPage />} />
         <Route path="/employees" element={<UsersPage />} />
