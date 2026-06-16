@@ -5,20 +5,22 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, 
 import { formatCurrency } from '@feedo/utils';
 import type { BranchComparison } from '@feedo/types';
 import { useAuth, useBrand, useBranchComparison, useDashboard } from '../lib/api.js';
+import { useActiveBranchId } from '../store/branch.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
 
 export function AnalyticsPage() {
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
-  const [scope, setScope] = useState<'brand' | 'branch'>('brand');
   const role = useAuth((s) => s.user?.role);
+  const activeBranch = useActiveBranchId();
   const { data: brand } = useBrand();
-  // Combined + per-branch views only for brand-wide roles on a multi-store account.
+  // Combined view when no branch is selected (All branches); else the active branch.
   const multiBranch = BRAND_WIDE.has(role ?? '') && brand?.accountType === 'multi';
+  const combined = multiBranch && !activeBranch;
   const { data: comparison } = useBranchComparison(range, multiBranch);
   // Brand-wide users default to the combined view; single-branch brands stay per-branch.
-  const effectiveScope = multiBranch ? scope : 'branch';
+  const effectiveScope = combined ? 'brand' : 'branch';
   const { data, isLoading } = useDashboard(range, effectiveScope);
 
   return (
@@ -26,28 +28,18 @@ export function AnalyticsPage() {
       <PageHeader
         title="Analytics"
         description={
-          effectiveScope === 'brand'
-            ? 'Combined sales across all your branches.'
+          combined
+            ? 'Combined sales across all your branches — pick a branch up top to drill in.'
             : 'Sales, table efficiency, peaks and top products.'
         }
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            {multiBranch && (
-              <Tabs value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
-                <TabsList>
-                  <TabsTrigger value="brand">All branches</TabsTrigger>
-                  <TabsTrigger value="branch">This branch</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
-            <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
-              <TabsList>
-                <TabsTrigger value="day">Day</TabsTrigger>
-                <TabsTrigger value="week">Week</TabsTrigger>
-                <TabsTrigger value="month">Month</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+          <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
+            <TabsList>
+              <TabsTrigger value="day">Day</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
+              <TabsTrigger value="month">Month</TabsTrigger>
+            </TabsList>
+          </Tabs>
         }
       />
 

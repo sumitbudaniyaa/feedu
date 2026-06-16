@@ -21,14 +21,42 @@ import {
 } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Category, Product } from '@feedo/types';
-import { categories as categoriesApi, products as productsApi, uploadImage } from '../lib/api.js';
+import {
+  categories as categoriesApi,
+  products as productsApi,
+  uploadImage,
+  useBranchOverrides,
+  useSetBranchOverride,
+} from '../lib/api.js';
+import { useActiveBranchId } from '../store/branch.js';
 import { PageHeader } from '../components/PageHeader.js';
 
 export function InventoryPage() {
   const { data: products, isLoading } = productsApi.useList();
   const { data: categories } = categoriesApi.useList();
   const remove = productsApi.useRemove();
+  const update = productsApi.useUpdate();
   const confirm = useConfirm();
+
+  // null active branch = centralized (the brand catalog, applies to all branches).
+  // A selected branch = per-branch overrides (availability/stock only this branch).
+  const activeBranch = useActiveBranchId();
+  const branchMode = Boolean(activeBranch);
+  const { data: overrides } = useBranchOverrides(activeBranch);
+  const setOverride = useSetBranchOverride();
+  const overrideMap = new Map((overrides ?? []).map((o) => [o.productId, o]));
+
+  /** Effective availability/stock for the current scope. */
+  const eff = (p: Product) => {
+    if (!branchMode) return { isAvailable: p.isAvailable, stock: p.stock };
+    const o = overrideMap.get(p._id);
+    return { isAvailable: o?.isAvailable ?? p.isAvailable, stock: o?.stock ?? p.stock };
+  };
+
+  const toggleAvailable = (p: Product, value: boolean) => {
+    if (branchMode) setOverride.mutate({ productId: p._id, body: { isAvailable: value } });
+    else update.mutate({ id: p._id, body: { isAvailable: value } });
+  };
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
@@ -41,9 +69,10 @@ export function InventoryPage() {
   const filtered = (products ?? []).filter((p) => {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (cat !== 'all' && p.categoryId !== cat) return false;
-    const low = p.stock != null && p.stock <= p.lowStockThreshold;
-    if (status === 'available' && !p.isAvailable) return false;
-    if (status === 'unavailable' && p.isAvailable) return false;
+    const e = eff(p);
+    const low = e.stock != null && e.stock <= p.lowStockThreshold;
+    if (status === 'available' && !e.isAvailable) return false;
+    if (status === 'unavailable' && e.isAvailable) return false;
     if (status === 'low' && !low) return false;
     return true;
   });
@@ -62,21 +91,40 @@ export function InventoryPage() {
         description="Manage your products, pricing, stock and availability."
         action={
           <div className="flex gap-2">
-            <CategoryDialog categories={categories ?? []} />
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-              disabled={!categories?.length}
-            >
-              <Plus className="h-4 w-4" /> Add product
-            </Button>
+            {!branchMode && <CategoryDialog categories={categories ?? []} />}
+            {!branchMode && (
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+                disabled={!categories?.length}
+              >
+                <Plus className="h-4 w-4" /> Add product
+              </Button>
+            )}
           </div>
         }
       />
 
-      {!categories?.length && !isLoading && (
+      {/* Scope banner — centralized vs a single branch. */}
+      <Card className={`p-3 text-sm ${branchMode ? 'border-accent/40 bg-accent/5' : 'border-dashed'}`}>
+        {branchMode ? (
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">Branch view.</span> Toggling availability or
+            stock here applies <span className="font-medium">only to this branch</span>. To add or edit
+            products, switch to <span className="font-medium">All branches</span> up top.
+          </span>
+        ) : (
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">Centralized (all branches).</span> Products,
+            prices and defaults here apply to every branch — each branch can still override availability
+            and stock from its own branch view.
+          </span>
+        )}
+      </Card>
+
+      {!categories?.length && !isLoading && !branchMode && (
         <Card className="border-dashed p-4 text-sm text-muted-foreground">
           Create a category first — products belong to a category.
         </Card>
@@ -114,7 +162,10 @@ export function InventoryPage() {
         </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((p) => (
+          {filtered.map((p) => {
+            const e = eff(p);
+            const overridden = branchMode && overrideMap.has(p._id);
+            return (
             <Card key={p._id} className="group flex flex-col overflow-hidden">
               <div className="relative h-24 w-full overflow-hidden bg-secondary">
                 {p.image?.url ? (
@@ -124,9 +175,9 @@ export function InventoryPage() {
                     {p.name[0]}
                   </div>
                 )}
-                {!p.isAvailable && <Badge variant="destructive" className="absolute left-1.5 top-1.5">Off</Badge>}
-                {p.isAvailable && p.stock != null && p.stock <= p.lowStockThreshold && (
-                  <Badge variant="warning" className="absolute left-1.5 top-1.5">Low · {p.stock}</Badge>
+                {!e.isAvailable && <Badge variant="destructive" className="absolute left-1.5 top-1.5">Off</Badge>}
+                {e.isAvailable && e.stock != null && e.stock <= p.lowStockThreshold && (
+                  <Badge variant="warning" className="absolute left-1.5 top-1.5">Low · {e.stock}</Badge>
                 )}
               </div>
               <div className="flex flex-1 flex-col p-2.5">
@@ -134,27 +185,35 @@ export function InventoryPage() {
                 <p className="truncate text-[11px] text-muted-foreground">{catName(p.categoryId)}</p>
                 <div className="mt-auto flex items-center justify-between pt-2">
                   <span className="text-sm font-semibold">{formatCurrency(p.basePrice)}</span>
-                  <div className="-mr-1 flex">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      aria-label="Edit"
-                      onClick={() => {
-                        setEditing(p);
-                        setOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete" onClick={() => deleteProduct(p)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
+                  {branchMode ? (
+                    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      {overridden ? 'Branch' : 'Available'}
+                      <Switch checked={e.isAvailable} onCheckedChange={(v) => toggleAvailable(p, v)} />
+                    </label>
+                  ) : (
+                    <div className="-mr-1 flex">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        aria-label="Edit"
+                        onClick={() => {
+                          setEditing(p);
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete" onClick={() => deleteProduct(p)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       ) : products && products.length > 0 ? (
         <EmptyState icon={Search} title="No products match" description="Try a different search, category or status." />

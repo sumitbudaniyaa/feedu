@@ -6,6 +6,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, 
 import { formatCurrency, formatDate, formatPercent, formatRelativeTime } from '@feedo/utils';
 import type { Order } from '@feedo/types';
 import { useAuth, useBrand, useBranchComparison, useDashboard, useOrders } from '../lib/api.js';
+import { useActiveBranchId } from '../store/branch.js';
 import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
 
 const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
@@ -30,12 +31,14 @@ const RANGE_LABEL: Record<'day' | 'week' | 'month', string> = {
 export function DashboardPage() {
   const user = useAuth((s) => s.user);
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
-  const [scope, setScope] = useState<'brand' | 'branch'>('brand');
+  const activeBranch = useActiveBranchId();
   const { data: brand } = useBrand();
   const multiBranch = BRAND_WIDE.has(user?.role ?? '') && brand?.accountType === 'multi';
-  const effectiveScope = multiBranch ? scope : 'branch';
+  // No branch selected (All branches) → combined; a selected branch → that branch.
+  const combined = multiBranch && !activeBranch;
+  const effectiveScope = combined ? 'brand' : 'branch';
   const { data, isLoading } = useDashboard(range, effectiveScope);
-  const { data: comparison } = useBranchComparison(range, multiBranch && scope === 'brand');
+  const { data: comparison } = useBranchComparison(range, combined);
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const recent = orders?.slice(0, 8);
   const [selected, setSelected] = useState<Order | null>(null);
@@ -48,32 +51,22 @@ export function DashboardPage() {
             Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {effectiveScope === 'brand'
-              ? `Combined performance across all ${brand?.branchCount ?? ''} branches.`
+            {combined
+              ? `Combined performance across all ${brand?.branchCount ?? ''} branches — pick a branch up top to drill in.`
               : "Here's how your branch is performing."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {multiBranch && (
-            <Tabs value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
-              <TabsList>
-                <TabsTrigger value="brand">All branches</TabsTrigger>
-                <TabsTrigger value="branch">This branch</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-          <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
-            <TabsList>
-              <TabsTrigger value="day">Day</TabsTrigger>
-              <TabsTrigger value="week">Week</TabsTrigger>
-              <TabsTrigger value="month">Month</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
+          <TabsList>
+            <TabsTrigger value="day">Day</TabsTrigger>
+            <TabsTrigger value="week">Week</TabsTrigger>
+            <TabsTrigger value="month">Month</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Multi-store: per-branch breakdown when viewing the combined dashboard. */}
-      {multiBranch && scope === 'brand' && comparison && comparison.branches.length > 0 && (
+      {combined && comparison && comparison.branches.length > 0 && (
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Branches</CardTitle>

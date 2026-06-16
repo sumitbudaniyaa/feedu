@@ -148,6 +148,34 @@ export function useCreateBranch() {
   });
 }
 
+export interface BranchOverride {
+  _id: string;
+  productId: string;
+  priceOverride: number | null;
+  isAvailable: boolean;
+  stock: number | null;
+  branchExclusive: boolean;
+}
+
+/** This branch's raw menu overrides (availability/stock/price), for the Inventory branch view. */
+export function useBranchOverrides(branchId?: string | null) {
+  return useQuery({
+    queryKey: ['branch-overrides', branchId],
+    queryFn: () => apiClient.get<BranchOverride[]>('/branch-menu/overrides'),
+    enabled: Boolean(branchId),
+  });
+}
+
+/** Set a per-branch override for a product (availability/stock/price) — only this branch. */
+export function useSetBranchOverride() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, body }: { productId: string; body: Record<string, unknown> }) =>
+      apiClient.patch(`/branch-menu/${productId}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-overrides'] }),
+  });
+}
+
 export interface BranchManager {
   _id: string;
   name: string;
