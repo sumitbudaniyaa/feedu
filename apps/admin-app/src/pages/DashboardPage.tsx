@@ -5,8 +5,10 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, Skeleton, Tabs, TabsList, TabsTrigger, cn } from '@feedo/ui';
 import { formatCurrency, formatDate, formatPercent, formatRelativeTime } from '@feedo/utils';
 import type { Order } from '@feedo/types';
-import { useAuth, useDashboard, useOrders } from '../lib/api.js';
+import { useAuth, useBrand, useBranchComparison, useDashboard, useOrders } from '../lib/api.js';
 import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
+
+const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
 
 const STATUS_VARIANT: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'destructive'> = {
   pending: 'warning',
@@ -28,7 +30,12 @@ const RANGE_LABEL: Record<'day' | 'week' | 'month', string> = {
 export function DashboardPage() {
   const user = useAuth((s) => s.user);
   const [range, setRange] = useState<'day' | 'week' | 'month'>('week');
-  const { data, isLoading } = useDashboard(range);
+  const [scope, setScope] = useState<'brand' | 'branch'>('brand');
+  const { data: brand } = useBrand();
+  const multiBranch = BRAND_WIDE.has(user?.role ?? '') && brand?.accountType === 'multi';
+  const effectiveScope = multiBranch ? scope : 'branch';
+  const { data, isLoading } = useDashboard(range, effectiveScope);
+  const { data: comparison } = useBranchComparison(range, multiBranch && scope === 'brand');
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const recent = orders?.slice(0, 8);
   const [selected, setSelected] = useState<Order | null>(null);
@@ -41,17 +48,53 @@ export function DashboardPage() {
             Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Here&apos;s how your restaurant is performing.
+            {effectiveScope === 'brand'
+              ? `Combined performance across all ${brand?.branchCount ?? ''} branches.`
+              : "Here's how your branch is performing."}
           </p>
         </div>
-        <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
-          <TabsList>
-            <TabsTrigger value="day">Day</TabsTrigger>
-            <TabsTrigger value="week">Week</TabsTrigger>
-            <TabsTrigger value="month">Month</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-wrap items-center gap-2">
+          {multiBranch && (
+            <Tabs value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
+              <TabsList>
+                <TabsTrigger value="brand">All branches</TabsTrigger>
+                <TabsTrigger value="branch">This branch</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          <Tabs value={range} onValueChange={(v) => setRange(v as typeof range)}>
+            <TabsList>
+              <TabsTrigger value="day">Day</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
+              <TabsTrigger value="month">Month</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
+
+      {/* Multi-store: per-branch breakdown when viewing the combined dashboard. */}
+      {multiBranch && scope === 'brand' && comparison && comparison.branches.length > 0 && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Branches</CardTitle>
+            <Link to="/analytics" className="text-xs text-muted-foreground hover:text-foreground">
+              Full comparison →
+            </Link>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {comparison.branches.map((b) => (
+              <div key={b.branchId} className="rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium">{b.name}</span>
+                  {!b.isLive && <Badge variant="warning">Offline</Badge>}
+                </div>
+                <p className="mt-1 text-lg font-semibold tracking-tight">{formatCurrency(b.revenue)}</p>
+                <p className="text-xs text-muted-foreground">{b.orders} orders · {b.revenueSharePct}% of brand</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading || !data ? (

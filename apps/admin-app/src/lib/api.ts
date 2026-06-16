@@ -148,6 +148,33 @@ export function useCreateBranch() {
   });
 }
 
+export interface BranchManager {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  isActive: boolean;
+}
+
+/** Managers/logins for a specific branch (brand-wide roles). */
+export function useBranchManagers(branchId?: string) {
+  return useQuery({
+    queryKey: ['branch-managers', branchId],
+    queryFn: () => apiClient.get<BranchManager[]>(`/restaurants/branches/${branchId}/managers`),
+    enabled: Boolean(branchId),
+  });
+}
+
+export function useCreateBranchManager(branchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; email: string; phone?: string; password: string }) =>
+      apiClient.post<BranchManager>(`/restaurants/branches/${branchId}/managers`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
+  });
+}
+
 /** The current restaurant's subscription (read-only — Feedu manages billing). */
 export function useSubscription() {
   return useQuery({

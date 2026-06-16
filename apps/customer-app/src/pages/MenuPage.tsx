@@ -196,9 +196,22 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           </div>
 
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold leading-tight tracking-tight">
-              {restaurant.name}
-            </h1>
+            {(() => {
+              const brandName = (restaurant as { brandName?: string | null }).brandName;
+              const showBrand = Boolean(brandName && brandName !== restaurant.name);
+              return (
+                <>
+                  {showBrand && (
+                    <p className="truncate text-[11px] font-semibold uppercase tracking-widest text-white/70">
+                      {brandName}
+                    </p>
+                  )}
+                  <h1 className="truncate text-2xl font-bold leading-tight tracking-tight">
+                    {restaurant.name}
+                  </h1>
+                </>
+              );
+            })()}
             {restaurant.cuisineType && restaurant.cuisineType.length > 0 && (
               <p className="mt-0.5 truncate text-sm text-white/80">
                 {restaurant.cuisineType.join(' · ')}
