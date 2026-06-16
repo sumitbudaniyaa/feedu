@@ -21,6 +21,7 @@ import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
+import { findEffectiveSubscription } from '../../utils/subscription.js';
 import { getCustomerAnalytics } from '../customers/customer-analytics.js';
 
 const PAID = ['confirmed', 'preparing', 'ready', 'served', 'completed'];
@@ -234,7 +235,8 @@ router.get(
     const id = restaurant._id;
     const [subscription, staff, productCount, customerCount, recentOrders, revenueAgg] =
       await Promise.all([
-        Subscription.findOne({ restaurantId: id }).lean(),
+        // For a multi-store brand every branch resolves to the one combined plan.
+        findEffectiveSubscription(String(id), restaurant.brandId ? String(restaurant.brandId) : null),
         User.find({ restaurantId: id, role: { $in: ['owner', 'manager', 'kitchen', 'waiter'] } })
           .sort({ createdAt: 1 })
           .lean(),

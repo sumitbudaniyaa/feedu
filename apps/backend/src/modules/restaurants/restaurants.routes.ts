@@ -2,7 +2,16 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { onboardingStateSchema, updateRestaurantSchema } from '@feedo/types';
 import { slugify, randomToken } from '@feedo/utils';
-import { Brand, Restaurant, User } from '../../models/index.js';
+import {
+  BranchMenu,
+  Brand,
+  Customer,
+  Order,
+  Restaurant,
+  Subscription,
+  Table,
+  User,
+} from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
 import { validateObjectId } from '../../middleware/params.js';
@@ -124,6 +133,107 @@ router.post(
       passwordHash: await User.hashPassword(password),
     });
     return ok(res, user.toJSON(), 201);
+  }),
+);
+
+// Edit a branch (name / contact / live state) — brand-wide roles.
+router.patch(
+  '/branches/:id',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validateObjectId(),
+  validate(
+    z.object({
+      name: z.string().min(1).optional(),
+      contactNumber: z.string().optional(),
+      isLive: z.boolean().optional(),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    await brandBranchOr404(req.brandId, req.params.id!);
+    const { name, contactNumber, isLive } = req.body as {
+      name?: string;
+      contactNumber?: string;
+      isLive?: boolean;
+    };
+    const update: Record<string, unknown> = { name, contactNumber, isLive };
+    Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
+    const branch = await Restaurant.findByIdAndUpdate(req.params.id, update, { new: true });
+    return ok(res, branch);
+  }),
+);
+
+// Delete a branch + its branch-scoped data (never the brand's last branch).
+router.delete(
+  '/branches/:id',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    await brandBranchOr404(req.brandId, req.params.id!);
+    const count = await Restaurant.countDocuments({ brandId: req.brandId });
+    if (count <= 1) throw ApiError.badRequest('A brand must keep at least one branch');
+    const id = req.params.id;
+    await Promise.all([
+      Restaurant.deleteOne({ _id: id }),
+      User.deleteMany({ restaurantId: id }),
+      Table.deleteMany({ restaurantId: id }),
+      Order.deleteMany({ restaurantId: id }),
+      Customer.deleteMany({ restaurantId: id }),
+      BranchMenu.deleteMany({ branchId: id }),
+      Subscription.deleteMany({ restaurantId: id }),
+    ]);
+    return ok(res, { deleted: true });
+  }),
+);
+
+// Edit a branch manager (name / phone / password / active).
+router.patch(
+  '/branches/:id/managers/:userId',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validateObjectId(),
+  validateObjectId('userId'),
+  asyncHandler(async (req, res) => {
+    await brandBranchOr404(req.brandId, req.params.id!);
+    const { name, phone, password, isActive } = req.body as {
+      name?: string;
+      phone?: string;
+      password?: string;
+      isActive?: boolean;
+    };
+    const update: Record<string, unknown> = { name, phone, isActive };
+    if (typeof password === 'string' && password) {
+      if (password.length < 8) throw ApiError.badRequest('Password must be at least 8 characters');
+      update.passwordHash = await User.hashPassword(password);
+    }
+    Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.userId, restaurantId: req.params.id, role: { $in: ['branch_manager', 'manager'] } },
+      update,
+      { new: true },
+    );
+    if (!user) throw ApiError.notFound('Manager not found');
+    return ok(res, user.toJSON());
+  }),
+);
+
+// Remove a branch manager.
+router.delete(
+  '/branches/:id/managers/:userId',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validateObjectId(),
+  validateObjectId('userId'),
+  asyncHandler(async (req, res) => {
+    await brandBranchOr404(req.brandId, req.params.id!);
+    const user = await User.findOneAndDelete({
+      _id: req.params.userId,
+      restaurantId: req.params.id,
+      role: { $in: ['branch_manager', 'manager'] },
+    });
+    if (!user) throw ApiError.notFound('Manager not found');
+    return ok(res, { _id: req.params.userId });
   }),
 );
 

@@ -176,6 +176,25 @@ export function useSetBranchOverride() {
   });
 }
 
+/** Edit a branch (name / contact / live state). */
+export function useUpdateBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { name?: string; contactNumber?: string; isLive?: boolean } }) =>
+      apiClient.patch<Branch>(`/restaurants/branches/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
+  });
+}
+
+/** Delete a branch (and its branch-scoped data). */
+export function useDeleteBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/restaurants/branches/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
+  });
+}
+
 export interface BranchManager {
   _id: string;
   name: string;
@@ -199,6 +218,24 @@ export function useCreateBranchManager(branchId: string) {
   return useMutation({
     mutationFn: (body: { name: string; email: string; phone?: string; password: string }) =>
       apiClient.post<BranchManager>(`/restaurants/branches/${branchId}/managers`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
+  });
+}
+
+export function useUpdateBranchManager(branchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, body }: { userId: string; body: { name?: string; phone?: string; password?: string; isActive?: boolean } }) =>
+      apiClient.patch<BranchManager>(`/restaurants/branches/${branchId}/managers/${userId}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
+  });
+}
+
+export function useDeleteBranchManager(branchId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      apiClient.delete(`/restaurants/branches/${branchId}/managers/${userId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
   });
 }
