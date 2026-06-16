@@ -21,6 +21,7 @@ export * from './components/dropdown-menu.js';
 export * from './components/tooltip.js';
 export * from './components/empty-state.js';
 export * from './components/confirm.js';
+export * from './components/toast.js';
 
 // Re-export cn for convenience
 export { cn } from '@feedo/utils';

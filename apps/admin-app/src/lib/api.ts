@@ -112,6 +112,11 @@ export interface BrandInfo {
   slug: string;
   accountType: 'single' | 'multi';
   branchCount: number;
+  description?: string;
+  cuisineType?: string[];
+  branding?: { accent?: string; themeMode?: string };
+  tax?: { gstNumber?: string; gstPercent?: number; inclusive?: boolean };
+  currency?: string;
 }
 
 /** The signed-in account's brand — drives whether multi-branch features show. */
@@ -119,6 +124,18 @@ export function useBrand() {
   return useQuery({
     queryKey: ['brand', 'me'],
     queryFn: () => apiClient.get<BrandInfo | null>('/restaurants/me/brand'),
+  });
+}
+
+/** Update brand-level settings (name/branding/tax/currency) — applies to all branches. */
+export function useUpdateBrandSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => apiClient.patch('/restaurants/me/brand', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brand'] });
+      qc.invalidateQueries({ queryKey: ['restaurant'] });
+    },
   });
 }
 

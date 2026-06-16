@@ -264,7 +264,7 @@ router.get(
   asyncHandler(async (req, res) => {
     if (!req.brandId) return ok(res, null);
     const [brand, branchCount] = await Promise.all([
-      Brand.findById(req.brandId).select('name slug accountType').lean(),
+      Brand.findById(req.brandId).lean(),
       Restaurant.countDocuments({ brandId: req.brandId }),
     ]);
     if (!brand) return ok(res, null);
@@ -273,8 +273,56 @@ router.get(
       name: brand.name,
       slug: brand.slug,
       accountType: brand.accountType ?? 'single',
+      description: brand.description ?? '',
+      cuisineType: brand.cuisineType ?? [],
+      branding: brand.branding,
+      tax: brand.tax,
+      currency: brand.currency,
       branchCount,
     });
+  }),
+);
+
+// Update the brand (name / branding / tax / currency) — applies to ALL branches.
+router.patch(
+  '/me/brand',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validate(
+    z.object({
+      name: z.string().min(1).optional(),
+      description: z.string().optional(),
+      cuisineType: z.array(z.string()).optional(),
+      branding: z
+        .object({
+          accent: z.enum(['emerald', 'violet', 'blue', 'amber', 'rose', 'slate']).optional(),
+          themeMode: z.enum(['dark', 'light']).optional(),
+        })
+        .optional(),
+      tax: z
+        .object({
+          gstNumber: z.string().optional(),
+          gstPercent: z.number().min(0).max(100).optional(),
+          inclusive: z.boolean().optional(),
+        })
+        .optional(),
+      currency: z.string().optional(),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const body = req.body as Record<string, unknown>;
+    const brand = await Brand.findByIdAndUpdate(req.brandId, body, { new: true });
+    if (!brand) throw ApiError.notFound('Brand not found');
+    // Branding/tax/currency are shared — propagate to every branch so the
+    // customer app theme and order GST stay in sync across the brand.
+    const propagate: Record<string, unknown> = {};
+    if (body.branding !== undefined) propagate.branding = brand.branding;
+    if (body.tax !== undefined) propagate.tax = brand.tax;
+    if (body.currency !== undefined) propagate.currency = brand.currency;
+    if (Object.keys(propagate).length) {
+      await Restaurant.updateMany({ brandId: req.brandId }, propagate);
+    }
+    return ok(res, brand);
   }),
 );
 

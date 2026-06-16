@@ -210,11 +210,21 @@ function ManagersDialog({ branch, onClose }: { branch: Branch | null; onClose: (
   const confirm = useConfirm();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  // Inline reset-password editor (which manager is being reset + the new value).
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [newPw, setNewPw] = useState('');
 
-  const resetPassword = (userId: string, name: string) => {
-    const pw = window.prompt(`New password for ${name} (min 8 chars):`);
-    if (pw && pw.length >= 8) updateMgr.mutate({ userId, body: { password: pw } });
-    else if (pw) window.alert('Password must be at least 8 characters.');
+  const submitReset = (userId: string) => {
+    if (newPw.length < 8) return;
+    updateMgr.mutate(
+      { userId, body: { password: newPw } },
+      {
+        onSuccess: () => {
+          setResetId(null);
+          setNewPw('');
+        },
+      },
+    );
   };
 
   const deleteManager = async (userId: string, name: string) => {
@@ -247,18 +257,38 @@ function ManagersDialog({ branch, onClose }: { branch: Branch | null; onClose: (
             <Skeleton className="h-10" />
           ) : managers && managers.length > 0 ? (
             managers.map((m) => (
-              <div key={m._id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{m.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+              <div key={m._id} className="rounded-lg border border-border px-3 py-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{m.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                  </div>
+                  <Badge variant="outline" className="capitalize">{m.role.replace('_', ' ')}</Badge>
+                  <Button size="sm" variant="ghost" onClick={() => { setResetId(resetId === m._id ? null : m._id); setNewPw(''); }}>
+                    Reset password
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Remove" onClick={() => deleteManager(m._id, m.name)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Badge variant="outline" className="capitalize">{m.role.replace('_', ' ')}</Badge>
-                <Button size="sm" variant="ghost" onClick={() => resetPassword(m._id, m.name)}>
-                  Reset password
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Remove" onClick={() => deleteManager(m._id, m.name)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {resetId === m._id && (
+                  <div className="mt-2 flex items-center gap-2 border-t border-border pt-2">
+                    <Input
+                      type="text"
+                      autoFocus
+                      placeholder="New password (min 8 chars)"
+                      value={newPw}
+                      onChange={(e) => setNewPw(e.target.value)}
+                      className="h-8"
+                    />
+                    <Button size="sm" disabled={newPw.length < 8 || updateMgr.isPending} onClick={() => submitReset(m._id)}>
+                      {updateMgr.isPending ? 'Saving…' : 'Save'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setResetId(null); setNewPw(''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           ) : (

@@ -21,16 +21,31 @@ import {
   useTheme,
 } from '@feedo/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { AccentKey, Restaurant } from '@feedo/types';
+import type { AccentKey } from '@feedo/types';
 import { formatCurrency, formatDate } from '@feedo/utils';
 import {
   apiClient,
+  useAuth,
+  useBrand,
   useChangePassword,
   useRestaurant,
   useSubscription,
+  useUpdateBrandSettings,
   useUpdateRestaurant,
 } from '../lib/api.js';
 import { PageHeader } from '../components/PageHeader.js';
+
+const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
+
+/** Minimal shape shared by a Restaurant (branch) and a Brand for the edit dialogs. */
+interface SettingsEntity {
+  name?: string;
+  contactNumber?: string;
+  cuisineType?: string[];
+  description?: string;
+  branding?: { accent?: string; themeMode?: string };
+  tax?: { gstNumber?: string; gstPercent?: number; inclusive?: boolean };
+}
 
 const ACCENTS: { key: AccentKey; hex: string }[] = [
   { key: 'violet', hex: '#8B5CF6' },
@@ -53,6 +68,11 @@ type Section = 'details' | 'branding' | 'tax' | null;
 export function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: subscription } = useSubscription();
+  const { data: brand } = useBrand();
+  const role = useAuth((s) => s.user?.role);
+  // Brand-wide owners manage the BRAND (name/branding/tax apply to all branches);
+  // branch managers manage their own branch.
+  const brandMode = BRAND_WIDE.has(role ?? '') && Boolean(brand);
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Section>(null);
   const [pwOpen, setPwOpen] = useState(false);
@@ -71,13 +91,14 @@ export function SettingsPage() {
     );
   }
 
-  const accentHex = ACCENTS.find((a) => a.key === (restaurant.branding?.accent ?? 'violet'))?.hex;
+  const entity: SettingsEntity = brandMode && brand ? brand : restaurant;
+  const accentHex = ACCENTS.find((a) => a.key === (entity.branding?.accent ?? 'violet'))?.hex;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Branding, tax and restaurant details."
+        description={brandMode ? 'Brand details, branding and tax — applied across all branches.' : 'Branding, tax and restaurant details.'}
         action={
           restaurant.isLive ? (
             <Badge variant="success">
@@ -91,26 +112,26 @@ export function SettingsPage() {
         }
       />
 
-      {/* Restaurant details */}
-      <SectionCard title="Restaurant details" onEdit={() => setEditing('details')}>
+      {/* Brand / restaurant details */}
+      <SectionCard title={brandMode ? 'Brand details' : 'Restaurant details'} onEdit={() => setEditing('details')}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SubRow label="Name"><span className="font-medium">{restaurant.name}</span></SubRow>
-          <SubRow label="Contact"><span className="font-medium">{restaurant.contactNumber || '—'}</span></SubRow>
+          <SubRow label={brandMode ? 'Brand name' : 'Name'}><span className="font-medium">{entity.name}</span></SubRow>
+          {!brandMode && <SubRow label="Contact"><span className="font-medium">{restaurant.contactNumber || '—'}</span></SubRow>}
           <SubRow label="Cuisine">
-            <span className="font-medium">{(restaurant.cuisineType ?? []).join(', ') || '—'}</span>
+            <span className="font-medium">{(entity.cuisineType ?? []).join(', ') || '—'}</span>
           </SubRow>
           <SubRow label="Description">
-            <span className="font-medium">{restaurant.description || '—'}</span>
+            <span className="font-medium">{entity.description || '—'}</span>
           </SubRow>
         </div>
       </SectionCard>
 
       {/* Branding */}
-      <SectionCard title="Branding" onEdit={() => setEditing('branding')}>
+      <SectionCard title={brandMode ? 'Brand branding' : 'Branding'} onEdit={() => setEditing('branding')}>
         <SubRow label="Accent color">
           <span className="inline-flex items-center gap-2 font-medium capitalize">
             <span className="h-5 w-5 rounded-full border border-border" style={{ backgroundColor: accentHex }} />
-            {restaurant.branding?.accent ?? 'violet'}
+            {entity.branding?.accent ?? 'violet'}
           </span>
         </SubRow>
       </SectionCard>
@@ -118,10 +139,10 @@ export function SettingsPage() {
       {/* Tax */}
       <SectionCard title="Tax (GST)" onEdit={() => setEditing('tax')}>
         <div className="grid gap-4 sm:grid-cols-3">
-          <SubRow label="GST number"><span className="font-medium">{restaurant.tax?.gstNumber || '—'}</span></SubRow>
-          <SubRow label="GST percent"><span className="font-medium">{restaurant.tax?.gstPercent ?? 5}%</span></SubRow>
+          <SubRow label="GST number"><span className="font-medium">{entity.tax?.gstNumber || '—'}</span></SubRow>
+          <SubRow label="GST percent"><span className="font-medium">{entity.tax?.gstPercent ?? 5}%</span></SubRow>
           <SubRow label="Prices include tax">
-            <span className="font-medium">{restaurant.tax?.inclusive ? 'Yes' : 'No'}</span>
+            <span className="font-medium">{entity.tax?.inclusive ? 'Yes' : 'No'}</span>
           </SubRow>
         </div>
       </SectionCard>
@@ -179,9 +200,9 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <DetailsDialog open={editing === 'details'} onClose={() => setEditing(null)} restaurant={restaurant} />
-      <BrandingDialog open={editing === 'branding'} onClose={() => setEditing(null)} restaurant={restaurant} />
-      <TaxDialog open={editing === 'tax'} onClose={() => setEditing(null)} restaurant={restaurant} />
+      <DetailsDialog open={editing === 'details'} onClose={() => setEditing(null)} data={entity} brandMode={brandMode} />
+      <BrandingDialog open={editing === 'branding'} onClose={() => setEditing(null)} data={entity} brandMode={brandMode} />
+      <TaxDialog open={editing === 'tax'} onClose={() => setEditing(null)} data={entity} brandMode={brandMode} />
       <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
     </div>
   );
@@ -210,13 +231,15 @@ function SubRow({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-function DetailsDialog({ open, onClose, restaurant }: { open: boolean; onClose: () => void; restaurant: Restaurant }) {
-  const update = useUpdateRestaurant();
+function DetailsDialog({ open, onClose, data, brandMode }: { open: boolean; onClose: () => void; data: SettingsEntity; brandMode: boolean }) {
+  const ru = useUpdateRestaurant();
+  const bu = useUpdateBrandSettings();
+  const update = brandMode ? bu : ru;
   const [form, setForm] = useState({
-    name: restaurant.name ?? '',
-    contactNumber: restaurant.contactNumber ?? '',
-    cuisine: (restaurant.cuisineType ?? []).join(', '),
-    description: restaurant.description ?? '',
+    name: data.name ?? '',
+    contactNumber: data.contactNumber ?? '',
+    cuisine: (data.cuisineType ?? []).join(', '),
+    description: data.description ?? '',
   });
   const invalid = Boolean(form.contactNumber) && !/^\d{10}$/.test(form.contactNumber);
 
@@ -226,7 +249,8 @@ function DetailsDialog({ open, onClose, restaurant }: { open: boolean; onClose: 
     update.mutate(
       {
         name: form.name,
-        contactNumber: form.contactNumber || undefined,
+        // Contact is branch-level only.
+        ...(brandMode ? {} : { contactNumber: form.contactNumber || undefined }),
         cuisineType: form.cuisine ? form.cuisine.split(',').map((s) => s.trim()).filter(Boolean) : [],
         description: form.description || undefined,
       },
@@ -238,25 +262,27 @@ function DetailsDialog({ open, onClose, restaurant }: { open: boolean; onClose: 
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit restaurant details</DialogTitle>
+          <DialogTitle>{brandMode ? 'Edit brand details' : 'Edit restaurant details'}</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="space-y-1.5">
-            <Label>Name</Label>
+            <Label>{brandMode ? 'Brand name' : 'Name'}</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
-          <div className="space-y-1.5">
-            <Label>Contact number</Label>
-            <Input
-              type="tel"
-              inputMode="numeric"
-              maxLength={10}
-              value={form.contactNumber}
-              onChange={(e) => setForm({ ...form, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-              placeholder="10-digit mobile number"
-            />
-            {invalid && <p className="text-xs text-destructive">Enter a valid 10-digit number.</p>}
-          </div>
+          {!brandMode && (
+            <div className="space-y-1.5">
+              <Label>Contact number</Label>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                value={form.contactNumber}
+                onChange={(e) => setForm({ ...form, contactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                placeholder="10-digit mobile number"
+              />
+              {invalid && <p className="text-xs text-destructive">Enter a valid 10-digit number.</p>}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Cuisine (comma separated)</Label>
             <Input value={form.cuisine} onChange={(e) => setForm({ ...form, cuisine: e.target.value })} placeholder="Indian, Continental" />
@@ -265,6 +291,7 @@ function DetailsDialog({ open, onClose, restaurant }: { open: boolean; onClose: 
             <Label>Description</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
+          {brandMode && <p className="text-xs text-muted-foreground">Applies to every branch of your brand.</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={update.isPending || invalid}>{update.isPending ? 'Saving…' : 'Save'}</Button>
@@ -275,15 +302,17 @@ function DetailsDialog({ open, onClose, restaurant }: { open: boolean; onClose: 
   );
 }
 
-function BrandingDialog({ open, onClose, restaurant }: { open: boolean; onClose: () => void; restaurant: Restaurant }) {
-  const update = useUpdateRestaurant();
+function BrandingDialog({ open, onClose, data, brandMode }: { open: boolean; onClose: () => void; data: SettingsEntity; brandMode: boolean }) {
+  const ru = useUpdateRestaurant();
+  const bu = useUpdateBrandSettings();
+  const update = brandMode ? bu : ru;
   const { setAccent } = useTheme();
-  const [accent, setLocalAccent] = useState<AccentKey>((restaurant.branding?.accent as AccentKey) ?? 'violet');
+  const [accent, setLocalAccent] = useState<AccentKey>((data.branding?.accent as AccentKey) ?? 'violet');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     update.mutate(
-      { branding: { accent, themeMode: restaurant.branding?.themeMode ?? 'dark' } },
+      { branding: { accent, themeMode: data.branding?.themeMode ?? 'dark' } },
       { onSuccess: onClose },
     );
   };
@@ -326,11 +355,13 @@ function BrandingDialog({ open, onClose, restaurant }: { open: boolean; onClose:
   );
 }
 
-function TaxDialog({ open, onClose, restaurant }: { open: boolean; onClose: () => void; restaurant: Restaurant }) {
-  const update = useUpdateRestaurant();
-  const [gstNumber, setGstNumber] = useState(restaurant.tax?.gstNumber ?? '');
-  const [gstPercent, setGstPercent] = useState(String(restaurant.tax?.gstPercent ?? 5));
-  const [inclusive, setInclusive] = useState(restaurant.tax?.inclusive ?? false);
+function TaxDialog({ open, onClose, data, brandMode }: { open: boolean; onClose: () => void; data: SettingsEntity; brandMode: boolean }) {
+  const ru = useUpdateRestaurant();
+  const bu = useUpdateBrandSettings();
+  const update = brandMode ? bu : ru;
+  const [gstNumber, setGstNumber] = useState(data.tax?.gstNumber ?? '');
+  const [gstPercent, setGstPercent] = useState(String(data.tax?.gstPercent ?? 5));
+  const [inclusive, setInclusive] = useState(data.tax?.inclusive ?? false);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

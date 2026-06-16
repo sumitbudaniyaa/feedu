@@ -201,14 +201,12 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
               const showBrand = Boolean(brandName && brandName !== restaurant.name);
               return (
                 <>
-                  {showBrand && (
-                    <p className="truncate text-[11px] font-semibold uppercase tracking-widest text-white/70">
-                      {brandName}
-                    </p>
-                  )}
                   <h1 className="truncate text-2xl font-bold leading-tight tracking-tight">
-                    {restaurant.name}
+                    {showBrand ? brandName : restaurant.name}
                   </h1>
+                  {showBrand && (
+                    <p className="mt-0.5 truncate text-sm text-white/80">📍 {restaurant.name}</p>
+                  )}
                 </>
               );
             })()}
