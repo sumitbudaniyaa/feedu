@@ -32,7 +32,7 @@ router.get(
 // Staff-created order (e.g. dine-in taken at the counter).
 router.post(
   '/',
-  authorize('owner', 'manager', 'waiter'),
+  authorize('owner', 'manager', 'waiter', 'branch_manager'),
   validate(createOrderSchema),
   asyncHandler(async (req, res) => {
     // Staff orders are taken in person → confirmed immediately (payment collected at counter).
@@ -57,7 +57,7 @@ router.get(
 router.patch(
   '/:id/payment',
   validateObjectId(),
-  authorize('owner', 'manager', 'waiter'),
+  authorize('owner', 'manager', 'waiter', 'branch_manager'),
   validate(z.object({ method: manualPaymentMethodSchema })),
   asyncHandler(async (req, res) => {
     const order = await orders.recordPayment(req.branchId!, req.params.id!, req.body.method);
@@ -68,7 +68,7 @@ router.patch(
 router.patch(
   '/:id/status',
   validateObjectId(),
-  authorize('owner', 'manager', 'kitchen', 'waiter'),
+  authorize('owner', 'manager', 'kitchen', 'waiter', 'branch_manager'),
   validate(updateOrderStatusSchema),
   asyncHandler(async (req, res) => {
     const order = await orders.updateStatus(req.branchId!, req.params.id!, req.body.status);

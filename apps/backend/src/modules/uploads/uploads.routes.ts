@@ -37,7 +37,7 @@ router.post(
   '/',
   authenticate,
   resolveTenant,
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   (req, res, next) => {
     upload.single('file')(req, res, (err: unknown) => {
       if (err) return next(ApiError.badRequest(err instanceof Error ? err.message : 'Upload failed'));

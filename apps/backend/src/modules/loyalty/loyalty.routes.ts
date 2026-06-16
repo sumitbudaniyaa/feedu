@@ -19,9 +19,9 @@ const router = Router();
 router.use(authenticate, resolveTenant, requireTenant);
 
 router.get('/', asyncHandler(handlers.list));
-router.post('/', authorize('owner', 'manager'), asyncHandler(handlers.create));
+router.post('/', authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.create));
 router.get('/:id', validateObjectId(), asyncHandler(handlers.get));
-router.patch('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.update));
-router.delete('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.remove));
+router.patch('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.update));
+router.delete('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.remove));
 
 export default router;

@@ -25,7 +25,7 @@ router.use(authenticate, resolveTenant, requireTenant);
 // Redemptions (claims) — list + fulfil. Declared before /:id routes.
 router.get(
   '/redemptions',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   asyncHandler(async (req, res) => {
     const redemptions = await Redemption.find({ restaurantId: req.branchId })
       .sort({ createdAt: -1 })
@@ -38,7 +38,7 @@ router.get(
 router.patch(
   '/redemptions/:id',
   validateObjectId(),
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   asyncHandler(async (req, res) => {
     const { status } = req.body as { status?: string };
     if (!status || !['fulfilled', 'cancelled'].includes(status)) {
@@ -55,8 +55,8 @@ router.patch(
 );
 
 router.get('/', asyncHandler(handlers.list));
-router.post('/', authorize('owner', 'manager'), asyncHandler(handlers.create));
-router.patch('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.update));
-router.delete('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.remove));
+router.post('/', authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.create));
+router.patch('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.update));
+router.delete('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.remove));
 
 export default router;

@@ -29,7 +29,7 @@ router.get(
 
 router.post(
   '/',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   validate(createStaffSchema),
   asyncHandler(async (req, res) => {
     const exists = await User.findOne({ email: req.body.email, restaurantId: req.branchId });
@@ -51,7 +51,7 @@ router.post(
 router.patch(
   '/:id',
   validateObjectId(),
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   asyncHandler(async (req, res) => {
     const { name, email, phone, password, role, permissions, isActive } = req.body as Record<string, unknown>;
     if (role && !STAFF_ROLES.includes(role as string)) throw ApiError.badRequest('Invalid role');
@@ -84,7 +84,7 @@ router.patch(
 router.delete(
   '/:id',
   validateObjectId(),
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   asyncHandler(async (req, res) => {
     const user = await User.findOneAndDelete({
       _id: req.params.id,

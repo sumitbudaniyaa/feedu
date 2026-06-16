@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { onboardingStateSchema, updateRestaurantSchema } from '@feedo/types';
 import { slugify, randomToken } from '@feedo/utils';
-import { Brand, Restaurant } from '../../models/index.js';
+import { Brand, Restaurant, User } from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
+import { validateObjectId } from '../../middleware/params.js';
 import { requireBrand, requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
@@ -58,6 +59,74 @@ router.post(
   }),
 );
 
+// ─── Branch managers (brand-wide roles create per-branch logins) ───────────
+
+/** Confirm a branch belongs to the active brand; returns it or 404s. */
+async function brandBranchOr404(brandId: string | undefined, branchId: string) {
+  const branch = await Restaurant.findOne({ _id: branchId, brandId }).lean();
+  if (!branch) throw ApiError.notFound('Branch not found');
+  return branch;
+}
+
+// List a branch's managers/staff (brand-wide roles, branch must be in the brand).
+router.get(
+  '/branches/:id/managers',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    await brandBranchOr404(req.brandId, req.params.id!);
+    const managers = await User.find({
+      restaurantId: req.params.id,
+      role: { $in: ['branch_manager', 'manager'] },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+    return ok(res, managers);
+  }),
+);
+
+// Create a branch-manager login for a specific branch.
+router.post(
+  '/branches/:id/managers',
+  requireBrand,
+  authorize('owner', 'brand_owner', 'brand_admin'),
+  validateObjectId(),
+  validate(
+    z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      phone: z.string().optional(),
+      password: z.string().min(8),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const branch = await brandBranchOr404(req.brandId, req.params.id!);
+    const { name, email, phone, password } = req.body as {
+      name: string;
+      email: string;
+      phone?: string;
+      password: string;
+    };
+    const lower = email.toLowerCase();
+    if (await User.exists({ email: lower, restaurantId: branch._id })) {
+      throw ApiError.conflict('A user with this email already exists for this branch');
+    }
+    // The branch manager is locked to this branch — restaurantId = the branch,
+    // role branch_manager (not brand-wide), so their token can't switch branches.
+    const user = await User.create({
+      name,
+      email: lower,
+      phone: phone || undefined,
+      role: 'branch_manager',
+      restaurantId: branch._id,
+      brandId: branch.brandId,
+      passwordHash: await User.hashPassword(password),
+    });
+    return ok(res, user.toJSON(), 201);
+  }),
+);
+
 // Current restaurant profile.
 router.get(
   '/me',
@@ -102,7 +171,7 @@ router.get(
 // Update profile / branding / tax / timings.
 router.patch(
   '/me',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   validate(updateRestaurantSchema),
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findByIdAndUpdate(req.branchId, req.body, { new: true });

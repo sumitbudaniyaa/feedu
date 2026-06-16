@@ -20,12 +20,12 @@ const router = Router();
 router.use(authenticate, resolveTenant, requireTenant);
 
 router.get('/', asyncHandler(handlers.list));
-router.post('/', authorize('owner', 'manager'), asyncHandler(handlers.create));
+router.post('/', authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.create));
 
 // Persist a new display order (drag-and-drop).
 router.patch(
   '/reorder',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   validate(reorderSectionsSchema),
   asyncHandler(async (req, res) => {
     const { orderedIds } = req.body as { orderedIds: string[] };
@@ -39,7 +39,7 @@ router.patch(
 );
 
 router.get('/:id', validateObjectId(), asyncHandler(handlers.get));
-router.patch('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.update));
-router.delete('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.remove));
+router.patch('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.update));
+router.delete('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.remove));
 
 export default router;

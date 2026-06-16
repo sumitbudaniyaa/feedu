@@ -473,6 +473,14 @@ function ProductDialog({
             </label>
           </div>
           </div>
+          {(create.error || update.error) && (
+            <p className="mt-3 text-sm text-destructive">
+              {(() => {
+                const err = create.error ?? update.error;
+                return err instanceof Error ? err.message : 'Could not save product';
+              })()}
+            </p>
+          )}
           <DialogFooter className="mt-4 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

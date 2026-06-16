@@ -9,10 +9,26 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true, select: false },
     role: {
       type: String,
-      enum: ['super_admin', 'owner', 'manager', 'kitchen', 'waiter', 'customer'],
+      enum: [
+        'super_admin',
+        // Multi-branch roles.
+        'brand_owner',
+        'brand_admin',
+        'branch_manager',
+        'kitchen_staff',
+        'cashier',
+        // Legacy roles (kept for back-compat).
+        'owner',
+        'manager',
+        'kitchen',
+        'waiter',
+        'customer',
+      ],
       required: true,
       index: true,
     },
+    /** Brand (tenant) the user belongs to; set for restaurant users in the multi-branch model. */
+    brandId: { type: Schema.Types.ObjectId, ref: 'Brand', index: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: 'Restaurant', default: null, index: true },
     avatar: { type: String },
     permissions: { type: [String], default: [] },

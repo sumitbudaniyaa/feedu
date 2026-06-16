@@ -22,7 +22,7 @@ router.get('/', asyncHandler(handlers.list));
 
 router.post(
   '/',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   validate(createTableSchema),
   asyncHandler(async (req, res) => {
     const table = await Table.create({
@@ -38,7 +38,7 @@ router.post(
 // Bulk-generate tables (onboarding). Each gets a unique QR token.
 router.post(
   '/generate',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   validate(generateTablesSchema),
   asyncHandler(async (req, res) => {
     const { count, prefix } = req.body as { count: number; prefix: string };
@@ -53,7 +53,7 @@ router.post(
   }),
 );
 
-router.patch('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.update));
-router.delete('/:id', validateObjectId(), authorize('owner', 'manager'), asyncHandler(handlers.remove));
+router.patch('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.update));
+router.delete('/:id', validateObjectId(), authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.remove));
 
 export default router;

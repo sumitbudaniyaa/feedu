@@ -13,7 +13,7 @@ router.use(authenticate, resolveTenant, requireTenant);
 // Tracked diners for the restaurant, ranked by spend.
 router.get(
   '/',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   asyncHandler(async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const filter: Record<string, unknown> = { restaurantId: req.branchId };
@@ -31,7 +31,7 @@ router.get(
 // Full analytics for a single diner.
 router.get(
   '/:id',
-  authorize('owner', 'manager'),
+  authorize('owner', 'manager', 'branch_manager'),
   validateObjectId(),
   asyncHandler(async (req, res) => {
     const customer = await Customer.findOne({ _id: req.params.id, restaurantId: req.branchId }).lean();

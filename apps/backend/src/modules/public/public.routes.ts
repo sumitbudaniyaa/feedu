@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema, SOCKET_EVENTS, rooms } from '@feedo/types';
 import bcrypt from 'bcryptjs';
 import {
+  Brand,
   Customer,
   LoyaltyReward,
   Order,
@@ -114,6 +115,14 @@ function rewardScope(restaurant: { _id: unknown; brandId?: unknown }) {
   return restaurant.brandId ? { brandId: restaurant.brandId } : { restaurantId: restaurant._id };
 }
 
+/** Attach the brand name so the customer app can show "Brand · Branch". */
+async function withBrandName<T extends { brandId?: unknown }>(restaurant: T): Promise<T & { brandName: string | null }> {
+  const brand = restaurant.brandId
+    ? await Brand.findById(restaurant.brandId as string).select('name').lean()
+    : null;
+  return { ...restaurant, brandName: brand?.name ?? null };
+}
+
 // Public restaurant + full menu by slug.
 router.get(
   '/r/:slug',
@@ -125,7 +134,7 @@ router.get(
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
-    return ok(res, { restaurant, ...menu });
+    return ok(res, { restaurant: await withBrandName(restaurant), ...menu });
   }),
 );
 
@@ -140,7 +149,7 @@ router.get(
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
-    return ok(res, { restaurant, table, ...menu });
+    return ok(res, { restaurant: await withBrandName(restaurant), table, ...menu });
   }),
 );
 
