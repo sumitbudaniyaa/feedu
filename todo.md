@@ -167,7 +167,9 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   the simple single/multi-store flat combined fee.
 - [x] **Table validation (non-QR entry):** the customer table prompt validates the typed number against
   the restaurant's real tables (`GET /public/r/:slug/table?name=`, tolerant "5" ↔ "Table 5") and rejects
-  unknown tables; no-tables restaurants accept any input.
+  unknown tables; a restaurant with **no tables configured rejects** any number (must scan the QR / set up tables).
+- [x] **Product-create 500 fix:** `crud` schema `ZodError` → 400 (errorHandler) and the Inventory dialog
+  re-inits on open + falls back to the first category, so a stale-empty `categoryId` can't slip through.
 - [x] **Settings:** dropped the vestigial "Seats" row from the admin subscription card (schema default,
   not configured/enforced).
 
@@ -210,8 +212,9 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 **Customer**
 - [x] **Ongoing-order pill** on the menu (animated, expandable): shows live status + ETA, expands to
-      items/total/payment; **Pay now** for unpaid orders (Razorpay), and **Request bill** which rings
-      the waiter + admin (call-waiter `reason: 'bill'`). Auto-clears when the order is done + paid.
+      items/total/payment; **Pay now** + **Request bill** show **only for unpaid orders** (a paid/online
+      order is settled — neither button appears). Request bill rings the waiter + admin (call-waiter
+      `reason: 'bill'`). Auto-clears when the order is done + paid.
       Backend: `POST /public/orders/:id/razorpay` (pay an existing order); call-waiter takes a `reason`.
 - [x] Order page banner is **status-driven**: in-progress orders (even from history) show the live
       tracking hero; finished orders show a plain summary. Order History links open via `?view=details`

@@ -173,7 +173,7 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   from the customer app; the admin app shows a full lock screen for that restaurant.
 - `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
   `r/:slug/table?name=` (validate a manually-typed table for non-QR entry — tolerant "5" ↔ "Table 5",
-  404 if it doesn't exist; accepts anything when the restaurant has no tables),
+  404 if it doesn't exist or the restaurant has no tables configured),
   `checkout` (optional manual `tableName`), `orders/:id/pay`, `orders/:id` (track),
   `auth/otp/request`, `auth/otp/verify`, `r/:slug/account` + `r/:slug/redeem` (OTP-token gated),
   `r/:slug/call-waiter` (rings staff; `reason: assistance | bill`),
@@ -268,7 +268,8 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
 - **Headers**: `helmet` with a tight CSP (JSON-only API), `x-powered-by` disabled, `trust proxy`.
 - **AuthN/Z**: JWT access+refresh, bcrypt cost 12, `authorize(...roles)` RBAC, tenant scoping
   on every protected route, password hash never serialized. Body size capped at 1 MB.
-- **Error hygiene**: Mongoose CastError/ValidationError/duplicate-key and JWT errors mapped to
+- **Error hygiene**: Mongoose CastError/ValidationError/duplicate-key, **ZodError** (incl. the
+  `crud` create/update schema parse → 400 with the offending field), and JWT errors mapped to
   clean 4xx envelopes; internals never leaked.
 
 ### API response envelope
