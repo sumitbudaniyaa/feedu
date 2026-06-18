@@ -37,11 +37,11 @@ export const FEATURE_CATALOG: FeatureDef[] = [
   { key: 'orders', label: 'Orders', group: 'core', defaultPrice: 0, surfaces: ['admin'], core: true },
   { key: 'tables', label: 'Tables & QR', group: 'core', defaultPrice: 0, surfaces: ['admin'], core: true },
   { key: 'inventory', label: 'Inventory & Menu', group: 'core', defaultPrice: 0, surfaces: ['admin'], core: true },
+  { key: 'support_chat', label: 'Support Tickets', group: 'core', defaultPrice: 0, surfaces: ['admin'], core: true },
 
   // Operations
   { key: 'kitchen_display', label: 'Kitchen Display (KDS)', group: 'operations', defaultPrice: 500, surfaces: ['kitchen'] },
   { key: 'waiter_system', label: 'Waiter App & Call-Waiter', group: 'operations', defaultPrice: 800, surfaces: ['waiter', 'customer'] },
-  { key: 'support_chat', label: 'Support Tickets', group: 'operations', defaultPrice: 200, surfaces: ['admin'] },
   { key: 'customer_analytics', label: 'Customer Analytics', group: 'operations', defaultPrice: 500, surfaces: ['admin'] },
 
   // Analytics
