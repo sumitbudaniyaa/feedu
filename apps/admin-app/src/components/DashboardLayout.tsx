@@ -27,7 +27,7 @@ import {
 } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth, useBrand, useLogout, useMe, useRestaurant, useSubscription } from '../lib/api.js';
+import { useAuth, useBrand, useFeatures, useLogout, useMe, useRestaurant, useSubscription } from '../lib/api.js';
 import { useLiveSync } from '../lib/useLiveSync.js';
 import { WaiterCallDrawer } from './WaiterCallDrawer.js';
 import { WaiterApp } from './WaiterApp.js';
@@ -39,12 +39,12 @@ const NAV = [
   { to: '/orders', label: 'Orders', icon: ShoppingBag },
   { to: '/inventory', label: 'Inventory', icon: Boxes },
   { to: '/menu', label: 'Menu CMS', icon: ChefHat },
-  { to: '/loyalty', label: 'Loyalty', icon: Sparkles },
+  { to: '/loyalty', label: 'Loyalty', icon: Sparkles, feature: 'loyalty' },
   { to: '/tables', label: 'Tables & QR', icon: QrCode },
   { to: '/staff', label: 'Staff', icon: Users },
-  { to: '/customers', label: 'Customers', icon: UserRound },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/support', label: 'Support', icon: LifeBuoy },
+  { to: '/customers', label: 'Customers', icon: UserRound, feature: 'customer_analytics' },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, feature: 'analytics' },
+  { to: '/support', label: 'Support', icon: LifeBuoy, feature: 'support_chat' },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -63,13 +63,17 @@ export function DashboardLayout() {
   const { setAccent } = useTheme();
 
   const { data: brand } = useBrand();
+  const { data: featureAccess } = useFeatures();
   const isWaiter = user?.role === 'waiter';
   const isBrandWide = BRAND_WIDE.has(user?.role ?? '');
   // Branch features only for brand-wide roles on a multi-store account.
   const isMultiStore = isBrandWide && brand?.accountType === 'multi';
+  // Hide tabs whose feature the plan doesn't include (until features load, show all).
+  const features = featureAccess ? new Set(featureAccess.features) : null;
+  const hasFeature = (key?: string) => !key || !features || features.has(key);
   const nav = isWaiter
     ? NAV.filter((n) => WAITER_PATHS.has(n.to))
-    : NAV.filter((n) => !n.brandOnly || isMultiStore);
+    : NAV.filter((n) => (!n.brandOnly || isMultiStore) && hasFeature(n.feature));
 
   // Keep waiters out of pages they can't access (deep-links / refresh land on Orders).
   useEffect(() => {

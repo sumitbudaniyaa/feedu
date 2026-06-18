@@ -28,6 +28,7 @@ import {
   useToggleLive,
   useUpdateBrandSubscription,
 } from '../lib/api.js';
+import { FeaturePricing, type FeaturePricingValue } from '../components/FeaturePricing.js';
 
 const CYCLES = ['monthly', 'quarterly', 'yearly'] as const;
 type Cycle = (typeof CYCLES)[number];
@@ -455,8 +456,6 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
     email: '',
     contactNumber: '',
     password: '',
-    price: '0',
-    billingCycle: 'monthly' as Cycle,
     accountType: 'single' as 'single' | 'multi',
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -465,14 +464,17 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const setBranch = (i: number, v: string) => setBranches((b) => b.map((x, idx) => (idx === i ? v : x)));
   const addBranch = () => setBranches((b) => [...b, '']);
   const removeBranch = (i: number) => setBranches((b) => (b.length > 1 ? b.filter((_, idx) => idx !== i) : b));
+  // Dynamic feature selection + pricing payload (from <FeaturePricing/>).
+  const [pricing, setPricing] = useState<FeaturePricingValue | null>(null);
 
   const reset = () => {
-    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly', accountType: 'single' });
+    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', accountType: 'single' });
     setBranches(['']);
   };
 
   const isMulti = form.accountType === 'multi';
   const cleanBranches = branches.map((b) => b.trim()).filter(Boolean);
+  const branchCount = isMulti ? Math.max(1, cleanBranches.length) : 1;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -483,10 +485,13 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
         email: form.email,
         contactNumber: form.contactNumber || undefined,
         password: form.password,
-        price: Number(form.price),
-        billingCycle: form.billingCycle,
         accountType: form.accountType,
         branches: isMulti ? cleanBranches : undefined,
+        // Dynamic feature-based pricing.
+        basePrice: pricing?.basePrice ?? 0,
+        billingCycle: pricing?.billingCycle ?? 'monthly',
+        features: pricing?.features ?? [],
+        limits: pricing?.limits ?? {},
       },
       {
         onSuccess: () => {
@@ -590,25 +595,11 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>{isMulti ? 'Combined brand fee (₹)' : 'Price (₹)'}</Label>
-              <Input type="number" min="0" value={form.price} onChange={(e) => set('price', e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Billing cycle</Label>
-              <Select value={form.billingCycle} onChange={(e) => set('billingCycle', e.target.value)}>
-                {CYCLES.map((c) => (
-                  <option key={c} value={c} className="capitalize">
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
+          {/* Dynamic feature selection + pricing. */}
+          <FeaturePricing branchCount={branchCount} onChange={setPricing} />
           <p className="text-xs text-muted-foreground">
-            Expiry is set automatically from the billing cycle.
-            {isMulti && ' This single fee covers every branch.'}
+            Pick the features this {isMulti ? 'brand' : 'restaurant'} gets and set each price — the total is
+            the subscription fee{isMulti ? ' covering every branch' : ''}. Expiry derives from the cycle.
           </p>
           {onboard.isError && (
             <p className="text-sm text-destructive">
