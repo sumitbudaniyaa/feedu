@@ -18,6 +18,7 @@ import { randomToken } from '@feedo/utils';
 import { validate } from '../../middleware/validate.js';
 import { optionalCustomerAuth, requireCustomer } from '../../middleware/customer.js';
 import { resolveBranchMenu } from '../menu/menu.service.js';
+import { resolveBranchFeatures } from '../../utils/features.js';
 import { otpLimiter } from '../../middleware/security.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { signCustomerToken } from '../../utils/jwt.js';
@@ -123,6 +124,16 @@ async function withBrandName<T extends { brandId?: unknown }>(restaurant: T): Pr
   return { ...restaurant, brandName: brand?.name ?? null };
 }
 
+/** Enabled feature keys for a branch (so the customer app hides off features). */
+async function branchFeatureKeys(restaurant: { _id: unknown; brandId?: unknown }): Promise<string[]> {
+  return [
+    ...(await resolveBranchFeatures(
+      String(restaurant._id),
+      restaurant.brandId ? String(restaurant.brandId) : null,
+    )),
+  ];
+}
+
 // Public restaurant + full menu by slug.
 router.get(
   '/r/:slug',
@@ -134,7 +145,7 @@ router.get(
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
-    return ok(res, { restaurant: await withBrandName(restaurant), ...menu });
+    return ok(res, { restaurant: await withBrandName(restaurant), features: await branchFeatureKeys(restaurant), ...menu });
   }),
 );
 
@@ -149,7 +160,7 @@ router.get(
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
-    return ok(res, { restaurant: await withBrandName(restaurant), table, ...menu });
+    return ok(res, { restaurant: await withBrandName(restaurant), features: await branchFeatureKeys(restaurant), table, ...menu });
   }),
 );
 
