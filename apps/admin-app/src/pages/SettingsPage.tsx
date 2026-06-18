@@ -171,9 +171,6 @@ export function SettingsPage() {
                   {subscription.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : '—'}
                 </span>
               </SubRow>
-              <SubRow label="Seats">
-                <span className="font-medium">{subscription.seats}</span>
-              </SubRow>
               <p className="text-xs text-muted-foreground sm:col-span-2">
                 Billing is managed by Feedu. Contact support to change your plan.
               </p>
