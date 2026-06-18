@@ -10,6 +10,7 @@ import {
 
 export const orderItemSchema = z.object({
   productId: objectIdSchema,
+  categoryId: objectIdSchema.optional(), // snapshot for kitchen category filtering
   name: z.string(), // snapshot at order time
   isVeg: z.boolean().optional(), // snapshot for kitchen display
   prepTimeMinutes: z.number().int().min(0).optional(), // snapshot for ETA

@@ -111,6 +111,7 @@ export async function createOrder({
 
     return {
       productId: product._id,
+      categoryId: product.categoryId,
       name: product.name,
       isVeg: product.isVeg,
       prepTimeMinutes: product.prepTimeMinutes,
@@ -131,6 +132,7 @@ export async function createOrder({
     if (!rp) throw ApiError.badRequest('Reward item is unavailable');
     items.push({
       productId: rp._id,
+      categoryId: rp.categoryId,
       name: rp.name,
       isVeg: rp.isVeg,
       prepTimeMinutes: rp.prepTimeMinutes,
@@ -364,6 +366,7 @@ export async function createRewardOrder(ctx: RewardOrderContext) {
 
   const item = {
     productId: product._id,
+    categoryId: product.categoryId,
     name: product.name,
     isVeg: product.isVeg,
     prepTimeMinutes: product.prepTimeMinutes,

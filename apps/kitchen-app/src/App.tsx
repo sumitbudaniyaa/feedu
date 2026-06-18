@@ -4,10 +4,10 @@ import { motion } from 'framer-motion';
 import { Clock, LogOut, Volume2, VolumeX } from 'lucide-react';
 import { SOCKET_EVENTS } from '@feedo/types';
 import type { Order, OrderStatus } from '@feedo/types';
-import { Badge, Button, EmptyState, Skeleton, ThemeToggle, cn } from '@feedo/ui';
+import { Badge, Button, EmptyState, Select, Skeleton, ThemeToggle, cn } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
 import { ChefHat } from 'lucide-react';
-import { socket, useAuth, useLogin, useLogout, useMe, useOrders, useUpdateOrderStatus } from './lib/api.js';
+import { socket, useAuth, useCategories, useLogin, useLogout, useMe, useOrders, useUpdateOrderStatus } from './lib/api.js';
 import { playNewOrderChime, primeSound } from './lib/sound.js';
 
 export function App() {
@@ -21,6 +21,8 @@ function KitchenBoard() {
   const logout = useLogout();
   const restaurantId = useAuth((s) => s.user?.restaurantId);
   const qc = useQueryClient();
+  const { data: categories } = useCategories();
+  const [catFilter, setCatFilter] = useState('all');
   const [muted, setMuted] = useState(() => localStorage.getItem('feedo-kitchen-muted') === '1');
 
   // Keep the session user hydrated for restaurantId.
@@ -54,15 +56,36 @@ function KitchenBoard() {
 
   const advance = (id: string, status: OrderStatus) => updateStatus.mutate({ id, status });
 
+  // Filter the board to orders containing an item from the selected category.
+  const visible =
+    catFilter === 'all'
+      ? orders
+      : orders?.filter((o) => o.items.some((it) => String(it.categoryId ?? '') === catFilter));
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
           <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">feedu</span>
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Kitchen</span>
-          <Badge variant="outline">{orders?.length ?? 0} active</Badge>
+          <Badge variant="outline">{visible?.length ?? 0} active</Badge>
         </div>
         <div className="flex items-center gap-2">
+          {categories && categories.length > 0 && (
+            <Select
+              value={catFilter}
+              onChange={(e) => setCatFilter(e.target.value)}
+              className="h-9 w-44"
+              title="Filter by category"
+            >
+              <option value="all">All categories</option>
+              {categories.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <Button variant="ghost" size="icon" onClick={toggleMute} title={muted ? 'Unmute new-order sound' : 'Mute new-order sound'}>
             {muted ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4" />}
           </Button>
@@ -79,15 +102,23 @@ function KitchenBoard() {
             <Skeleton key={i} className="h-48 rounded-xl" />
           ))}
         </div>
-      ) : orders && orders.length > 0 ? (
+      ) : visible && visible.length > 0 ? (
         <main className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
-          {orders.map((order) => (
+          {visible.map((order) => (
             <OrderCard key={order._id} order={order} onAdvance={advance} />
           ))}
         </main>
       ) : (
         <div className="p-10">
-          <EmptyState icon={ChefHat} title="No active orders" description="New orders appear here the moment they're placed." />
+          <EmptyState
+            icon={ChefHat}
+            title={catFilter === 'all' ? 'No active orders' : 'No orders in this category'}
+            description={
+              catFilter === 'all'
+                ? "New orders appear here the moment they're placed."
+                : 'Try “All categories” or wait for a new order.'
+            }
+          />
         </div>
       )}
     </div>

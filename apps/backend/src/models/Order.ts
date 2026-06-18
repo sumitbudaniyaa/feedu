@@ -3,6 +3,8 @@ import { Schema, model, type InferSchemaType } from 'mongoose';
 const orderItemSchema = new Schema(
   {
     productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+    /** Snapshot of the product's category (for kitchen station filtering). */
+    categoryId: { type: Schema.Types.ObjectId, ref: 'Category' },
     name: { type: String, required: true },
     isVeg: Boolean,
     prepTimeMinutes: Number,
