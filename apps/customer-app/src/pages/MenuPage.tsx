@@ -19,9 +19,6 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const qrQuery = useMenuByQr(mode === 'qr' ? params.qrToken : undefined);
   const query = mode === 'slug' ? slugQuery : qrQuery;
   const data = query.data;
-  // Enabled features for this branch (absent = grandfathered → treat as on).
-  const features = (data as { features?: string[] } | undefined)?.features;
-  const hasFeature = (key: string) => !features || features.includes(key);
 
   const { setAccent } = useTheme();
   const setContext = useCart((s) => s.setContext);
@@ -177,17 +174,15 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
               feedu
             </span>
             <div className="flex shrink-0 items-center gap-2">
-              {hasFeature('loyalty') && (
-                <motion.button
-                  whileHover={{ scale: 1.05, rotate: -8 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => navigate('/rewards')}
-                  aria-label="Rewards"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 backdrop-blur transition-colors hover:bg-white/25"
-                >
-                  <Gift className="h-5 w-5" />
-                </motion.button>
-              )}
+              <motion.button
+                whileHover={{ scale: 1.05, rotate: -8 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate('/rewards')}
+                aria-label="Rewards"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 backdrop-blur transition-colors hover:bg-white/25"
+              >
+                <Gift className="h-5 w-5" />
+              </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}

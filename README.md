@@ -21,12 +21,7 @@ Razorpay · JWT.
   most-ordered, reward claims, visits), settings (branding/tax/go-live + **subscription details**),
   **support tickets** (chat), downloadable invoices. **Waiter role** is limited to a **dedicated mobile
   waiter app** (live table **calls ring** with sound/vibrate + **slide-to-attend**, plus orders).
-  - **Dynamic feature-based pricing**: no fixed Basic/Pro/Premium — at onboarding the super-admin
-  **picks the features** a brand gets, sets a **custom price per feature** (+ base + per-branch fees) for
-  a live total, and sets **usage limits** (branches/staff/products/tables). Features are enforced
-  everywhere (`requireFeature`), limits are hard-capped (super-admin can raise them), disabled features
-  vanish from the admin nav + customer app, and existing brands are grandfathered to all-on.
-- **Multi-store owner**: a default **"All branches"** (centralized) view — combined dashboard +
+  - **Multi-store owner**: a default **"All branches"** (centralized) view — combined dashboard +
     branch comparison — or drill into one branch via the switcher; a **Branches** page to add / edit /
     suspend / delete branches and **create branch-manager logins**; **brand-level Settings** (name /
     branding / tax apply to every branch). Inventory is centralized by default; per branch you can

@@ -119,19 +119,6 @@ export interface BrandInfo {
   currency?: string;
 }
 
-export interface FeatureAccess {
-  features: string[];
-  limits: Record<string, number>;
-}
-
-/** Effective feature set + limits for the active branch — gates nav/pages. */
-export function useFeatures() {
-  return useQuery({
-    queryKey: ['features', 'me'],
-    queryFn: () => apiClient.get<FeatureAccess>('/restaurants/me/features'),
-  });
-}
-
 /** The signed-in account's brand — drives whether multi-branch features show. */
 export function useBrand() {
   return useQuery({

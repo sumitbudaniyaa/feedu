@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, ChevronDown, ChevronRight, CreditCard, Plus, Power, Search, Sparkles, Store, Trash2, X } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, CreditCard, Plus, Power, Search, Store, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -27,9 +27,7 @@ import {
   useSuspendBrand,
   useToggleLive,
   useUpdateBrandSubscription,
-  useUpdateBrandFeatures,
 } from '../lib/api.js';
-import { FeaturePricing, type FeaturePricingValue } from '../components/FeaturePricing.js';
 
 const CYCLES = ['monthly', 'quarterly', 'yearly'] as const;
 type Cycle = (typeof CYCLES)[number];
@@ -128,7 +126,6 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingPlan, setEditingPlan] = useState(false);
-  const [editingFeatures, setEditingFeatures] = useState(false);
   const toggleLive = useToggleLive();
   const suspendBrand = useSuspendBrand();
   const deleteBrand = useDeleteBrand();
@@ -219,9 +216,6 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setEditingFeatures(true)}>
-                <Sparkles className="h-3.5 w-3.5" /> Features
-              </Button>
               <Button size="sm" variant="outline" onClick={() => setEditingPlan(true)}>
                 <CreditCard className="h-3.5 w-3.5" /> Edit plan
               </Button>
@@ -280,7 +274,6 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
 
       <AddBranchDialog brand={brand} open={adding} onClose={() => setAdding(false)} />
       <BrandPlanDialog brand={brand} open={editingPlan} onClose={() => setEditingPlan(false)} />
-      <BrandFeaturesDialog brand={brand} open={editingFeatures} onClose={() => setEditingFeatures(false)} />
     </Card>
   );
 }
@@ -454,61 +447,6 @@ function AddBranchDialog({ brand, open, onClose }: { brand: PlatformBrand; open:
   );
 }
 
-function BrandFeaturesDialog({ brand, open, onClose }: { brand: PlatformBrand; open: boolean; onClose: () => void }) {
-  const update = useUpdateBrandFeatures();
-  const [pricing, setPricing] = useState<FeaturePricingValue | null>(null);
-  const sub = brand.subscription;
-  const initial = {
-    enabled: (sub?.featureCharges ?? []).map((f) => f.key),
-    prices: Object.fromEntries((sub?.featureCharges ?? []).map((f) => [f.key, f.price])),
-    basePrice: sub?.basePrice ?? 0,
-    billingCycle: (sub?.billingCycle as 'monthly' | 'quarterly' | 'yearly') ?? 'monthly',
-    limits: sub?.limits ?? {},
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{brand.name} — features & limits</DialogTitle>
-        </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto pr-1">
-          {/* `open` remounts so initial state reflects the latest subscription. */}
-          {open && <FeaturePricing key={brand._id} branchCount={brand.branchCount} accountType={brand.accountType} onChange={setPricing} initial={initial} />}
-        </div>
-        {update.isError && (
-          <p className="text-sm text-destructive">
-            {update.error instanceof Error ? update.error.message : 'Could not update features'}
-          </p>
-        )}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button
-            disabled={update.isPending || !pricing}
-            onClick={() =>
-              pricing &&
-              update.mutate(
-                {
-                  id: brand._id,
-                  body: {
-                    features: pricing.features,
-                    limits: pricing.limits,
-                    basePrice: pricing.basePrice,
-                    billingCycle: pricing.billingCycle,
-                  },
-                },
-                { onSuccess: onClose },
-              )
-            }
-          >
-            {update.isPending ? 'Saving…' : 'Save features'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const onboard = useOnboardRestaurant();
   const [form, setForm] = useState({
@@ -517,6 +455,8 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
     email: '',
     contactNumber: '',
     password: '',
+    price: '0',
+    billingCycle: 'monthly' as Cycle,
     accountType: 'single' as 'single' | 'multi',
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -525,17 +465,14 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const setBranch = (i: number, v: string) => setBranches((b) => b.map((x, idx) => (idx === i ? v : x)));
   const addBranch = () => setBranches((b) => [...b, '']);
   const removeBranch = (i: number) => setBranches((b) => (b.length > 1 ? b.filter((_, idx) => idx !== i) : b));
-  // Dynamic feature selection + pricing payload (from <FeaturePricing/>).
-  const [pricing, setPricing] = useState<FeaturePricingValue | null>(null);
 
   const reset = () => {
-    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', accountType: 'single' });
+    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly', accountType: 'single' });
     setBranches(['']);
   };
 
   const isMulti = form.accountType === 'multi';
   const cleanBranches = branches.map((b) => b.trim()).filter(Boolean);
-  const branchCount = isMulti ? Math.max(1, cleanBranches.length) : 1;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,13 +483,10 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
         email: form.email,
         contactNumber: form.contactNumber || undefined,
         password: form.password,
+        price: Number(form.price),
+        billingCycle: form.billingCycle,
         accountType: form.accountType,
         branches: isMulti ? cleanBranches : undefined,
-        // Dynamic feature-based pricing.
-        basePrice: pricing?.basePrice ?? 0,
-        billingCycle: pricing?.billingCycle ?? 'monthly',
-        features: pricing?.features ?? [],
-        limits: pricing?.limits ?? {},
       },
       {
         onSuccess: () => {
@@ -656,11 +590,25 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
           )}
 
-          {/* Dynamic feature selection + pricing (filtered to the chosen store type). */}
-          <FeaturePricing branchCount={branchCount} accountType={form.accountType} onChange={setPricing} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{isMulti ? 'Combined brand fee (₹)' : 'Price (₹)'}</Label>
+              <Input type="number" min="0" value={form.price} onChange={(e) => set('price', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Billing cycle</Label>
+              <Select value={form.billingCycle} onChange={(e) => set('billingCycle', e.target.value)}>
+                {CYCLES.map((c) => (
+                  <option key={c} value={c} className="capitalize">
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Pick the features this {isMulti ? 'brand' : 'restaurant'} gets and set each price — the total is
-            the subscription fee{isMulti ? ' covering every branch' : ''}. Expiry derives from the cycle.
+            Expiry is set automatically from the billing cycle.
+            {isMulti && ' This single fee covers every branch.'}
           </p>
           {onboard.isError && (
             <p className="text-sm text-destructive">

@@ -6,7 +6,6 @@ import { validateObjectId } from '../../middleware/params.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { crud } from '../../utils/crud.js';
-import { requireFeature } from '../../utils/features.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
 // A reward must be tied to a menu item so it can be ordered for free in-app.
@@ -21,7 +20,7 @@ const handlers = crud({
 });
 
 const router = Router();
-router.use(authenticate, resolveTenant, requireTenant, requireFeature('rewards'));
+router.use(authenticate, resolveTenant, requireTenant);
 
 // Redemptions (claims) — list + fulfil. Declared before /:id routes.
 router.get(

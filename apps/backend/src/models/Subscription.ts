@@ -24,18 +24,6 @@ const subscriptionSchema = new Schema(
     features: { type: Map, of: Boolean, default: {} },
     seats: { type: Number, default: 5 },
     mrr: { type: Number, default: 0 },
-    // ─── Dynamic feature-based pricing breakdown ───────────────────────────
-    /** Flat base fee before feature/branch charges. */
-    basePrice: { type: Number, default: 0 },
-    /** Per-feature charges that make up the price (enabled features). */
-    featureCharges: { type: [{ key: String, price: Number, _id: false }], default: [] },
-    branchCharges: { type: Number, default: 0 },
-    /** Manual discount (negative) or surcharge (positive). */
-    customAdjustments: { type: Number, default: 0 },
-    /** Computed total per billing cycle (kept in sync with `price`). */
-    finalPrice: { type: Number, default: 0 },
-    /** Usage/capacity caps. Absent key or null = unlimited. */
-    limits: { type: Map, of: Number, default: {} },
     /** What the restaurant pays Feedu per billing cycle. */
     price: { type: Number, default: 0 },
     billingCycle: {

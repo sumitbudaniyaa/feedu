@@ -19,8 +19,6 @@ import { requireBrand, requireTenant, resolveTenant } from '../../middleware/ten
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import { findEffectiveSubscription } from '../../utils/subscription.js';
-import { resolveBranchFeatures, enforceLimit } from '../../utils/features.js';
-import { usage } from '../../utils/usage.js';
 
 const router = Router();
 router.use(authenticate, resolveTenant, requireTenant);
@@ -45,7 +43,6 @@ router.post(
   '/branches',
   requireBrand,
   authorize('owner', 'brand_owner', 'brand_admin'),
-  enforceLimit('max_branches', usage.branches),
   validate(z.object({ name: z.string().min(1), contactNumber: z.string().optional() })),
   asyncHandler(async (req, res) => {
     const { name, contactNumber } = req.body as { name: string; contactNumber?: string };
@@ -283,23 +280,6 @@ router.get(
       currency: brand.currency,
       branchCount,
     });
-  }),
-);
-
-// Effective feature set + limits for the active branch (drives admin UI gating).
-router.get(
-  '/me/features',
-  asyncHandler(async (req, res) => {
-    const [features, sub] = await Promise.all([
-      resolveBranchFeatures(req.branchId, req.brandId),
-      findEffectiveSubscription(req.branchId, req.brandId),
-    ]);
-    const limits = sub?.limits
-      ? sub.limits instanceof Map
-        ? Object.fromEntries(sub.limits)
-        : sub.limits
-      : {};
-    return ok(res, { features: [...features], limits });
   }),
 );
 

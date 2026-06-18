@@ -4,12 +4,11 @@ import { SOCKET_EVENTS, rooms } from '@feedo/types';
 import { authenticate } from '../../middleware/auth.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { validate } from '../../middleware/validate.js';
-import { requireFeature } from '../../utils/features.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import { getIO } from '../../sockets/index.js';
 
 const router = Router();
-router.use(authenticate, resolveTenant, requireTenant, requireFeature('waiter_system'));
+router.use(authenticate, resolveTenant, requireTenant);
 
 // A waiter accepted a table call → tell the diner help is on the way.
 router.post(

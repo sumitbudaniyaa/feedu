@@ -157,24 +157,6 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
   `CLOUDINARY_*` is set; local `/uploads` fallback in dev.
 - [x] **Customer header:** brand name big, branch name small (`📍 Branch`) on multi-store.
 
-## Dynamic feature-based pricing & provisioning
-No hardcoded plans — each brand's subscription is a chosen feature set at custom prices.
-- [x] **Feature catalog** (`@feedo/types` `FEATURE_CATALOG`/`FEATURE_KEYS`/`CORE_FEATURE_KEYS`,
-  `LIMIT_KEYS`) — single source of truth for backend + all apps.
-- [x] **Pricing engine** (`@feedo/utils` `computeSubscriptionPrice`): base + Σ feature charges +
-  branch charges + adjustments → finalPrice + MRR (monthly/quarterly/yearly).
-- [x] **Schema:** Subscription gains `basePrice/featureCharges/branchCharges/customAdjustments/
-  finalPrice/limits`; Restaurant gains `featureOverrides` (brand-enables, branch-disables).
-- [x] **Enforcement:** `requireFeature()` on analytics/branch_comparison/loyalty/rewards/waiter/
-  support; `enforceLimit()` on branches/staff/products/tables (hard block, super-admin override).
-  Existing brands **grandfathered** to all-features-on. `GET /restaurants/me/features`.
-- [x] **Onboarding** picks features + per-feature prices + limits with a live total; `POST
-  /platform/restaurants` + `PATCH /platform/brands/:id/features` store the dynamic breakdown.
-- [x] **Admin** hides nav tabs the plan excludes; **customer app** hides Rewards when loyalty is off
-  (public response carries `features`).
-- [ ] Branch-level feature-override UI (backend `featureOverrides` ready); kitchen/waiter app-level
-  feature screens; super-admin Limits tab usage meters.
-
 ## Recently added
 
 ### Latest session — employees collection, customer analytics, call-waiter UX, inventory filters

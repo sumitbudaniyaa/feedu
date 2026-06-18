@@ -5,7 +5,6 @@ import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { crud } from '../../utils/crud.js';
-import { requireFeature } from '../../utils/features.js';
 import { asyncHandler } from '../../utils/http.js';
 
 const handlers = crud({
@@ -17,7 +16,7 @@ const handlers = crud({
 });
 
 const router = Router();
-router.use(authenticate, resolveTenant, requireTenant, requireFeature('loyalty'));
+router.use(authenticate, resolveTenant, requireTenant);
 
 router.get('/', asyncHandler(handlers.list));
 router.post('/', authorize('owner', 'manager', 'branch_manager'), asyncHandler(handlers.create));

@@ -7,8 +7,6 @@ import { validateObjectId } from '../../middleware/params.js';
 import { validate } from '../../middleware/validate.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { crud } from '../../utils/crud.js';
-import { enforceLimit } from '../../utils/features.js';
-import { usage } from '../../utils/usage.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
 const handlers = crud({
@@ -25,7 +23,6 @@ router.get('/', asyncHandler(handlers.list));
 router.post(
   '/',
   authorize('owner', 'manager', 'branch_manager'),
-  enforceLimit('max_tables', usage.tables),
   validate(createTableSchema),
   asyncHandler(async (req, res) => {
     const table = await Table.create({
