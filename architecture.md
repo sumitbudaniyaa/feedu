@@ -331,6 +331,22 @@ A single-store account is simply a brand with one branch.
 - Backward-compatible by design: existing single-outlet restaurants were migrated to one
   brand each (`npm run migrate:brands`), so legacy data and single-branch flows are unchanged.
 
+### Dynamic feature-based pricing & provisioning
+No hardcoded plans — a brand's subscription is a **chosen set of features at custom prices**.
+- **Catalog** (`@feedo/types` `FEATURE_CATALOG`): each feature has a key, group, default price,
+  surfaces and a `core` flag; `LIMIT_KEYS` lists the usage caps. One source of truth for backend +
+  all apps.
+- **Pricing engine** (`@feedo/utils` `computeSubscriptionPrice`): `finalPrice = basePrice + Σ feature
+  charges + branch charges + adjustments`, normalized to `mrr`. The `Subscription` stores the full
+  breakdown (`basePrice/featureCharges/branchCharges/customAdjustments/finalPrice/limits/features`).
+- **Resolution** (`utils/features.ts`): `resolveBrandFeatures` (brands with **no** feature set are
+  grandfathered all-on) → `resolveBranchFeatures` (a branch may disable via `Restaurant.featureOverrides`,
+  never add). `requireFeature(key)` guards routes (super_admin bypasses); `enforceLimit(key, count)`
+  hard-blocks at the cap (super_admin can raise it). `GET /restaurants/me/features` drives UI gating.
+- **Provisioning**: super-admin onboarding picks features + prices + limits (`POST /platform/restaurants`);
+  `PATCH /platform/brands/:id/features` reconfigures later. Admin hides disabled tabs; the customer app
+  hides off features (the public menu response carries `features`).
+
 ---
 
 ## 8. Database Overview
@@ -352,6 +368,8 @@ Notification, Subscription, SupportTicket, Otp**.
 - **`Subscription`** carries `brandId` + `price` + `billingCycle` (monthly/quarterly/yearly) +
   `currentPeriodEnd` (auto-derived expiry); MRR is normalised from price/cycle. A multi-store
   brand has **one** combined subscription covering all branches; single-store has one per branch.
+  For dynamic pricing it also stores `features` (enabled map), `featureCharges`, `basePrice`,
+  `branchCharges`, `customAdjustments`, `finalPrice` and `limits`.
 - **`SupportTicket`** — `{ restaurantId, subject, message, category, priority, status, replies[] }`.
 
 Key indexes:
