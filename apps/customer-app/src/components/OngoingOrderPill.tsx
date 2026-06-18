@@ -176,17 +176,18 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
                   <span className="capitalize">· {order.paymentStatus}{order.paymentMethod ? ` · ${order.paymentMethod}` : ''}</span>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {unpaid && (
+                {/* Payment actions only for unpaid orders — a paid (e.g. online) order is settled. */}
+                {unpaid && (
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <Button variant="success" size="sm" className="flex-1" onClick={payNow} disabled={paying || startPay.isPending}>
                       <CreditCard className="h-4 w-4" /> {paying ? 'Opening…' : 'Pay now'}
                     </Button>
-                  )}
-                  <Button variant="outline" size="sm" className="flex-1" onClick={requestBill} disabled={billAsked}>
-                    {billAsked ? <BellRing className="h-4 w-4 text-success" /> : <ReceiptText className="h-4 w-4" />}
-                    {billAsked ? 'Bill requested' : 'Request bill'}
-                  </Button>
-                </div>
+                    <Button variant="outline" size="sm" className="flex-1" onClick={requestBill} disabled={billAsked}>
+                      {billAsked ? <BellRing className="h-4 w-4 text-success" /> : <ReceiptText className="h-4 w-4" />}
+                      {billAsked ? 'Bill requested' : 'Request bill'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
