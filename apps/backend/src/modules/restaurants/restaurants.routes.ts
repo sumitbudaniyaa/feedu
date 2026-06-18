@@ -19,7 +19,8 @@ import { requireBrand, requireTenant, resolveTenant } from '../../middleware/ten
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import { findEffectiveSubscription } from '../../utils/subscription.js';
-import { resolveBranchFeatures } from '../../utils/features.js';
+import { resolveBranchFeatures, enforceLimit } from '../../utils/features.js';
+import { usage } from '../../utils/usage.js';
 
 const router = Router();
 router.use(authenticate, resolveTenant, requireTenant);
@@ -44,6 +45,7 @@ router.post(
   '/branches',
   requireBrand,
   authorize('owner', 'brand_owner', 'brand_admin'),
+  enforceLimit('max_branches', usage.branches),
   validate(z.object({ name: z.string().min(1), contactNumber: z.string().optional() })),
   asyncHandler(async (req, res) => {
     const { name, contactNumber } = req.body as { name: string; contactNumber?: string };

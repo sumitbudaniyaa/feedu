@@ -60,6 +60,9 @@ export interface PlatformBrand {
     billingCycle: string;
     mrr: number;
     currentPeriodEnd: string | null;
+    basePrice?: number;
+    featureCharges?: { key: string; price: number }[];
+    limits?: Record<string, number>;
   } | null;
   branches: PlatformBranch[];
 }
@@ -181,6 +184,15 @@ export function createPlatformHooks(client: ApiClient) {
       return useMutation({
         mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
           client.patch(`/platform/brands/${id}/subscription`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    /** Configure a brand's features, limits and dynamic pricing. */
+    useUpdateBrandFeatures() {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+          client.patch(`/platform/brands/${id}/features`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },

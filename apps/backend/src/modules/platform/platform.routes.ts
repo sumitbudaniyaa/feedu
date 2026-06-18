@@ -348,6 +348,9 @@ router.get(
               billingCycle: sub.billingCycle ?? 'monthly',
               mrr: sub.mrr ?? 0,
               currentPeriodEnd: sub.currentPeriodEnd ?? null,
+              basePrice: sub.basePrice ?? 0,
+              featureCharges: (sub.featureCharges ?? []).map((f) => ({ key: f.key, price: f.price })),
+              limits: sub.limits instanceof Map ? Object.fromEntries(sub.limits) : sub.limits ?? {},
             }
           : null,
         branches,

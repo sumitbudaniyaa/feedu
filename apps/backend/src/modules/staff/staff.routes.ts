@@ -6,6 +6,8 @@ import { validateObjectId } from '../../middleware/params.js';
 import { validate } from '../../middleware/validate.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { enforceLimit } from '../../utils/features.js';
+import { usage } from '../../utils/usage.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
 const STAFF_ROLES = ['manager', 'kitchen', 'waiter'];
@@ -30,6 +32,7 @@ router.get(
 router.post(
   '/',
   authorize('owner', 'manager', 'branch_manager'),
+  enforceLimit('max_staff', usage.staff),
   validate(createStaffSchema),
   asyncHandler(async (req, res) => {
     const exists = await User.findOne({ email: req.body.email, restaurantId: req.branchId });

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, ChevronDown, ChevronRight, CreditCard, Plus, Power, Search, Store, Trash2, X } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, CreditCard, Plus, Power, Search, Sparkles, Store, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -27,6 +27,7 @@ import {
   useSuspendBrand,
   useToggleLive,
   useUpdateBrandSubscription,
+  useUpdateBrandFeatures,
 } from '../lib/api.js';
 import { FeaturePricing, type FeaturePricingValue } from '../components/FeaturePricing.js';
 
@@ -127,6 +128,7 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingPlan, setEditingPlan] = useState(false);
+  const [editingFeatures, setEditingFeatures] = useState(false);
   const toggleLive = useToggleLive();
   const suspendBrand = useSuspendBrand();
   const deleteBrand = useDeleteBrand();
@@ -217,6 +219,9 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setEditingFeatures(true)}>
+                <Sparkles className="h-3.5 w-3.5" /> Features
+              </Button>
               <Button size="sm" variant="outline" onClick={() => setEditingPlan(true)}>
                 <CreditCard className="h-3.5 w-3.5" /> Edit plan
               </Button>
@@ -275,6 +280,7 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
 
       <AddBranchDialog brand={brand} open={adding} onClose={() => setAdding(false)} />
       <BrandPlanDialog brand={brand} open={editingPlan} onClose={() => setEditingPlan(false)} />
+      <BrandFeaturesDialog brand={brand} open={editingFeatures} onClose={() => setEditingFeatures(false)} />
     </Card>
   );
 }
@@ -443,6 +449,61 @@ function AddBranchDialog({ brand, open, onClose }: { brand: PlatformBrand; open:
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BrandFeaturesDialog({ brand, open, onClose }: { brand: PlatformBrand; open: boolean; onClose: () => void }) {
+  const update = useUpdateBrandFeatures();
+  const [pricing, setPricing] = useState<FeaturePricingValue | null>(null);
+  const sub = brand.subscription;
+  const initial = {
+    enabled: (sub?.featureCharges ?? []).map((f) => f.key),
+    prices: Object.fromEntries((sub?.featureCharges ?? []).map((f) => [f.key, f.price])),
+    basePrice: sub?.basePrice ?? 0,
+    billingCycle: (sub?.billingCycle as 'monthly' | 'quarterly' | 'yearly') ?? 'monthly',
+    limits: sub?.limits ?? {},
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{brand.name} — features & limits</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto pr-1">
+          {/* `open` remounts so initial state reflects the latest subscription. */}
+          {open && <FeaturePricing key={brand._id} branchCount={brand.branchCount} onChange={setPricing} initial={initial} />}
+        </div>
+        {update.isError && (
+          <p className="text-sm text-destructive">
+            {update.error instanceof Error ? update.error.message : 'Could not update features'}
+          </p>
+        )}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            disabled={update.isPending || !pricing}
+            onClick={() =>
+              pricing &&
+              update.mutate(
+                {
+                  id: brand._id,
+                  body: {
+                    features: pricing.features,
+                    limits: pricing.limits,
+                    basePrice: pricing.basePrice,
+                    billingCycle: pricing.billingCycle,
+                  },
+                },
+                { onSuccess: onClose },
+              )
+            }
+          >
+            {update.isPending ? 'Saving…' : 'Save features'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
