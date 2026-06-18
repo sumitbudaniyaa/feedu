@@ -95,8 +95,10 @@ Packages never import from apps. `types` is the lowest-level shared package.
   dependency-free **active-branch** store (`feedu-admin-branch`); empty = "All branches"
   (centralized), and `ApiClient` sends the selection as the `x-branch-id` header.
 - **Toasts**: `@feedo/ui` exports a dependency-free `Toaster` + `toast()`. Admin and
-  super-admin wire it into the TanStack Query **MutationCache** so every create/update/delete
-  shows a success toast (or the API error message on failure).
+  super-admin wire it into the TanStack Query **MutationCache**, reading each mutation's
+  `meta`: it shows a per-action `successMessage` ("Product created", "Branch updated", …)
+  or the API error message, and respects `meta.silent` (e.g. auth login/register show no
+  toast — navigation + inline errors are the feedback).
 - **Styling**: Tailwind via the shared preset; each app's `tailwind.config.cjs` also
   scans `@feedo/ui` source so shared class names survive purge.
 - **Animation**: Framer Motion (subtle, premium — fades, slide-ups, layout).
@@ -132,7 +134,9 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   (resolves the branch's own or the brand's combined plan), `/me/brand` GET (account type, branding,
   tax → drives the multi-branch UI) + PATCH (brand-wide: name/branding/tax — **propagated to every
   branch**). Branches: `GET/POST /branches`, `PATCH/DELETE /branches/:id` (edit / suspend / delete,
-  brand-wide; never the last branch). Branch managers: `GET/POST /branches/:id/managers` and
+  brand-wide; never the last branch). Owners self-add up to `SELF_SERVE_BRANCH_LIMIT` (5)
+  branches; beyond that only the super-admin (`/platform/brands/:id/branches`, uncapped) adds more.
+  Branch managers: `GET/POST /branches/:id/managers` and
   `PATCH/DELETE /branches/:id/managers/:userId` — create a **branch-locked** `branch_manager` login,
   reset its password, or remove it.
 - `/branch-menu` — effective menu for the active branch + per-product override upsert (price/

@@ -25,10 +25,12 @@ Razorpay · JWT.
     branch comparison — or drill into one branch via the switcher; a **Branches** page to add / edit /
     suspend / delete branches and **create branch-manager logins**; **brand-level Settings** (name /
     branding / tax apply to every branch). Inventory is centralized by default; per branch you can
-    override **availability/stock without affecting other branches**.
+    override **availability/stock without affecting other branches**. Owners can self-add up to **5
+    branches** — beyond that the Feedu team adds more.
   - **Branch manager**: a branch-locked login — every tab (orders, tables, inventory, staff, customers,
     analytics) shows only their branch; no switcher or brand-wide views.
-  - Every action raises a **toast**; onboarding is super-admin-only (no self-signup).
+  - Every action raises a **meaningful toast** (per-action message; auth is silent);
+    onboarding is super-admin-only (no self-signup).
 - **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
   `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
   **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **call-waiter** from the

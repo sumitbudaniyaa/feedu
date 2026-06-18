@@ -152,10 +152,19 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 - [x] **Brand Settings:** brand-wide owners edit **brand** name/branding/tax (`GET/PATCH
   /restaurants/me/brand`); branding/tax/currency propagate to every branch.
 - [x] **Toasts everywhere:** `@feedo/ui` `Toaster`/`toast()` wired via the MutationCache in admin +
-  super-admin — success toast on every action, error message on failure.
+  super-admin. Each mutation carries `meta.successMessage` for a **meaningful per-action toast**
+  ("Product created", "Branch updated", …) or the API error; `meta.silent` suppresses noise (auth
+  login/register show no toast).
 - [x] **Cloudinary image hosting:** `/uploads` streams to Cloudinary (foldered by brand) when
   `CLOUDINARY_*` is set; local `/uploads` fallback in dev.
 - [x] **Customer header:** brand name big, branch name small (`📍 Branch`) on multi-store.
+- [x] **Single-store stays simple:** no Add-branch in super-admin and no centralized/branch
+  inventory UI for single-store accounts (gated on `accountType === 'multi'`).
+- [x] **Self-serve branch cap:** owners add up to `SELF_SERVE_BRANCH_LIMIT` (5) branches themselves
+  (`POST /restaurants/branches` 403s beyond); the super-admin endpoint is uncapped for the Feedu team.
+- [x] **Dialogs** capped at 90dvh with internal scroll (tall dialogs stay on screen).
+- [~] **Dynamic feature-based pricing** was built then **removed on request** — onboarding is back to
+  the simple single/multi-store flat combined fee.
 
 ## Recently added
 
