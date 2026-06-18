@@ -18,8 +18,11 @@ export function createResource<T extends { _id: string }>(
   client: ApiClient,
   key: string,
   path: string,
+  /** Human label for toasts, e.g. "Product". Defaults to a humanized key. */
+  label?: string,
 ) {
   const listKey = (params?: Params) => [key, 'list', params ?? {}] as const;
+  const noun = label ?? key.charAt(0).toUpperCase() + key.slice(1);
 
   return {
     key,
@@ -40,6 +43,7 @@ export function createResource<T extends { _id: string }>(
     useCreate() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: `${noun} created` },
         mutationFn: (body: Partial<T> | Record<string, unknown>) => client.post<T>(path, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: [key] }),
       });
@@ -47,6 +51,7 @@ export function createResource<T extends { _id: string }>(
     useUpdate() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: `${noun} updated` },
         mutationFn: ({ id, body }: { id: string; body: Partial<T> | Record<string, unknown> }) =>
           client.patch<T>(`${path}/${id}`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: [key] }),
@@ -55,6 +60,7 @@ export function createResource<T extends { _id: string }>(
     useRemove() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: `${noun} deleted` },
         mutationFn: (id: string) => client.delete<{ _id: string }>(`${path}/${id}`),
         onSuccess: () => qc.invalidateQueries({ queryKey: [key] }),
       });

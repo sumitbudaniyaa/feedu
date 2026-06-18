@@ -24,6 +24,7 @@ export function createDomainHooks(client: ApiClient) {
     useUpdateRestaurant() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Settings saved' },
         mutationFn: (body: Record<string, unknown>) => client.patch<Restaurant>('/restaurants/me', body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant'] }),
       });
@@ -53,6 +54,7 @@ export function createDomainHooks(client: ApiClient) {
     useUpdateOrderStatus() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Order updated' },
         mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
           client.patch<Order>(`/orders/${id}/status`, { status }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
@@ -62,6 +64,7 @@ export function createDomainHooks(client: ApiClient) {
     useRecordPayment() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Payment recorded' },
         mutationFn: ({ id, method }: { id: string; method: string }) =>
           client.patch<Order>(`/orders/${id}/payment`, { method }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
@@ -85,6 +88,7 @@ export function createDomainHooks(client: ApiClient) {
     useUpdateRedemption() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Reward claim updated' },
         mutationFn: ({ id, status }: { id: string; status: 'fulfilled' | 'cancelled' }) =>
           client.patch<Redemption>(`/rewards/redemptions/${id}`, { status }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['redemptions'] }),

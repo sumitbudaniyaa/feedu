@@ -16,6 +16,8 @@ export function createAuthHooks({ client, useAuth }: AuthDeps) {
   function useLogin() {
     const setSession = useAuth((s) => s.setSession);
     return useMutation({
+      // Auth is its own UX (navigation + inline error) — no toast.
+      meta: { silent: true },
       mutationFn: (input: LoginInput) => client.post<LoginResult>('/auth/login', input),
       onSuccess: ({ user, tokens }) => setSession(user, tokens),
     });
@@ -24,6 +26,7 @@ export function createAuthHooks({ client, useAuth }: AuthDeps) {
   function useRegister() {
     const setSession = useAuth((s) => s.setSession);
     return useMutation({
+      meta: { silent: true },
       mutationFn: (input: RegisterInput) => client.post<RegisterResult>('/auth/register', input),
       onSuccess: ({ user, tokens }) => setSession(user, tokens),
     });

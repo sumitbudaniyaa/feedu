@@ -64,18 +64,19 @@ export function uploadImage(file: File) {
 }
 
 // CRUD resources
-export const products = createResource<Product>(apiClient, 'products', '/products');
-export const categories = createResource<Category>(apiClient, 'categories', '/categories');
-export const sections = createResource<Section>(apiClient, 'sections', '/sections');
-export const loyalty = createResource<LoyaltyProgram>(apiClient, 'loyalty', '/loyalty');
-export const rewards = createResource<LoyaltyReward>(apiClient, 'rewards', '/rewards');
-export const tables = createResource<Table>(apiClient, 'tables', '/tables');
-export const staff = createResource<User>(apiClient, 'staff', '/staff');
-export const customers = createResource<Customer>(apiClient, 'customers', '/customers');
+export const products = createResource<Product>(apiClient, 'products', '/products', 'Product');
+export const categories = createResource<Category>(apiClient, 'categories', '/categories', 'Category');
+export const sections = createResource<Section>(apiClient, 'sections', '/sections', 'Section');
+export const loyalty = createResource<LoyaltyProgram>(apiClient, 'loyalty', '/loyalty', 'Loyalty program');
+export const rewards = createResource<LoyaltyReward>(apiClient, 'rewards', '/rewards', 'Reward');
+export const tables = createResource<Table>(apiClient, 'tables', '/tables', 'Table');
+export const staff = createResource<User>(apiClient, 'staff', '/staff', 'Staff member');
+export const customers = createResource<Customer>(apiClient, 'customers', '/customers', 'Customer');
 
 /** Change the signed-in account's password (verifies the current one). */
 export function useChangePassword() {
   return useMutation({
+    meta: { successMessage: 'Password changed' },
     mutationFn: (body: { currentPassword: string; newPassword: string }) =>
       apiClient.post('/auth/change-password', body),
   });
@@ -84,6 +85,7 @@ export function useChangePassword() {
 /** Tell the diner a waiter is on the way (after accepting their table call). */
 export function useAttendCall() {
   return useMutation({
+    meta: { successMessage: 'Customer notified' },
     mutationFn: (tableName: string) => apiClient.post('/waiter/attend', { tableName }),
   });
 }
@@ -131,6 +133,7 @@ export function useBrand() {
 export function useUpdateBrandSettings() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Brand settings saved' },
     mutationFn: (body: Record<string, unknown>) => apiClient.patch('/restaurants/me/brand', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['brand'] });
@@ -159,6 +162,7 @@ export function useBranchComparison(range: 'day' | 'week' | 'month', enabled = t
 export function useCreateBranch() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Branch added' },
     mutationFn: (body: { name: string; contactNumber?: string }) =>
       apiClient.post<Branch>('/restaurants/branches', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
@@ -187,6 +191,7 @@ export function useBranchOverrides(branchId?: string | null) {
 export function useSetBranchOverride() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Branch availability updated' },
     mutationFn: ({ productId, body }: { productId: string; body: Record<string, unknown> }) =>
       apiClient.patch(`/branch-menu/${productId}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-overrides'] }),
@@ -197,6 +202,7 @@ export function useSetBranchOverride() {
 export function useUpdateBranch() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Branch updated' },
     mutationFn: ({ id, body }: { id: string; body: { name?: string; contactNumber?: string; isLive?: boolean } }) =>
       apiClient.patch<Branch>(`/restaurants/branches/${id}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
@@ -207,6 +213,7 @@ export function useUpdateBranch() {
 export function useDeleteBranch() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Branch deleted' },
     mutationFn: (id: string) => apiClient.delete(`/restaurants/branches/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
   });
@@ -233,6 +240,7 @@ export function useBranchManagers(branchId?: string) {
 export function useCreateBranchManager(branchId: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Manager added' },
     mutationFn: (body: { name: string; email: string; phone?: string; password: string }) =>
       apiClient.post<BranchManager>(`/restaurants/branches/${branchId}/managers`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
@@ -242,6 +250,7 @@ export function useCreateBranchManager(branchId: string) {
 export function useUpdateBranchManager(branchId: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Manager updated' },
     mutationFn: ({ userId, body }: { userId: string; body: { name?: string; phone?: string; password?: string; isActive?: boolean } }) =>
       apiClient.patch<BranchManager>(`/restaurants/branches/${branchId}/managers/${userId}`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
@@ -251,6 +260,7 @@ export function useUpdateBranchManager(branchId: string) {
 export function useDeleteBranchManager(branchId: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Manager removed' },
     mutationFn: (userId: string) =>
       apiClient.delete(`/restaurants/branches/${branchId}/managers/${userId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['branch-managers', branchId] }),
@@ -275,6 +285,7 @@ export function useSupportTickets() {
 export function useCreateTicket() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Ticket created' },
     mutationFn: (body: { subject: string; message: string; category?: string; priority?: string }) =>
       apiClient.post<SupportTicket>('/support', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['support'] }),
@@ -283,6 +294,7 @@ export function useCreateTicket() {
 export function useReplyTicket() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { successMessage: 'Reply sent' },
     mutationFn: ({ id, message }: { id: string; message: string }) =>
       apiClient.post<SupportTicket>(`/support/${id}/reply`, { message }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['support'] }),

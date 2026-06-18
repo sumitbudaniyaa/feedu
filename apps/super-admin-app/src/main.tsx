@@ -11,10 +11,13 @@ const queryClient = new QueryClient({
   // Toast the outcome of every action (create / update / delete).
   mutationCache: new MutationCache({
     onSuccess: (_data, _vars, _ctx, mutation) => {
-      const msg = (mutation.meta?.successMessage as string | undefined) ?? 'Done';
-      if (msg) toast.success(msg);
+      if (mutation.meta?.silent) return;
+      toast.success((mutation.meta?.successMessage as string | undefined) ?? 'Saved');
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : 'Something went wrong'),
+    onError: (err, _vars, _ctx, mutation) => {
+      if (mutation.meta?.silent) return;
+      toast.error(err instanceof Error ? err.message : 'Something went wrong');
+    },
   }),
 });
 

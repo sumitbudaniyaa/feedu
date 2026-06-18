@@ -161,6 +161,7 @@ export function createPlatformHooks(client: ApiClient) {
     useOnboardBranch() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Branch added' },
         mutationFn: ({ brandId, body }: { brandId: string; body: { name: string; contactNumber?: string } }) =>
           client.post(`/platform/brands/${brandId}/branches`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
@@ -170,6 +171,7 @@ export function createPlatformHooks(client: ApiClient) {
     useSuspendBrand() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Brand updated' },
         mutationFn: ({ id, isLive }: { id: string; isLive: boolean }) =>
           client.patch(`/platform/brands/${id}`, { isLive }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
@@ -179,6 +181,7 @@ export function createPlatformHooks(client: ApiClient) {
     useUpdateBrandSubscription() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Plan updated' },
         mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
           client.patch(`/platform/brands/${id}/subscription`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
@@ -188,6 +191,7 @@ export function createPlatformHooks(client: ApiClient) {
     useDeleteBrand() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Brand deleted' },
         mutationFn: (id: string) => client.delete(`/platform/brands/${id}`),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
@@ -235,6 +239,7 @@ export function createPlatformHooks(client: ApiClient) {
     useUpdateSubscription() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Subscription updated' },
         mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
           client.patch<Subscription>(`/platform/restaurants/${id}/subscription`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
@@ -243,6 +248,7 @@ export function createPlatformHooks(client: ApiClient) {
     useToggleLive() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Branch updated' },
         mutationFn: ({ id, isLive }: { id: string; isLive: boolean }) =>
           client.patch(`/platform/restaurants/${id}`, { isLive }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
@@ -251,6 +257,7 @@ export function createPlatformHooks(client: ApiClient) {
     useOnboardRestaurant() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Account onboarded' },
         mutationFn: (body: Record<string, unknown>) => client.post('/platform/restaurants', body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
@@ -258,12 +265,14 @@ export function createPlatformHooks(client: ApiClient) {
     useDeleteRestaurant() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Branch deleted' },
         mutationFn: (id: string) => client.delete(`/platform/restaurants/${id}`),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },
     useUpdateAccount() {
       return useMutation({
+        meta: { successMessage: 'Account updated' },
         mutationFn: (body: { name?: string; email?: string; password?: string }) =>
           client.patch('/platform/account', body),
       });
@@ -271,6 +280,7 @@ export function createPlatformHooks(client: ApiClient) {
     useCreateEmployee() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Employee added' },
         mutationFn: (body: { name: string; email: string; password: string; phone?: string }) =>
           client.post('/platform/users', body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'users'] }),
@@ -279,6 +289,7 @@ export function createPlatformHooks(client: ApiClient) {
     useUpdateEmployee() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Employee updated' },
         mutationFn: ({ id, body }: { id: string; body: { name?: string; email?: string; phone?: string; password?: string } }) =>
           client.patch(`/platform/users/${id}`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'users'] }),
@@ -294,6 +305,7 @@ export function createPlatformHooks(client: ApiClient) {
     useUpdateTicket() {
       const qc = useQueryClient();
       return useMutation({
+        meta: { successMessage: 'Ticket updated' },
         mutationFn: ({ id, body }: { id: string; body: { status?: string; reply?: string } }) =>
           client.patch<SupportTicket>(`/platform/support/${id}`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'support'] }),
