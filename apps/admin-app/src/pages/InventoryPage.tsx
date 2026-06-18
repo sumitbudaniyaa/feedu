@@ -258,12 +258,13 @@ function ProductDialog({
   const [form, setForm] = useState(() => initial(product, categories));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  // Reset form whenever the dialog target changes.
-  const key = product?._id ?? 'new';
+  // Reset the form whenever the dialog opens or its target changes — so it picks
+  // up the latest categories (default category) instead of a stale empty value.
+  const key = `${open ? 'open' : 'closed'}:${product?._id ?? 'new'}`;
   const [lastKey, setLastKey] = useState(key);
   if (key !== lastKey) {
     setLastKey(key);
-    setForm(initial(product, categories));
+    if (open) setForm(initial(product, categories));
     setUploadError(null);
   }
 
@@ -284,9 +285,12 @@ function ProductDialog({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Fall back to the first category if none was explicitly picked (the native
+    // select shows it by default but the form value can still be empty).
+    const categoryId = form.categoryId || categories[0]?._id || '';
     const body = {
       name: form.name,
-      categoryId: form.categoryId,
+      categoryId,
       description: form.description || undefined,
       basePrice: Number(form.basePrice),
       isVeg: form.isVeg,
@@ -349,7 +353,7 @@ function ProductDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Category</Label>
-              <Select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} required>
+              <Select value={form.categoryId || categories[0]?._id || ''} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} required>
                 {categories.map((c) => (
                   <option key={c._id} value={c._id}>
                     {c.name}
