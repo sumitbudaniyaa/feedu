@@ -480,24 +480,46 @@ export function markPaid(orderId: string, providerRef?: string) {
 }
 
 /** Record a manual payment for an order (admin marks it paid, picking the method). */
+type ManualMethod = 'cash' | 'upi' | 'card' | 'zomato' | 'swiggy' | 'district';
+
 export async function recordPayment(
   restaurantId: string,
   orderId: string,
-  method: 'cash' | 'upi' | 'card' | 'zomato' | 'swiggy' | 'district',
+  input: { method?: ManualMethod; splits?: { method: ManualMethod; amount: number }[] },
 ) {
   const order = await Order.findOne({ _id: orderId, restaurantId });
   if (!order) throw ApiError.notFound('Order not found');
+
+  // Normalize to a list of {method, amount}. A single method covers the whole total.
+  const splits =
+    input.splits && input.splits.length
+      ? input.splits.map((s) => ({ method: s.method, amount: Math.round(Number(s.amount)) }))
+      : input.method
+        ? [{ method: input.method, amount: order.total }]
+        : null;
+  if (!splits || splits.length === 0) throw ApiError.badRequest('Provide a payment method or splits');
+  if (splits.some((s) => !(s.amount > 0))) throw ApiError.badRequest('Each split needs a positive amount');
+
+  // A true split must add up to the order total (₹1 rounding tolerance).
+  if (input.splits && input.splits.length > 1) {
+    const sum = splits.reduce((s, p) => s + p.amount, 0);
+    if (Math.abs(sum - order.total) > 1) {
+      throw ApiError.badRequest(`Split total ₹${sum} must equal the order total ₹${order.total}`);
+    }
+  }
+
   order.paymentStatus = 'paid';
-  order.paymentMethod = method;
+  order.paymentMethod = splits.length > 1 ? 'split' : splits[0]!.method;
+  order.set('paymentSplits', splits.length > 1 ? splits : []);
   await order.save();
 
-  await Payment.create({
-    restaurantId,
-    orderId: order._id,
-    amount: order.total,
-    method,
-    status: 'paid',
-  }).catch(() => undefined);
+  await Promise.all(
+    splits.map((s) =>
+      Payment.create({ restaurantId, orderId: order._id, amount: s.amount, method: s.method, status: 'paid' }).catch(
+        () => undefined,
+      ),
+    ),
+  );
 
   const obj = order.toObject();
   emit(SOCKET_EVENTS.ORDER_UPDATED, restaurantId, obj);

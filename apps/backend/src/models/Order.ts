@@ -66,7 +66,12 @@ const orderSchema = new Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'card', 'upi', 'razorpay', 'stripe', 'reward', 'zomato', 'swiggy', 'district'],
+      enum: ['cash', 'card', 'upi', 'razorpay', 'stripe', 'reward', 'zomato', 'swiggy', 'district', 'split'],
+    },
+    /** Per-method breakdown when a payment is split (e.g. part cash, part UPI). */
+    paymentSplits: {
+      type: [{ method: String, amount: Number, _id: false }],
+      default: [],
     },
     notes: String,
     placedAt: { type: Date, default: Date.now },

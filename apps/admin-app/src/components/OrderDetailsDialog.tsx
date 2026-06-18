@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Input,
   Select,
   Separator,
   cn,
@@ -60,6 +61,12 @@ export function OrderDetailsDialog({
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [method, setMethod] = useState<string>('cash');
+  // Split payment (part cash + part online, etc.).
+  const [splitOn, setSplitOn] = useState(false);
+  const [splits, setSplits] = useState<{ method: string; amount: string }[]>([
+    { method: 'cash', amount: '' },
+    { method: 'upi', amount: '' },
+  ]);
 
   const downloadInvoice = async () => {
     if (!invoiceRef.current) return;
@@ -181,32 +188,112 @@ export function OrderDetailsDialog({
                   <span>Payment pending</span>
                   <Badge variant="destructive">Unpaid</Badge>
                 </p>
-                <p className="text-xs text-muted-foreground">Collected the payment? Record it below.</p>
-                <div className="flex gap-2">
-                  <Select
-                    value={method}
-                    onChange={(e) => setMethod(e.target.value)}
-                    className="h-8 flex-1 border-0 bg-secondary text-xs shadow-none focus-visible:ring-0"
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Collected the payment? Record it below.</p>
+                  <button
+                    type="button"
+                    onClick={() => setSplitOn((v) => !v)}
+                    className="text-xs font-medium text-accent hover:underline"
                   >
-                    {PAY_METHODS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      recordPayment.mutate(
-                        { id: order._id, method },
-                        { onSuccess: () => onOpenChange(false) },
-                      )
-                    }
-                    disabled={recordPayment.isPending}
-                  >
-                    {recordPayment.isPending ? 'Saving…' : 'Mark paid'}
-                  </Button>
+                    {splitOn ? 'Single method' : 'Split payment'}
+                  </button>
                 </div>
+
+                {!splitOn ? (
+                  <div className="flex gap-2">
+                    <Select
+                      value={method}
+                      onChange={(e) => setMethod(e.target.value)}
+                      className="h-8 flex-1 border-0 bg-secondary text-xs shadow-none focus-visible:ring-0"
+                    >
+                      {PAY_METHODS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => recordPayment.mutate({ id: order._id, method }, { onSuccess: () => onOpenChange(false) })}
+                      disabled={recordPayment.isPending}
+                    >
+                      {recordPayment.isPending ? 'Saving…' : 'Mark paid'}
+                    </Button>
+                  </div>
+                ) : (
+                  (() => {
+                    const sum = splits.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+                    const balanced = Math.abs(sum - order.total) <= 1 && splits.every((p) => Number(p.amount) > 0);
+                    return (
+                      <div className="space-y-2">
+                        {splits.map((p, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Select
+                              value={p.method}
+                              onChange={(e) =>
+                                setSplits((s) => s.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))
+                              }
+                              className="h-8 w-28 border-0 bg-secondary text-xs shadow-none focus-visible:ring-0"
+                            >
+                              {PAY_METHODS.map((m) => (
+                                <option key={m.id} value={m.id}>{m.label}</option>
+                              ))}
+                            </Select>
+                            <Input
+                              type="number"
+                              min="0"
+                              inputMode="numeric"
+                              placeholder="₹ amount"
+                              value={p.amount}
+                              onChange={(e) =>
+                                setSplits((s) => s.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))
+                              }
+                              className="h-8 flex-1 text-xs"
+                            />
+                            {splits.length > 2 && (
+                              <button
+                                type="button"
+                                aria-label="Remove split"
+                                onClick={() => setSplits((s) => s.filter((_, j) => j !== i))}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setSplits((s) => [...s, { method: 'card', amount: '' }])}
+                            className="font-medium text-accent hover:underline"
+                          >
+                            + Add method
+                          </button>
+                          <span className={cn('font-medium', balanced ? 'text-success' : 'text-muted-foreground')}>
+                            {formatCurrency(sum)} / {formatCurrency(order.total)}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          disabled={recordPayment.isPending || !balanced}
+                          onClick={() =>
+                            recordPayment.mutate(
+                              {
+                                id: order._id,
+                                splits: splits.map((p) => ({ method: p.method, amount: Number(p.amount) })),
+                              },
+                              { onSuccess: () => onOpenChange(false) },
+                            )
+                          }
+                        >
+                          {recordPayment.isPending ? 'Saving…' : balanced ? 'Mark paid (split)' : `Must total ${formatCurrency(order.total)}`}
+                        </Button>
+                      </div>
+                    );
+                  })()
+                )}
               </div>
             ) : (
               <p className="flex items-center justify-center gap-1.5 text-sm text-success">

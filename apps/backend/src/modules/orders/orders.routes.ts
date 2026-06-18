@@ -53,14 +53,31 @@ router.get(
   asyncHandler(async (req, res) => ok(res, await orders.getOrder(req.branchId!, req.params.id!))),
 );
 
-// Record a manual payment (admin marks an unpaid order paid, choosing the method).
+// Record a manual payment (admin marks an unpaid order paid). Accepts a single
+// `method`, or `splits` (e.g. part cash + part UPI) that must sum to the total.
 router.patch(
   '/:id/payment',
   validateObjectId(),
   authorize('owner', 'manager', 'waiter', 'branch_manager'),
-  validate(z.object({ method: manualPaymentMethodSchema })),
+  validate(
+    z
+      .object({
+        method: manualPaymentMethodSchema.optional(),
+        splits: z
+          .array(z.object({ method: manualPaymentMethodSchema, amount: z.number().positive() }))
+          .min(1)
+          .optional(),
+      })
+      .refine((b) => b.method || (b.splits && b.splits.length), {
+        message: 'Provide a method or at least one split',
+      }),
+  ),
   asyncHandler(async (req, res) => {
-    const order = await orders.recordPayment(req.branchId!, req.params.id!, req.body.method);
+    const { method, splits } = req.body as {
+      method?: 'cash' | 'upi' | 'card' | 'zomato' | 'swiggy' | 'district';
+      splits?: { method: 'cash' | 'upi' | 'card' | 'zomato' | 'swiggy' | 'district'; amount: number }[];
+    };
+    const order = await orders.recordPayment(req.branchId!, req.params.id!, { method, splits });
     return ok(res, order);
   }),
 );

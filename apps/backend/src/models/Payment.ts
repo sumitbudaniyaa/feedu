@@ -6,7 +6,11 @@ const paymentSchema = new Schema(
     orderId: { type: Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: 'INR' },
-    method: { type: String, enum: ['cash', 'card', 'upi', 'razorpay', 'stripe'], required: true },
+    method: {
+      type: String,
+      enum: ['cash', 'card', 'upi', 'razorpay', 'stripe', 'zomato', 'swiggy', 'district'],
+      required: true,
+    },
     status: {
       type: String,
       enum: ['unpaid', 'paid', 'refunded', 'failed'],

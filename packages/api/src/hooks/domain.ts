@@ -65,8 +65,15 @@ export function createDomainHooks(client: ApiClient) {
       const qc = useQueryClient();
       return useMutation({
         meta: { successMessage: 'Payment recorded' },
-        mutationFn: ({ id, method }: { id: string; method: string }) =>
-          client.patch<Order>(`/orders/${id}/payment`, { method }),
+        mutationFn: ({
+          id,
+          method,
+          splits,
+        }: {
+          id: string;
+          method?: string;
+          splits?: { method: string; amount: number }[];
+        }) => client.patch<Order>(`/orders/${id}/payment`, { method, splits }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
       });
     },
