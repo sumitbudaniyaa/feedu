@@ -50,6 +50,9 @@ export const phoneSchema = z
 /** Regex string for client-side input validation (keep in sync with `phoneSchema`). */
 export const PHONE_PATTERN = '^\\d{10}$';
 
+/** Max branches a brand owner can add themselves; beyond this, Feedu adds more. */
+export const SELF_SERVE_BRANCH_LIMIT = 5;
+
 export const moneySchema = z.number().nonnegative();
 export const imageSchema = z.object({
   url: z.string().url(),

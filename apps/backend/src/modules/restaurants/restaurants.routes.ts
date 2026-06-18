@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { onboardingStateSchema, updateRestaurantSchema } from '@feedo/types';
+import { onboardingStateSchema, updateRestaurantSchema, SELF_SERVE_BRANCH_LIMIT } from '@feedo/types';
 import { slugify, randomToken } from '@feedo/utils';
 import {
   BranchMenu,
@@ -48,6 +48,15 @@ router.post(
     const { name, contactNumber } = req.body as { name: string; contactNumber?: string };
     const brand = await Brand.findById(req.brandId).lean();
     if (!brand) throw ApiError.notFound('Brand not found');
+
+    // Owners can self-add up to 5 branches; beyond that, only the Feedu team
+    // (super-admin) can add more (with plan changes).
+    const branchCount = await Restaurant.countDocuments({ brandId: brand._id });
+    if (branchCount >= SELF_SERVE_BRANCH_LIMIT) {
+      throw ApiError.forbidden(
+        `You can add up to ${SELF_SERVE_BRANCH_LIMIT} branches yourself. Contact the Feedu team to add more.`,
+      );
+    }
 
     let slug = slugify(name);
     if (await Restaurant.exists({ slug })) slug = `${slug}-${randomToken(3)}`;

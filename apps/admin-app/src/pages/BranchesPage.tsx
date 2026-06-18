@@ -17,6 +17,7 @@ import {
   useConfirm,
 } from '@feedo/ui';
 import { formatDate } from '@feedo/utils';
+import { SELF_SERVE_BRANCH_LIMIT } from '@feedo/types';
 import {
   useBranches,
   useBranchManagers,
@@ -72,17 +73,26 @@ export function BranchesPage() {
     if (ok) deleteBranch.mutate(b._id);
   };
 
+  const atLimit = (branches?.length ?? 0) >= SELF_SERVE_BRANCH_LIMIT;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Branches"
         description="Outlets under your brand. Switch the active branch to manage its orders, staff and inventory."
         action={
-          <Button onClick={() => setOpen(true)}>
+          <Button onClick={() => setOpen(true)} disabled={atLimit}>
             <Plus className="h-4 w-4" /> Add branch
           </Button>
         }
       />
+
+      {atLimit && (
+        <Card className="border-dashed p-3 text-sm text-muted-foreground">
+          You've reached the {SELF_SERVE_BRANCH_LIMIT}-branch self-serve limit.{' '}
+          <span className="font-medium text-foreground">Contact the Feedu team</span> to add more branches.
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
