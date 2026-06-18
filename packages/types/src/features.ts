@@ -28,6 +28,8 @@ export interface FeatureDef {
   surfaces: FeatureSurface[];
   /** Core features are always on and can't be disabled. */
   core?: boolean;
+  /** Only relevant to multi-store brands (hidden for single-store accounts). */
+  multiOnly?: boolean;
 }
 
 // Only features that actually exist in the app today.
@@ -46,7 +48,7 @@ export const FEATURE_CATALOG: FeatureDef[] = [
 
   // Analytics
   { key: 'analytics', label: 'Analytics Dashboard', group: 'analytics', defaultPrice: 1000, surfaces: ['admin'] },
-  { key: 'branch_comparison', label: 'Branch Comparison', group: 'analytics', defaultPrice: 700, surfaces: ['admin'] },
+  { key: 'branch_comparison', label: 'Branch Comparison', group: 'analytics', defaultPrice: 700, surfaces: ['admin'], multiOnly: true },
 
   // Loyalty
   { key: 'loyalty', label: 'Loyalty Programs', group: 'loyalty', defaultPrice: 500, surfaces: ['admin', 'customer'] },

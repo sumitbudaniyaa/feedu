@@ -474,7 +474,7 @@ function BrandFeaturesDialog({ brand, open, onClose }: { brand: PlatformBrand; o
         </DialogHeader>
         <div className="max-h-[70vh] overflow-y-auto pr-1">
           {/* `open` remounts so initial state reflects the latest subscription. */}
-          {open && <FeaturePricing key={brand._id} branchCount={brand.branchCount} onChange={setPricing} initial={initial} />}
+          {open && <FeaturePricing key={brand._id} branchCount={brand.branchCount} accountType={brand.accountType} onChange={setPricing} initial={initial} />}
         </div>
         {update.isError && (
           <p className="text-sm text-destructive">
@@ -656,8 +656,8 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
           )}
 
-          {/* Dynamic feature selection + pricing. */}
-          <FeaturePricing branchCount={branchCount} onChange={setPricing} />
+          {/* Dynamic feature selection + pricing (filtered to the chosen store type). */}
+          <FeaturePricing branchCount={branchCount} accountType={form.accountType} onChange={setPricing} />
           <p className="text-xs text-muted-foreground">
             Pick the features this {isMulti ? 'brand' : 'restaurant'} gets and set each price — the total is
             the subscription fee{isMulti ? ' covering every branch' : ''}. Expiry derives from the cycle.

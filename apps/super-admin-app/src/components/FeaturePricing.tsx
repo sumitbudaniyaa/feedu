@@ -40,13 +40,18 @@ const LIMIT_LABEL: Record<string, string> = {
  */
 export function FeaturePricing({
   branchCount,
+  accountType = 'multi',
   onChange,
   initial,
 }: {
   branchCount: number;
+  /** Single-store hides multi-store-only features (e.g. branch comparison). */
+  accountType?: 'single' | 'multi';
   onChange: (v: FeaturePricingValue) => void;
   initial?: { enabled?: string[]; prices?: Record<string, number>; basePrice?: number; billingCycle?: Cycle; limits?: Record<string, number> };
 }) {
+  // Only features relevant to the selected store type.
+  const relevant = (f: (typeof FEATURE_CATALOG)[number]) => accountType === 'multi' || !f.multiOnly;
   const [basePrice, setBasePrice] = useState(String(initial?.basePrice ?? 0));
   const [billingCycle, setBillingCycle] = useState<Cycle>(initial?.billingCycle ?? 'monthly');
   const [sel, setSel] = useState<Record<string, { on: boolean; price: number }>>(() =>
@@ -65,8 +70,8 @@ export function FeaturePricing({
   );
 
   const featureCharges = useMemo(
-    () => FEATURE_CATALOG.filter((f) => sel[f.key]?.on).map((f) => ({ key: f.key, price: sel[f.key]!.price })),
-    [sel],
+    () => FEATURE_CATALOG.filter((f) => relevant(f) && sel[f.key]?.on).map((f) => ({ key: f.key, price: sel[f.key]!.price })),
+    [sel, accountType],
   );
   const pricing = useMemo(
     () =>
@@ -110,7 +115,7 @@ export function FeaturePricing({
       <div className="space-y-3 rounded-lg border border-border p-3">
         <Label>Features</Label>
         {FEATURE_GROUPS.map((group) => {
-          const items = FEATURE_CATALOG.filter((f) => f.group === group);
+          const items = FEATURE_CATALOG.filter((f) => f.group === group && relevant(f));
           if (!items.length) return null;
           return (
             <div key={group} className="space-y-1.5">
