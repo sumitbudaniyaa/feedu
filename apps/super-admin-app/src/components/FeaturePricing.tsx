@@ -23,7 +23,6 @@ const GROUP_LABEL: Record<string, string> = {
   payments: 'Payments',
   branding: 'Branding',
   enterprise: 'Enterprise',
-  future: 'Future',
 };
 
 const LIMIT_LABEL: Record<string, string> = {
