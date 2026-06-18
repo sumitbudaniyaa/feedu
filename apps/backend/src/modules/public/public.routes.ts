@@ -138,6 +138,32 @@ router.get(
   }),
 );
 
+// Validate a manually-typed table number (link/direct entry, no QR). Tolerant
+// matching: exact name (case/space-insensitive) or the numeric part ("5" ↔ "Table 5").
+// Returns the canonical table name, or 404 if the restaurant has tables but none match.
+router.get(
+  '/r/:slug/table',
+  asyncHandler(async (req, res) => {
+    const slug = (req.params.slug ?? '').trim().toLowerCase();
+    const restaurant = await Restaurant.findOne({ slug, isLive: true }).select('_id').lean();
+    if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    const raw = String(req.query.name ?? '').trim();
+    if (!raw) throw ApiError.badRequest('Enter your table number');
+
+    const tables = await Table.find({ restaurantId: restaurant._id, isActive: true }).select('name').lean();
+    // No tables configured → can't validate; accept what they typed.
+    if (tables.length === 0) return ok(res, { name: raw });
+
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+    const digits = (s: string) => s.match(/\d+/)?.[0] ?? '';
+    const q = norm(raw);
+    const qd = digits(raw);
+    const match = tables.find((t) => norm(t.name) === q || (qd !== '' && digits(t.name) === qd));
+    if (!match) throw ApiError.notFound("We couldn't find that table — check the number on your table");
+    return ok(res, { name: match.name });
+  }),
+);
+
 // Resolve a scanned QR token → restaurant + table + menu.
 router.get(
   '/qr/:qrToken',

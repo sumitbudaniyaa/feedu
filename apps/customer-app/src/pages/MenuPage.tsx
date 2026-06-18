@@ -5,7 +5,7 @@ import { Bell, BellRing, Gift, Search, ShoppingBag, User, UtensilsCrossed } from
 import { Button, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import { SOCKET_EVENTS, type Product } from '@feedo/types';
-import { socket, useCallWaiter, useMenuByQr, useMenuBySlug } from '../lib/api.js';
+import { apiClient, socket, useCallWaiter, useMenuByQr, useMenuBySlug } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { ProductSheet } from '../components/ProductSheet.js';
 import { OngoingOrderPill } from '../components/OngoingOrderPill.js';
@@ -33,6 +33,8 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const [selected, setSelected] = useState<Product | null>(null);
   const [tablePromptOpen, setTablePromptOpen] = useState(false);
   const [tableInput, setTableInput] = useState('');
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [checkingTable, setCheckingTable] = useState(false);
 
   // Ring-the-waiter (dine-in only).
   const callWaiter = useCallWaiter(data?.restaurant.slug ?? '');
@@ -444,23 +446,40 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
                 So we bring your order to the right place. (Tip: scan the QR on your table next time.)
               </p>
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
-                  if (!tableInput.trim()) return;
-                  setTableName(tableInput.trim());
-                  setTablePromptOpen(false);
+                  const q = tableInput.trim();
+                  if (!q || !data) return;
+                  setCheckingTable(true);
+                  setTableError(null);
+                  try {
+                    // Validate against the restaurant's real tables.
+                    const { name } = await apiClient.get<{ name: string }>(
+                      `/public/r/${data.restaurant.slug}/table?name=${encodeURIComponent(q)}`,
+                    );
+                    setTableName(name);
+                    setTablePromptOpen(false);
+                  } catch (err) {
+                    setTableError(err instanceof Error ? err.message : "We couldn't find that table");
+                  } finally {
+                    setCheckingTable(false);
+                  }
                 }}
                 className="mt-4 space-y-3"
               >
                 <Input
                   autoFocus
                   value={tableInput}
-                  onChange={(e) => setTableInput(e.target.value)}
+                  onChange={(e) => {
+                    setTableInput(e.target.value);
+                    setTableError(null);
+                  }}
                   placeholder="e.g. Table 5"
                   className="h-12"
                 />
-                <Button type="submit" variant="success" className="h-12 w-full rounded-xl" disabled={!tableInput.trim()}>
-                  Confirm table
+                {tableError && <p className="text-sm text-destructive">{tableError}</p>}
+                <Button type="submit" variant="success" className="h-12 w-full rounded-xl" disabled={!tableInput.trim() || checkingTable}>
+                  {checkingTable ? 'Checking…' : 'Confirm table'}
                 </Button>
               </form>
             </motion.div>
