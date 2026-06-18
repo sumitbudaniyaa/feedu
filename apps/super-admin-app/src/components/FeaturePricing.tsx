@@ -22,7 +22,6 @@ const GROUP_LABEL: Record<string, string> = {
   loyalty: 'Loyalty',
   payments: 'Payments',
   branding: 'Branding',
-  enterprise: 'Enterprise',
 };
 
 const LIMIT_LABEL: Record<string, string> = {

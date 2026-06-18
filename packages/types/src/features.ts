@@ -13,7 +13,6 @@ export const FEATURE_GROUPS = [
   'loyalty',
   'payments',
   'branding',
-  'enterprise',
 ] as const;
 export type FeatureGroup = (typeof FEATURE_GROUPS)[number];
 
@@ -59,10 +58,9 @@ export const FEATURE_CATALOG: FeatureDef[] = [
 
   // Branding
   { key: 'custom_branding', label: 'Custom Branding', group: 'branding', defaultPrice: 500, surfaces: ['admin'] },
-
-  // Enterprise
-  { key: 'multi_branch', label: 'Multi Branch', group: 'enterprise', defaultPrice: 2000, surfaces: ['admin'] },
 ];
+// Note: multi-branch isn't a feature here — the single vs multi-store account type
+// (set at onboarding) plus the `max_branches` limit govern it.
 
 export const FEATURE_KEYS = FEATURE_CATALOG.map((f) => f.key);
 export type FeatureKey = (typeof FEATURE_CATALOG)[number]['key'];
