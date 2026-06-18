@@ -25,6 +25,7 @@ import {
   categories as categoriesApi,
   products as productsApi,
   uploadImage,
+  useBrand,
   useBranchOverrides,
   useSetBranchOverride,
 } from '../lib/api.js';
@@ -38,11 +39,13 @@ export function InventoryPage() {
   const update = productsApi.useUpdate();
   const confirm = useConfirm();
 
-  // null active branch = centralized (the brand catalog, applies to all branches).
-  // A selected branch = per-branch overrides (availability/stock only this branch).
+  // The centralized-vs-branch concept only exists for multi-store brands.
+  // Single-store accounts just manage one plain catalog.
+  const { data: brand } = useBrand();
+  const multiStore = brand?.accountType === 'multi';
   const activeBranch = useActiveBranchId();
-  const branchMode = Boolean(activeBranch);
-  const { data: overrides } = useBranchOverrides(activeBranch);
+  const branchMode = multiStore && Boolean(activeBranch);
+  const { data: overrides } = useBranchOverrides(branchMode ? activeBranch : undefined);
   const setOverride = useSetBranchOverride();
   const overrideMap = new Map((overrides ?? []).map((o) => [o.productId, o]));
 
@@ -107,22 +110,24 @@ export function InventoryPage() {
         }
       />
 
-      {/* Scope banner — centralized vs a single branch. */}
-      <Card className={`p-3 text-sm ${branchMode ? 'border-accent/40 bg-accent/5' : 'border-dashed'}`}>
-        {branchMode ? (
-          <span className="text-muted-foreground">
-            <span className="font-medium text-foreground">Branch view.</span> Toggling availability or
-            stock here applies <span className="font-medium">only to this branch</span>. To add or edit
-            products, switch to <span className="font-medium">All branches</span> up top.
-          </span>
-        ) : (
-          <span className="text-muted-foreground">
-            <span className="font-medium text-foreground">Centralized (all branches).</span> Products,
-            prices and defaults here apply to every branch — each branch can still override availability
-            and stock from its own branch view.
-          </span>
-        )}
-      </Card>
+      {/* Scope banner — only for multi-store brands (centralized vs a single branch). */}
+      {multiStore && (
+        <Card className={`p-3 text-sm ${branchMode ? 'border-accent/40 bg-accent/5' : 'border-dashed'}`}>
+          {branchMode ? (
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">Branch view.</span> Toggling availability or
+              stock here applies <span className="font-medium">only to this branch</span>. To add or edit
+              products, switch to <span className="font-medium">All branches</span> up top.
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">Centralized (all branches).</span> Products,
+              prices and defaults here apply to every branch — each branch can still override availability
+              and stock from its own branch view.
+            </span>
+          )}
+        </Card>
+      )}
 
       {!categories?.length && !isLoading && !branchMode && (
         <Card className="border-dashed p-4 text-sm text-muted-foreground">
