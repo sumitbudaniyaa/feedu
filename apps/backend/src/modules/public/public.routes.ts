@@ -151,8 +151,9 @@ router.get(
     if (!raw) throw ApiError.badRequest('Enter your table number');
 
     const tables = await Table.find({ restaurantId: restaurant._id, isActive: true }).select('name').lean();
-    // No tables configured → can't validate; accept what they typed.
-    if (tables.length === 0) return ok(res, { name: raw });
+    if (tables.length === 0) {
+      throw ApiError.notFound('This restaurant hasn’t set up tables yet — please scan the QR on your table.');
+    }
 
     const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
     const digits = (s: string) => s.match(/\d+/)?.[0] ?? '';
