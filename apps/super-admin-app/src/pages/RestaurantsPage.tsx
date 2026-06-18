@@ -237,9 +237,12 @@ function BrandCard({ brand }: { brand: PlatformBrand }) {
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {single ? 'Outlet' : 'Branches'}
             </span>
-            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-              <Plus className="h-3.5 w-3.5" /> Add branch
-            </Button>
+            {/* Single-store accounts have one outlet — no add-branch. */}
+            {!single && (
+              <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+                <Plus className="h-3.5 w-3.5" /> Add branch
+              </Button>
+            )}
           </div>
           <div className="space-y-2">
             {brand.branches.map((b) => (
