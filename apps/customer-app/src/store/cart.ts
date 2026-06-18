@@ -36,11 +36,12 @@ interface CartState {
   menuPath: string | null;
   lines: CartLine[];
   appliedReward: AppliedReward | null;
-  /** The diner's most recent in-progress order (for the ongoing-order pill). */
-  activeOrderId: string | null;
+  /** The diner's in-progress orders (each gets an ongoing-order pill). */
+  activeOrderIds: string[];
   setContext: (restaurant: CartRestaurant, tableId: string | null, menuPath: string) => void;
   setTableName: (tableName: string) => void;
-  setActiveOrder: (orderId: string | null) => void;
+  addActiveOrder: (orderId: string) => void;
+  removeActiveOrder: (orderId: string) => void;
   setReward: (reward: AppliedReward | null) => void;
   add: (line: Omit<CartLine, 'key' | 'quantity'>, qty?: number) => void;
   setQty: (key: string, qty: number) => void;
@@ -65,7 +66,7 @@ export const useCart = create<CartState>()(
       tableId: null,
       tableName: null,
       menuPath: null,
-      activeOrderId: null,
+      activeOrderIds: [],
       lines: [],
       appliedReward: null,
       setContext: (restaurant, tableId, menuPath) => {
@@ -75,7 +76,13 @@ export const useCart = create<CartState>()(
         set({ restaurant, tableId, menuPath });
       },
       setTableName: (tableName) => set({ tableName }),
-      setActiveOrder: (activeOrderId) => set({ activeOrderId }),
+      addActiveOrder: (orderId) =>
+        set((s) => ({
+          // newest last; dedupe; keep the most recent 10
+          activeOrderIds: [...s.activeOrderIds.filter((id) => id !== orderId), orderId].slice(-10),
+        })),
+      removeActiveOrder: (orderId) =>
+        set((s) => ({ activeOrderIds: s.activeOrderIds.filter((id) => id !== orderId) })),
       setReward: (reward) => set({ appliedReward: reward }),
       add: (line, qty = 1) => {
         const key = lineKey(line);

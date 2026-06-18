@@ -13,7 +13,7 @@ export function CartPage() {
   const navigate = useNavigate();
   const { restaurant, tableId, tableName, menuPath, lines, appliedReward, setQty, setReward, subtotal, clear } =
     useCart();
-  const setActiveOrder = useCart((s) => s.setActiveOrder);
+  const addActiveOrder = useCart((s) => s.addActiveOrder);
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
   const checkout = useCheckout(restaurant?.slug ?? '');
   const payOrder = usePayOrder();
@@ -60,7 +60,7 @@ export function CartPage() {
 
   const finish = (orderId: string) => {
     clear();
-    setActiveOrder(orderId); // surface it as the ongoing-order pill on the menu
+    addActiveOrder(orderId); // surface it as an ongoing-order pill on the menu
     // Flag the confirmation view so the track page celebrates a fresh order
     // (vs. opening the same page from order history).
     navigate(`/order/${orderId}`, { state: { justPlaced: true } });

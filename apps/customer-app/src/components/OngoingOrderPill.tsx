@@ -22,10 +22,22 @@ function etaMinutes(order: Order) {
   return Math.max(10, maxPrep + 3);
 }
 
-/** Floating, expandable pill for the diner's current order — pay, request bill, see status. */
+/** Stacks an expandable pill for each of the diner's in-progress orders. */
 export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: string }) {
-  const orderId = useCart((s) => s.activeOrderId);
-  const setActiveOrder = useCart((s) => s.setActiveOrder);
+  const orderIds = useCart((s) => s.activeOrderIds);
+  if (orderIds.length === 0) return null;
+  return (
+    <div className={cn('fixed inset-x-0 z-40 mx-auto flex max-w-md flex-col gap-2 px-5', bottomClass)}>
+      {orderIds.map((id) => (
+        <OrderCard key={id} orderId={id} />
+      ))}
+    </div>
+  );
+}
+
+/** A single ongoing-order pill — pay, request bill, see status; self-removes when done. */
+function OrderCard({ orderId }: { orderId: string }) {
+  const removeActiveOrder = useCart((s) => s.removeActiveOrder);
   const slug = useCart((s) => s.restaurant?.slug);
   const { data: order } = useTrackOrder(orderId ?? undefined);
 
@@ -43,13 +55,10 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
     (['cancelled', 'refunded'].includes(order.status) ||
       (['completed', 'served'].includes(order.status) && order.paymentStatus === 'paid'));
   useEffect(() => {
-    if (done) {
-      setActiveOrder(null);
-      setExpanded(false);
-    }
-  }, [done, setActiveOrder]);
+    if (done) removeActiveOrder(orderId);
+  }, [done, orderId, removeActiveOrder]);
 
-  if (!orderId || !order || done) return null;
+  if (!order || done) return null;
 
   const unpaid = order.paymentStatus === 'unpaid';
   const meta = STATUS[order.status] ?? { label: order.status, dot: 'bg-accent' };
@@ -106,12 +115,11 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
   };
 
   return (
-    <div className={cn('fixed inset-x-0 z-40 mx-auto max-w-md px-5', bottomClass)}>
-      <motion.div
-        layout
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="overflow-hidden rounded-2xl shadow-elevated ring-1 ring-black/20"
-      >
+    <motion.div
+      layout
+      transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+      className="overflow-hidden rounded-2xl shadow-elevated ring-1 ring-black/20"
+    >
         {/* Collapsed header — bold accent so it stands out on the dark menu */}
         <button
           onClick={() => setExpanded((v) => !v)}
@@ -192,7 +200,6 @@ export function OngoingOrderPill({ bottomClass = 'bottom-5' }: { bottomClass?: s
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
-    </div>
+    </motion.div>
   );
 }
