@@ -172,6 +172,8 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   whose subscription is `past_due`/`cancelled`/expired (or is suspended `isLive:false`) is blocked
   from the customer app; the admin app shows a full lock screen for that restaurant.
 - `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
+  `r/:slug/table?name=` (validate a manually-typed table for non-QR entry — tolerant "5" ↔ "Table 5",
+  404 if it doesn't exist; accepts anything when the restaurant has no tables),
   `checkout` (optional manual `tableName`), `orders/:id/pay`, `orders/:id` (track),
   `auth/otp/request`, `auth/otp/verify`, `r/:slug/account` + `r/:slug/redeem` (OTP-token gated),
   `r/:slug/call-waiter` (rings staff; `reason: assistance | bill`),

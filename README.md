@@ -37,7 +37,8 @@ Razorpay · JWT.
   table, cart, **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
   **Rewards** (wallet + in-app free-reward orders + **claim history**) and **Account** (details, order
   history, log out) pages, order confirmation + tracking with a downloadable ticket invoice. Dine-in
-  only; direct (non-QR) entry asks for the table number.
+  only; direct (non-QR) entry asks for the table number and **validates it against the restaurant's
+  real tables** (tolerant "5" ↔ "Table 5"; rejects unknown tables).
 - **Kitchen** — real-time KDS (`feedu` Kitchen), prominent table number, veg/non-veg markers,
   status-colored cards, one-tap flow.
 - **Super-admin = the feedu company portal (you, the SaaS owner)** — separate **feedu SaaS revenue**

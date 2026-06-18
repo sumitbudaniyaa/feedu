@@ -165,6 +165,11 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 - [x] **Dialogs** capped at 90dvh with internal scroll (tall dialogs stay on screen).
 - [~] **Dynamic feature-based pricing** was built then **removed on request** — onboarding is back to
   the simple single/multi-store flat combined fee.
+- [x] **Table validation (non-QR entry):** the customer table prompt validates the typed number against
+  the restaurant's real tables (`GET /public/r/:slug/table?name=`, tolerant "5" ↔ "Table 5") and rejects
+  unknown tables; no-tables restaurants accept any input.
+- [x] **Settings:** dropped the vestigial "Seats" row from the admin subscription card (schema default,
+  not configured/enforced).
 
 ## Recently added
 
