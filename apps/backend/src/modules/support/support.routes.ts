@@ -3,10 +3,11 @@ import { Restaurant, SupportTicket, User } from '../../models/index.js';
 import { authenticate } from '../../middleware/auth.js';
 import { requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { requireFeature } from '../../utils/features.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 
 const router = Router();
-router.use(authenticate, resolveTenant, requireTenant);
+router.use(authenticate, resolveTenant, requireTenant, requireFeature('support_chat'));
 
 // Tickets raised by the current restaurant.
 router.get(

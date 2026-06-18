@@ -19,6 +19,7 @@ import { requireBrand, requireTenant, resolveTenant } from '../../middleware/ten
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import { findEffectiveSubscription } from '../../utils/subscription.js';
+import { resolveBranchFeatures } from '../../utils/features.js';
 
 const router = Router();
 router.use(authenticate, resolveTenant, requireTenant);
@@ -280,6 +281,23 @@ router.get(
       currency: brand.currency,
       branchCount,
     });
+  }),
+);
+
+// Effective feature set + limits for the active branch (drives admin UI gating).
+router.get(
+  '/me/features',
+  asyncHandler(async (req, res) => {
+    const [features, sub] = await Promise.all([
+      resolveBranchFeatures(req.branchId, req.brandId),
+      findEffectiveSubscription(req.branchId, req.brandId),
+    ]);
+    const limits = sub?.limits
+      ? sub.limits instanceof Map
+        ? Object.fromEntries(sub.limits)
+        : sub.limits
+      : {};
+    return ok(res, { features: [...features], limits });
   }),
 );
 

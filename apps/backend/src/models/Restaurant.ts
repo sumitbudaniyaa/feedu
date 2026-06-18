@@ -68,6 +68,13 @@ const restaurantSchema = new Schema(
       completedSteps: { type: [String], default: [] },
     },
     isLive: { type: Boolean, default: false },
+    /**
+     * Per-branch feature overrides on top of the brand's enabled set.
+     * A key set to `false` disables a brand-enabled feature for this branch
+     * only; absent keys inherit the brand. (Brand can't be re-enabled below
+     * what the subscription grants.)
+     */
+    featureOverrides: { type: Map, of: Boolean, default: {} },
   },
   { timestamps: true },
 );

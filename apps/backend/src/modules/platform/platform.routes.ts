@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { slugify, randomToken } from '@feedo/utils';
+import { slugify, randomToken, computeSubscriptionPrice } from '@feedo/utils';
+import { CORE_FEATURE_KEYS } from '@feedo/types';
 import {
   Brand,
   BranchMenu,
@@ -406,6 +407,57 @@ router.patch(
   }),
 );
 
+// Configure a brand's features, limits and dynamic pricing (Feature Management).
+router.patch(
+  '/brands/:id/features',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const brand = await Brand.findById(req.params.id).lean();
+    if (!brand) throw ApiError.notFound('Brand not found');
+    const body = req.body as {
+      features?: { key: string; price: number }[];
+      limits?: Record<string, number>;
+      basePrice?: number;
+      branchFee?: number;
+      customAdjustments?: number;
+      billingCycle?: 'monthly' | 'quarterly' | 'yearly';
+    };
+
+    const existing = await Subscription.findOne({ brandId: brand._id }).lean();
+    const cycle = body.billingCycle ?? (existing?.billingCycle as 'monthly' | 'quarterly' | 'yearly') ?? 'monthly';
+    const branchCount = await Restaurant.countDocuments({ brandId: brand._id });
+
+    const featureCharges = (body.features ?? []).map((f) => ({ key: String(f.key), price: Number(f.price) || 0 }));
+    const pricing = computeSubscriptionPrice({
+      basePrice: Number(body.basePrice ?? existing?.basePrice ?? 0),
+      featureCharges,
+      branchFee: Number(body.branchFee ?? 0),
+      branchCount,
+      customAdjustments: Number(body.customAdjustments ?? existing?.customAdjustments ?? 0),
+      billingCycle: cycle,
+    });
+    const featureFlags: Record<string, boolean> = {};
+    for (const k of CORE_FEATURE_KEYS) featureFlags[k] = true;
+    for (const f of featureCharges) featureFlags[f.key] = true;
+
+    const update: Record<string, unknown> = {
+      features: featureFlags,
+      basePrice: pricing.basePrice,
+      featureCharges: pricing.featureCharges,
+      branchCharges: pricing.branchCharges,
+      customAdjustments: pricing.customAdjustments,
+      finalPrice: pricing.finalPrice,
+      price: pricing.finalPrice,
+      mrr: pricing.mrr,
+      billingCycle: cycle,
+    };
+    if (body.limits) update.limits = body.limits;
+
+    const sub = await Subscription.findOneAndUpdate({ brandId: brand._id }, update, { new: true, upsert: true });
+    return ok(res, sub);
+  }),
+);
+
 // Permanently delete a brand and every one of its branches + all their data.
 router.delete(
   '/brands/:id',
@@ -598,16 +650,53 @@ router.post(
     owner.restaurantId = home._id;
     await owner.save();
 
-    // One subscription covers the account — per-branch for single, combined for multi.
+    // Dynamic, feature-based pricing. The UI sends the selected features (with
+    // per-feature prices), optional base/branch fees, limits and adjustments.
+    // Legacy callers that pass only a flat `price` get it as the base fee with no
+    // explicit feature set (→ grandfathered all-features-on).
+    const body = req.body as {
+      features?: { key: string; price: number }[];
+      limits?: Record<string, number>;
+      basePrice?: number;
+      branchFee?: number;
+      customAdjustments?: number;
+    };
+    const hasFeatures = Array.isArray(body.features);
+    const featureCharges = (body.features ?? []).map((f) => ({
+      key: String(f.key),
+      price: Number(f.price) || 0,
+    }));
+    const pricing = computeSubscriptionPrice({
+      basePrice: Number(body.basePrice ?? (hasFeatures ? 0 : price)),
+      featureCharges,
+      branchFee: Number(body.branchFee ?? 0),
+      branchCount: created.length,
+      customAdjustments: Number(body.customAdjustments ?? 0),
+      billingCycle: String(billingCycle) as 'monthly' | 'quarterly' | 'yearly',
+    });
+    // Enabled feature map: core always on + the selected features.
+    const featureFlags: Record<string, boolean> = {};
+    if (hasFeatures) {
+      for (const k of CORE_FEATURE_KEYS) featureFlags[k] = true;
+      for (const f of featureCharges) featureFlags[f.key] = true;
+    }
+
     const days = Number(durationDays) || (CYCLE_MONTHS[String(billingCycle)] ?? 1) * 30;
     const sub = await Subscription.create({
       restaurantId: home._id,
       brandId: brand._id,
       plan,
       status: 'active',
-      price: Number(price),
+      features: featureFlags, // empty = grandfathered (all features on)
+      limits: body.limits ?? {},
+      basePrice: pricing.basePrice,
+      featureCharges: pricing.featureCharges,
+      branchCharges: pricing.branchCharges,
+      customAdjustments: pricing.customAdjustments,
+      finalPrice: pricing.finalPrice,
+      price: pricing.finalPrice,
       billingCycle,
-      mrr: toMrr(Number(price), String(billingCycle)),
+      mrr: pricing.mrr,
       currentPeriodEnd: new Date(Date.now() + days * 86400000),
     });
 

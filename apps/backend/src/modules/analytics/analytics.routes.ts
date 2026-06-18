@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { requireBrand, requireTenant, resolveTenant } from '../../middleware/tenant.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { requireFeature } from '../../utils/features.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import { getBranchComparison, getBrandDashboardStats, getDashboardStats } from './analytics.service.js';
 
@@ -13,6 +14,7 @@ router.use(authenticate, resolveTenant);
 router.get(
   '/dashboard',
   requireTenant,
+  requireFeature('analytics'),
   authorize('owner', 'manager', 'brand_owner', 'brand_admin', 'branch_manager'),
   asyncHandler(async (req, res) => {
     const range = (req.query.range as 'day' | 'week' | 'month') || 'week';
@@ -28,6 +30,7 @@ router.get(
 router.get(
   '/branches',
   requireBrand,
+  requireFeature('branch_comparison'),
   authorize('owner', 'brand_owner', 'brand_admin'),
   asyncHandler(async (req, res) => {
     const range = (req.query.range as 'day' | 'week' | 'month') || 'week';

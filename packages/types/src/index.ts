@@ -3,6 +3,7 @@ export * from './common.js';
 export * from './enums.js';
 export * from './auth.js';
 export * from './sockets.js';
+export * from './features.js';
 
 // Entities
 export * from './entities/branding.js';
