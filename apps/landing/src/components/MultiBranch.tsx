@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { Building2, GitBranch, LayoutDashboard, Share2, Trophy } from 'lucide-react';
-import { Section, SectionHeading } from '../primitives.js';
-import { MiniDashboard } from '../mockups.js';
-import { blurReveal, fadeUp, inView, stagger } from '../../lib/anim.js';
+import { Section, SectionHeading } from '../primitives';
+import { MiniDashboard } from '../mockups';
+import { blurReveal, fadeUp, inView, stagger } from '../../lib/anim';
 
 const PERKS = [
   { icon: LayoutDashboard, label: 'Centralized reporting' },

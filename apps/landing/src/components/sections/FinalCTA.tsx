@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
-import { UtensilsCrossed } from 'lucide-react';
-import { fadeUp, inView, stagger } from '../../lib/anim.js';
-import { ButtonPrimary } from '../primitives.js';
+import { fadeUp, inView, stagger } from '../../lib/anim';
+import { ButtonPrimary } from '../primitives';
 
 export function FinalCTA() {
   return (
