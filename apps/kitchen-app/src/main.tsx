@@ -12,7 +12,7 @@ const queryClient = new QueryClient({
 // Kitchen is always dark-mode optimized.
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider storageKey="feedo-kitchen-theme" defaultMode="dark" defaultAccent="emerald">
+    <ThemeProvider storageKey="feedo-kitchen-theme" defaultMode="light" defaultAccent="emerald">
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>

@@ -13,7 +13,7 @@ export function FinalCTA() {
         {/* faint oversized mark */}
         <span
           aria-hidden
-          className="pointer-events-none absolute -right-4 bottom-0 select-none text-[18rem] font-black italic leading-none text-white/[0.03]"
+          className="pointer-events-none absolute -right-4 bottom-0 select-none text-[8rem] sm:text-[12rem] md:text-[18rem] font-black italic leading-none text-white/[0.03]"
         >
           feedu
         </span>

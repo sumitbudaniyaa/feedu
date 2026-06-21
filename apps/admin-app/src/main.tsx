@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider storageKey="feedo-admin-theme" defaultMode="dark" defaultAccent="violet">
+    <ThemeProvider storageKey="feedo-admin-theme" defaultMode="light" defaultAccent="violet">
       <QueryClientProvider client={queryClient}>
         <ConfirmProvider>
           <BrowserRouter>
