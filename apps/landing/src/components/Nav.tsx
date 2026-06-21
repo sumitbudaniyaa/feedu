@@ -89,9 +89,6 @@ export function Nav() {
                 {label}
               </a>
             ))}
-            <ButtonSecondary href="/demo" className="mt-2 w-full">
-              Watch demo
-            </ButtonSecondary>
             <ButtonPrimary href="/contact-sales" className="w-full">
               Contact sales
             </ButtonPrimary>
