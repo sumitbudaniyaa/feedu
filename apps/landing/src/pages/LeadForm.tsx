@@ -17,9 +17,8 @@ const FIELDS: Field[] = [
   { key: 'message', label: 'Anything we should know?', textarea: true, placeholder: 'Number of outlets, what you’re looking for…' },
 ];
 
-export function LeadForm({ kind }: { kind: 'demo' | 'sales' }) {
-  const isDemo = kind === 'demo';
-  const [form, setForm] = useState<LeadInput>({ name: '', email: '', phone: '', type: kind });
+export function LeadForm() {
+  const [form, setForm] = useState<LeadInput>({ name: '', email: '', phone: '', type: 'sales' });
   const [status, setStatus] = useState<'idle' | 'loading' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +31,7 @@ export function LeadForm({ kind }: { kind: 'demo' | 'sales' }) {
     setStatus('loading');
     setError(null);
     try {
-      await submitLead({ ...form, type: kind });
+      await submitLead({ ...form, type: 'sales' });
       setStatus('done');
     } catch (err) {
       setStatus('idle');
@@ -55,19 +54,13 @@ export function LeadForm({ kind }: { kind: 'demo' | 'sales' }) {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
           <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            {isDemo ? 'Book a demo' : 'Contact sales'}
+            Contact sales
           </span>
           <h1 className="font-display mt-4 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-            {isDemo ? (
-              <>Let’s show you <span className="text-accent">Feedu in action.</span></>
-            ) : (
-              <>Let’s talk about <span className="text-accent">your restaurant.</span></>
-            )}
+            Let’s talk about <span className="text-accent">your restaurant.</span>
           </h1>
           <p className="mt-3 text-base text-muted-foreground">
-            {isDemo
-              ? 'Tell us a little about your restaurant and we’ll set up a personalized walkthrough.'
-              : 'Share your details and our team will reach out to help you get started.'}
+            Share your details and our team will reach out to help you get started.
           </p>
         </motion.div>
 
@@ -82,7 +75,7 @@ export function LeadForm({ kind }: { kind: 'demo' | 'sales' }) {
             </span>
             <h2 className="font-display mt-5 text-2xl font-semibold">Thank you, {form.name.split(' ')[0]}!</h2>
             <p className="mt-2 max-w-sm text-muted-foreground">
-              We’ve received your {isDemo ? 'demo request' : 'enquiry'}. Our team will be in touch shortly.
+              We’ve received your enquiry. Our team will be in touch shortly.
             </p>
             <Link to="/" className="mt-6">
               <ButtonPrimary>Back to home</ButtonPrimary>
@@ -136,8 +129,6 @@ export function LeadForm({ kind }: { kind: 'demo' | 'sales' }) {
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Sending…
                 </>
-              ) : isDemo ? (
-                'Request demo'
               ) : (
                 'Contact sales'
               )}

@@ -33,8 +33,6 @@ export function ConsoleLayout() {
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 px-3 py-5 lg:flex">
         <div className="flex items-center gap-1.5 px-3 pb-6">
-          <img src="/feedu-mark-light.png" alt="" className="h-6 w-6 object-contain dark:hidden" />
-          <img src="/feedu-mark-dark.png" alt="" className="hidden h-6 w-6 object-contain dark:block" />
           <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">
             feedu
           </span>

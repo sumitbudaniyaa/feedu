@@ -8,7 +8,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/contact-sales" element={<LeadForm kind="sales" />} />
+      <Route path="/contact-sales" element={<LeadForm />} />
       <Route path="/about" element={<About />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<Terms />} />

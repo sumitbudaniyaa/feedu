@@ -33,9 +33,8 @@ const router = Router();
 
 // OTP throttling (per phone): code validity, resend cooldown, and a rolling-window send cap.
 const OTP_CODE_TTL_MS = 5 * 60 * 1000; // code valid for 5 min
-const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // min gap between sends to the same number
 const OTP_WINDOW_MS = 15 * 60 * 1000; // rolling window for the send cap
-const OTP_MAX_PER_WINDOW = 5; // max codes per number per window
+const OTP_MAX_PER_WINDOW = 3; // max codes per number per window
 
 // ─── Call a waiter to a table (assistance or bill request) ─────────────────
 router.post(
@@ -79,10 +78,6 @@ router.post(
     // Per-phone guards (on top of the per-IP `otpLimiter`): a resend cooldown and a
     // rolling-window cap, so a single number can't be SMS-bombed (and SMS cost contained).
     const existing = await Otp.findOne({ phone });
-    if (existing?.resendAt && existing.resendAt.getTime() > now) {
-      const secs = Math.ceil((existing.resendAt.getTime() - now) / 1000);
-      throw ApiError.tooManyRequests(`Please wait ${secs}s before requesting another code`);
-    }
     const inWindow = Boolean(
       existing?.windowStartAt && now - existing.windowStartAt.getTime() < OTP_WINDOW_MS,
     );
@@ -104,7 +99,6 @@ router.post(
         name,
         attempts: 0,
         codeExpiresAt,
-        resendAt: new Date(now + OTP_RESEND_COOLDOWN_MS),
         windowStartAt,
         sentCount,
         // Keep the doc (and its counters) until both the code expiry and the rate window pass.

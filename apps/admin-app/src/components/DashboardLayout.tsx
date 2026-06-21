@@ -160,8 +160,6 @@ export function DashboardLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur">
           <div className="flex items-center gap-2 lg:hidden">
-            <img src="/feedu-mark-light.png" alt="" className="h-6 w-6 object-contain dark:hidden" />
-            <img src="/feedu-mark-dark.png" alt="" className="hidden h-6 w-6 object-contain dark:block" />
             <span className="text-lg font-black italic tracking-tight text-foreground">feedu</span>
           </div>
           <div className="ml-auto flex items-center gap-2">

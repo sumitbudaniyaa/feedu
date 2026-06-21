@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { objectIdSchema } from '../common.js';
 
-/** Where the lead came from — the "Book a demo" or "Contact sales" form. */
-export const leadTypeSchema = z.enum(['demo', 'sales']);
+/** Where the lead came from — "Contact sales" form. */
+export const leadTypeSchema = z.literal('sales');
 export type LeadType = z.infer<typeof leadTypeSchema>;
 
 /** Sales-pipeline status, managed in the company portal. */

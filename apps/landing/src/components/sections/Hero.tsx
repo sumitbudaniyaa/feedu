@@ -29,10 +29,6 @@ export function Hero() {
           <ButtonPrimary href="/contact-sales" className="!min-w-[220px] !justify-between !rounded-[.65rem] !px-6 !py-4 text-base">
             Get started <ArrowRight className="h-4 w-4" />
           </ButtonPrimary>
-          <a href="/demo" className="group relative inline-block text-base font-medium text-muted-foreground transition-colors hover:text-foreground">
-            How it works
-            <span className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-current transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-x-100" />
-          </a>
         </motion.div>
       </motion.div>
 

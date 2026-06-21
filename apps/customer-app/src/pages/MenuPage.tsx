@@ -173,7 +173,6 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           {/* Brand wordmark + rewards / account */}
           <div className="flex items-center justify-between gap-3">
             <span className="flex select-none items-center gap-2">
-              <img src="/feedu-mark-dark.png" alt="" className="h-7 w-7 object-contain" />
               <span className="text-2xl font-black italic leading-none tracking-tight text-white drop-shadow-sm">
                 feedu
               </span>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CalendarClock, Inbox, Mail, MapPin, Phone, Store } from 'lucide-react';
-import { Badge, Card, EmptyState, Select, Skeleton, Tabs, TabsList, TabsTrigger } from '@feedo/ui';
+import { Badge, Card, EmptyState, Select, Skeleton } from '@feedo/ui';
 import { formatRelativeTime } from '@feedo/utils';
 import type { Lead, LeadStatus } from '@feedo/types';
 import { useLeads, useUpdateLeadStatus } from '../lib/api.js';
@@ -14,8 +14,7 @@ const STATUS_VARIANT: Record<LeadStatus, 'warning' | 'accent' | 'success' | 'def
 };
 
 export function LeadsPage() {
-  const [type, setType] = useState<'all' | 'demo' | 'sales'>('all');
-  const { data, isLoading } = useLeads(type === 'all' ? undefined : { type });
+  const { data, isLoading } = useLeads();
   const updateStatus = useUpdateLeadStatus();
 
   return (
@@ -23,15 +22,9 @@ export function LeadsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Leads</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Demo &amp; sales enquiries from the marketing site.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Sales enquiries from the marketing site.</p>
         </div>
-        <Tabs value={type} onValueChange={(v) => setType(v as typeof type)}>
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="demo">Demo</TabsTrigger>
-            <TabsTrigger value="sales">Sales</TabsTrigger>
-          </TabsList>
-        </Tabs>
+
       </div>
 
       {isLoading ? (
@@ -64,9 +57,7 @@ function LeadCard({ lead, onStatus }: { lead: Lead; onStatus: (s: LeadStatus) =>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium">{lead.name}</span>
-            <Badge variant={lead.type === 'demo' ? 'accent' : 'default'} className="capitalize">
-              {lead.type}
-            </Badge>
+
             <Badge variant={STATUS_VARIANT[lead.status]} className="capitalize">
               {lead.status}
             </Badge>

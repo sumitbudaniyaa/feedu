@@ -7,10 +7,10 @@ export type LeadInput = {
   restaurantName?: string;
   city?: string;
   message?: string;
-  type: 'demo' | 'sales';
+  type: 'sales';
 };
 
-/** Submit a sales/demo enquiry to the backend (public, no auth). */
+/** Submit a sales enquiry to the backend (public, no auth). */
 export async function submitLead(input: LeadInput): Promise<void> {
   let res: Response;
   try {
