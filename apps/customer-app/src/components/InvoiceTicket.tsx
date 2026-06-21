@@ -84,7 +84,12 @@ export const InvoiceTicket = forwardRef<HTMLDivElement, { order: TrackedOrder }>
 
           <Row k="Subtotal" v={formatCurrency(order.subtotal)} />
           {order.discountAmount > 0 && <Row k="Discount" v={`- ${formatCurrency(order.discountAmount)}`} />}
-          <Row k={`GST${r?.gstPercent ? ` (${r.gstPercent}%)` : ''}`} v={formatCurrency(order.taxAmount)} />
+          {order.taxAmount > 0 && (
+            <>
+              <Row k={`CGST${r?.cgstPercent ? ` (${r.cgstPercent}%)` : ''}`} v={formatCurrency(order.taxAmount / 2)} />
+              <Row k={`SGST${r?.sgstPercent ? ` (${r.sgstPercent}%)` : ''}`} v={formatCurrency(order.taxAmount / 2)} />
+            </>
+          )}
 
           <div className="my-2 border-t-2 border-double" style={{ borderColor: INK }} />
           <div className="flex items-baseline justify-between text-base font-bold">

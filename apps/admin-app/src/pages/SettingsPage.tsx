@@ -44,7 +44,7 @@ interface SettingsEntity {
   cuisineType?: string[];
   description?: string;
   branding?: { accent?: string; themeMode?: string };
-  tax?: { gstNumber?: string; gstPercent?: number; inclusive?: boolean };
+  tax?: { gstNumber?: string; cgstPercent?: number; sgstPercent?: number; inclusive?: boolean };
 }
 
 const ACCENTS: { key: AccentKey; hex: string }[] = [
@@ -140,7 +140,8 @@ export function SettingsPage() {
       <SectionCard title="Tax (GST)" onEdit={() => setEditing('tax')}>
         <div className="grid gap-4 sm:grid-cols-3">
           <SubRow label="GST number"><span className="font-medium">{entity.tax?.gstNumber || '—'}</span></SubRow>
-          <SubRow label="GST percent"><span className="font-medium">{entity.tax?.gstPercent ?? 5}%</span></SubRow>
+          <SubRow label="CGST percent"><span className="font-medium">{entity.tax?.cgstPercent ?? 2.5}%</span></SubRow>
+          <SubRow label="SGST percent"><span className="font-medium">{entity.tax?.sgstPercent ?? 2.5}%</span></SubRow>
           <SubRow label="Prices include tax">
             <span className="font-medium">{entity.tax?.inclusive ? 'Yes' : 'No'}</span>
           </SubRow>
@@ -357,13 +358,14 @@ function TaxDialog({ open, onClose, data, brandMode }: { open: boolean; onClose:
   const bu = useUpdateBrandSettings();
   const update = brandMode ? bu : ru;
   const [gstNumber, setGstNumber] = useState(data.tax?.gstNumber ?? '');
-  const [gstPercent, setGstPercent] = useState(String(data.tax?.gstPercent ?? 5));
+  const [cgstPercent, setCgstPercent] = useState(String(data.tax?.cgstPercent ?? 2.5));
+  const [sgstPercent, setSgstPercent] = useState(String(data.tax?.sgstPercent ?? 2.5));
   const [inclusive, setInclusive] = useState(data.tax?.inclusive ?? false);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     update.mutate(
-      { tax: { gstNumber: gstNumber || undefined, gstPercent: Number(gstPercent), inclusive } },
+      { tax: { gstNumber: gstNumber || undefined, cgstPercent: Number(cgstPercent), sgstPercent: Number(sgstPercent), inclusive } },
       { onSuccess: onClose },
     );
   };
@@ -375,14 +377,18 @@ function TaxDialog({ open, onClose, data, brandMode }: { open: boolean; onClose:
           <DialogTitle>Edit tax (GST)</DialogTitle>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label>GST number</Label>
               <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>GST percent</Label>
-              <Input type="number" min="0" max="100" value={gstPercent} onChange={(e) => setGstPercent(e.target.value)} />
+              <Label>CGST percent</Label>
+              <Input type="number" min="0" max="100" step="0.1" value={cgstPercent} onChange={(e) => setCgstPercent(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>SGST percent</Label>
+              <Input type="number" min="0" max="100" step="0.1" value={sgstPercent} onChange={(e) => setSgstPercent(e.target.value)} />
             </div>
           </div>
           <label className="flex items-center gap-2 text-sm">

@@ -311,7 +311,8 @@ router.patch(
       tax: z
         .object({
           gstNumber: z.string().optional(),
-          gstPercent: z.number().min(0).max(100).optional(),
+          cgstPercent: z.number().min(0).max(100).optional(),
+          sgstPercent: z.number().min(0).max(100).optional(),
           inclusive: z.boolean().optional(),
         })
         .optional(),

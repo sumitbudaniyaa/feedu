@@ -86,7 +86,8 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       {
         slug: data.restaurant.slug,
         name: data.restaurant.name,
-        gstPercent: data.restaurant.tax?.gstPercent ?? 5,
+        cgstPercent: data.restaurant.tax?.cgstPercent ?? 2.5,
+        sgstPercent: data.restaurant.tax?.sgstPercent ?? 2.5,
         inclusive: data.restaurant.tax?.inclusive ?? false,
         accent: data.restaurant.branding?.accent,
       },

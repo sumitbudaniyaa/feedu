@@ -15,7 +15,8 @@ export interface CartLine {
 export interface CartRestaurant {
   slug: string;
   name: string;
-  gstPercent: number;
+  cgstPercent: number;
+  sgstPercent: number;
   inclusive: boolean;
   accent?: string;
 }

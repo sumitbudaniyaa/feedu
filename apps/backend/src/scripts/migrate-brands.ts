@@ -51,7 +51,7 @@ async function migrate() {
           description: r.description,
           cuisineType: r.cuisineType ?? [],
           branding: r.branding ?? { accent: 'violet', themeMode: 'dark' },
-          tax: r.tax ?? { gstPercent: 5, inclusive: false },
+          tax: r.tax ?? { cgstPercent: 2.5, sgstPercent: 2.5, inclusive: false },
           currency: r.currency ?? 'INR',
         }));
       if (!existing) brandsCreated++;

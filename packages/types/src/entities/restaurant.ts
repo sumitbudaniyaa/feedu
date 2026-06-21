@@ -57,10 +57,11 @@ export const restaurantSchema = z.object({
   tax: z
     .object({
       gstNumber: z.string().optional(),
-      gstPercent: z.number().min(0).max(100).default(5),
+      cgstPercent: z.number().min(0).max(100).default(2.5),
+      sgstPercent: z.number().min(0).max(100).default(2.5),
       inclusive: z.boolean().default(false),
     })
-    .default({ gstPercent: 5, inclusive: false }),
+    .default({ cgstPercent: 2.5, sgstPercent: 2.5, inclusive: false }),
   currency: z.string().default('INR'),
   onboarding: onboardingStateSchema.default({}),
   isLive: z.boolean().default(false),

@@ -51,7 +51,8 @@ export interface TrackedOrder extends Order {
     name: string;
     currency?: string;
     gstNumber?: string;
-    gstPercent?: number;
+    cgstPercent?: number;
+    sgstPercent?: number;
     contactNumber?: string;
     address?: { line1?: string; city?: string; state?: string };
   } | null;

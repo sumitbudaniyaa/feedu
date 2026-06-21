@@ -51,7 +51,7 @@ async function seed() {
       description: 'Modern Indian comfort food.',
       cuisineType: ['Indian', 'Continental'],
       branding: { accent: 'amber', themeMode: 'dark' },
-      tax: { gstPercent: 5, inclusive: false },
+      tax: { cgstPercent: 2.5, sgstPercent: 2.5, inclusive: false },
       onboarding: { completed: true, currentStep: 8, progress: 100, completedSteps: [] },
       isLive: true,
     });

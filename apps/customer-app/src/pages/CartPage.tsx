@@ -54,7 +54,8 @@ export function CartPage() {
 
   const totals = computeTotals({
     subtotal: subtotal(),
-    gstPercent: restaurant.gstPercent,
+    cgstPercent: restaurant.cgstPercent,
+    sgstPercent: restaurant.sgstPercent,
     inclusive: restaurant.inclusive,
   });
 
@@ -251,7 +252,7 @@ export function CartPage() {
 
         <Card className="space-y-1.5 p-4 text-sm">
           <Row label="Subtotal" value={formatCurrency(totals.subtotal)} />
-          <Row label={`Tax (GST ${restaurant.gstPercent}%)`} value={formatCurrency(totals.taxAmount)} />
+          <Row label={`Tax (CGST ${restaurant.cgstPercent}% + SGST ${restaurant.sgstPercent}%)`} value={formatCurrency(totals.taxAmount)} />
           {appliedReward && (
             <div className="flex justify-between text-accent">
               <span>{appliedReward.title}</span>

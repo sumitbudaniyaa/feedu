@@ -19,13 +19,14 @@ export function subtotal(lines: PriceLine[]): number {
  */
 export function computeTotals(opts: {
   subtotal: number;
-  gstPercent: number;
+  cgstPercent: number;
+  sgstPercent: number;
   inclusive?: boolean;
   discount?: number;
 }): { subtotal: number; taxAmount: number; discount: number; total: number } {
   const discount = Math.min(opts.discount ?? 0, opts.subtotal);
   const taxable = opts.subtotal - discount;
-  const rate = opts.gstPercent / 100;
+  const rate = (opts.cgstPercent + opts.sgstPercent) / 100;
   const taxAmount = opts.inclusive
     ? Math.round(taxable - taxable / (1 + rate))
     : Math.round(taxable * rate);

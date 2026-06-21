@@ -148,7 +148,8 @@ export async function createOrder({
   const subtotal = items.reduce((s, i) => s + i.lineTotal, 0);
   const totals = computeTotals({
     subtotal,
-    gstPercent: restaurant.tax?.gstPercent ?? 5,
+    cgstPercent: restaurant.tax?.cgstPercent ?? 2.5,
+    sgstPercent: restaurant.tax?.sgstPercent ?? 2.5,
     inclusive: restaurant.tax?.inclusive ?? false,
   });
 

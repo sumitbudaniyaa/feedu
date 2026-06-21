@@ -57,7 +57,8 @@ const restaurantSchema = new Schema(
     },
     tax: {
       gstNumber: String,
-      gstPercent: { type: Number, default: 5 },
+      cgstPercent: { type: Number, default: 2.5 },
+      sgstPercent: { type: Number, default: 2.5 },
       inclusive: { type: Boolean, default: false },
     },
     currency: { type: String, default: 'INR' },

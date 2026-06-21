@@ -493,7 +493,8 @@ router.get(
             name: restaurant.name,
             currency: restaurant.currency,
             gstNumber: restaurant.tax?.gstNumber,
-            gstPercent: restaurant.tax?.gstPercent,
+            cgstPercent: restaurant.tax?.cgstPercent,
+            sgstPercent: restaurant.tax?.sgstPercent,
             contactNumber: restaurant.contactNumber,
             address: restaurant.address,
           }

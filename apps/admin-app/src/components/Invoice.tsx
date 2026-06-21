@@ -97,10 +97,18 @@ export const Invoice = forwardRef<HTMLDivElement, { order: Order; restaurant?: R
             {order.discountAmount > 0 && (
               <Row label="Discount" value={`- ${formatCurrency(order.discountAmount)}`} />
             )}
-            <Row
-              label={`GST${restaurant?.tax?.gstPercent ? ` (${restaurant.tax.gstPercent}%)` : ''}`}
-              value={formatCurrency(order.taxAmount)}
-            />
+            {order.taxAmount > 0 && (
+              <>
+                <Row
+                  label={`CGST${restaurant?.tax?.cgstPercent ? ` (${restaurant.tax.cgstPercent}%)` : ''}`}
+                  value={formatCurrency(order.taxAmount / 2)}
+                />
+                <Row
+                  label={`SGST${restaurant?.tax?.sgstPercent ? ` (${restaurant.tax.sgstPercent}%)` : ''}`}
+                  value={formatCurrency(order.taxAmount / 2)}
+                />
+              </>
+            )}
             <div className="mt-1 flex justify-between border-t border-neutral-300 pt-2 text-base font-bold text-neutral-900">
               <span>Total</span>
               <span>{formatCurrency(order.total)}</span>
