@@ -110,6 +110,14 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.5 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || info.velocity.y > 500) {
+                if (!submitting) onClose();
+              }
+            }}
             className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md rounded-t-3xl border-t border-border bg-card p-5 pb-7 shadow-elevated"
           >
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border" />
