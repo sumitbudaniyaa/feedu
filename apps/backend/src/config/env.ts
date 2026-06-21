@@ -27,6 +27,8 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // Beta/demo hosting: skip real SMS — OTP is the fixed code 123456, shown to the diner.
+  BETA_MODE: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -39,6 +41,10 @@ export const env = {
   ...parsed.data,
   corsOrigins: parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()),
   isProd: parsed.data.NODE_ENV === 'production',
+  betaMode: parsed.data.BETA_MODE === 'true',
+  // When true, OTP is fixed to 123456 and returned to the client (no SMS provider needed):
+  // any non-prod run, or an explicit beta deployment.
+  demoOtp: parsed.data.NODE_ENV !== 'production' || parsed.data.BETA_MODE === 'true',
   razorpayConfigured: Boolean(parsed.data.RAZORPAY_KEY_ID && parsed.data.RAZORPAY_KEY_SECRET),
   cloudinaryConfigured: Boolean(
     parsed.data.CLOUDINARY_CLOUD_NAME &&

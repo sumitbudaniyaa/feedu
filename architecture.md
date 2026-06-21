@@ -17,7 +17,8 @@ feedo/
 │   ├── admin-app/        Restaurant owner dashboard (:5173)
 │   ├── customer-app/     QR-based mobile ordering PWA (:5174)
 │   ├── kitchen-app/      Kitchen Display System / KDS (:5175)
-│   └── super-admin-app/  Internal SaaS console (:5176)
+│   ├── super-admin-app/  Internal SaaS console (:5176)
+│   └── landing/          Public marketing site (:5177)
 ├── packages/
 │   ├── config/           Tailwind preset, design tokens, shared tsconfig, postcss
 │   ├── types/            Zod schemas + inferred TS types (shared contract)
@@ -33,10 +34,11 @@ feedo/
 ### Running locally
 
 `npm run dev` opens an arrow-key menu (↑/↓ + enter; all / admin / user / kitchen /
-company — each bundled with the backend; falls back to a numbered prompt when stdin
+company / landing — each bundled with the backend, except **landing** which is a static
+marketing site and runs standalone; falls back to a numbered prompt when stdin
 isn't a TTY). Direct shortcuts skip the menu: `dev:all`, `dev:admin`,
-`dev:user`, `dev:kitchen`, `dev:company`, `dev:backend`. Each maps to a Turborepo
-`--filter` set so only the chosen workspaces start. `npm run seed` loads demo data.
+`dev:user`, `dev:kitchen`, `dev:company`, `dev:landing`, `dev:backend`. Each maps to a
+Turborepo `--filter` set so only the chosen workspaces start. `npm run seed` loads demo data.
 
 ### Dependency direction
 
@@ -56,10 +58,11 @@ Packages never import from apps. `types` is the lowest-level shared package.
 
 | App | Audience | Purpose | Default accent |
 |-----|----------|---------|----------------|
-| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard, orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
-| `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login (incl. at guest checkout), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
-| `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers (dark-optimized KDS) | emerald |
+| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard (incl. a live **seat-occupancy grid** with one-tap reserve/occupy/free + reservation details, synced via `table:updated`), orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
+| `customer-app` | Diners (mobile) | QR ordering, browsing, cart, Razorpay checkout, mobile-OTP login (incl. at guest checkout, with a **"continue without verifying"** option that still places the order but forfeits reward points / member benefits), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
+| `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers, multi-select category filter (persisted across refresh, dark-optimized KDS) | emerald |
 | `super-admin-app` | Feedu internal | One combined **Brands & Restaurants** page (search + type/status filters), single/multi-store onboarding, brand-level + per-branch suspend, combined SaaS plan editing, delete; platform analytics | blue |
+| `landing` | Public / prospects | Marketing site — hero (mobile: CTAs stack, "How it works" under "Get started"), scroll-darkened value statement, feature bento, **MultiOutput** "One scan. Every app in sync." (admin/kitchen as fixed landscape shots, customer/waiter in matching phone frames), real-time flow, multi-branch, analytics, a **restaurant-benefit** section (turn tables faster, fewer wrong orders, bigger bills, regulars, get paid, know what sells — replaced the old enterprise/tech-infra cards), **use-cases** bento ("One platform. Every kind of restaurant." — single card, varied tile sizes, `restaurant` highlighted in the maroon accent). Routes: **/demo** (auto-playing interactive demo: scan→order→kitchen→waiter→owner), **/contact-sales** (form → POST `/public/leads` → company portal; `/book-demo` redirects to `/demo`), **/about** (company page — "a product of TwentyEleven", links to twentyeleven.in), **/privacy** and **/terms** (app-specific legal pages). SEO: full meta + Open Graph + Twitter cards + JSON-LD (SoftwareApplication + Organization), `robots.txt` + `sitemap.xml`, canonical/OG on the **feedu.in** domain. Theme inspired by trupeer.ai: **cream/ivory** canvas, **butter-yellow** primary buttons, maroon micro-accent, **Fraunces serif** hero + **Poppins** sans headings, **pastel-tinted** cards, big rounded corners. **Footer**: centered `feedu` wordmark + "here to help you feed", a paperclip clipped to the top edge, inline Instagram (@orderwithfeedu) + About/Privacy/Terms links, and "A product of TwentyEleven" (→ twentyeleven.in). Mockups render the real apps — staff apps in **light** mode (admin violet · kitchen status-colored), customer PWA in its real **dark** look | cream / butter-yellow |
 
 ---
 
@@ -144,7 +147,9 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 - `/products`, `/categories`, `/sections`, `/loyalty`, `/rewards` — **brand-level** CRUD (shared
   catalog, scoped to `req.brandId` via `crud({ level: 'brand' })`); `/tables`, `/staff`,
   `/customers` — **branch-level** CRUD (scoped to `req.branchId`). `/rewards` also exposes
-  `/redemptions` (list + fulfil/cancel).
+  `/redemptions` (list + fulfil/cancel). `/tables/:id/status` sets a table's live **seat
+  occupancy** (`available | occupied | reserved` + reservation details) and emits
+  `table:updated` to the branch + brand rooms for live grids.
   `/customers/:id` returns per-diner analytics (spend, AOV, most-ordered, reward claims, visits).
   `/staff` create + `:id` edit accept name/email/mobile/role/password (password optional on edit).
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
@@ -173,20 +178,29 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   from the customer app; the admin app shows a full lock screen for that restaurant.
 - `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
   `r/:slug/table?name=` (validate a manually-typed table for non-QR entry — tolerant "5" ↔ "Table 5",
-  404 if it doesn't exist or the restaurant has no tables configured),
+  404 if it doesn't exist or the restaurant has no tables configured; the diner's typed table
+  lives in **sessionStorage**, not the persisted cart, so it survives refreshes but clears on
+  tab close — it's never carried into a later visit when they may be seated elsewhere),
   `checkout` (optional manual `tableName`), `orders/:id/pay`, `orders/:id` (track),
   `auth/otp/request`, `auth/otp/verify`, `r/:slug/account` + `r/:slug/redeem` (OTP-token gated),
   `r/:slug/call-waiter` (rings staff; `reason: assistance | bill`),
-  `orders/:id/razorpay` (start an online payment for an existing unpaid order — ongoing-order pill)
+  `orders/:id/razorpay` (start an online payment for an existing unpaid order — ongoing-order pill),
+  `leads` (POST — capture a **Book-a-demo / Contact-sales** enquiry from the marketing site)
+- `/platform/leads` — super-admin: list + update status (`new | contacted | converted | closed`)
+  of marketing leads (the company portal's **Leads** page).
 
 Pricing is server-authoritative: order totals are re-derived from DB product prices,
 never trusted from the client.
 
 ### Customer auth (mobile OTP)
 Diners sign in with a mobile OTP: `POST /public/auth/otp/request` generates a 6-digit code
-(bcrypt-hashed, stored in the TTL-indexed `Otp` collection, rate-limited; dev also returns it
-in the response + logs it — no SMS provider is wired). `POST /public/auth/otp/verify` checks
-the code and issues a 30-day **customer JWT** (`{ sub: phone, kind: 'customer' }`, signed with
+(bcrypt-hashed, stored in the TTL-indexed `Otp` collection, rate-limited). No SMS provider is
+wired, so in **demo/beta** mode (`env.demoOtp` — any non-prod run, or `BETA_MODE=true` in
+production) the code is the fixed **123456**, returned in the response + logged, and the app
+shows it to the diner ("Beta — use code 123456"). Codes are valid 5 min (`codeExpiresAt`,
+checked on verify — the `Otp` doc itself lives longer to retain the per-phone rate counters,
+then TTL-cleans). `POST /public/auth/otp/verify` checks the code (max 5 wrong attempts) and
+issues a 30-day **customer JWT** (`{ sub: phone, kind: 'customer' }`, signed with
 the access secret). `optionalCustomerAuth` reads that token on public routes → `req.customerPhone`;
 `requireCustomer` gates the account + redeem endpoints so a diner can only ever see/spend their
 own wallet. The customer app stores the token in its auth store; `ApiClient` sends it as a bearer.
@@ -230,9 +244,13 @@ fallback), but the primary UX is the cart flow above.
 ### Payment methods & sales channels
 Checkout offers **online (Razorpay)** or **cash / pay-at-counter**. A cash order is
 confirmed immediately (goes to the kitchen) but left `paymentStatus: unpaid` — it never
-auto-pays. An admin records the payment via `PATCH /orders/:id/payment { method }`, choosing
+auto-pays. An admin records the payment via `PATCH /orders/:id/payment { method? , splits? }`, choosing
 the method actually used (`cash | upi | card | zomato | swiggy | district`); this sets the
-order paid, stamps the method, and writes a `Payment`. Online and ₹0/reward-only orders are
+order paid, stamps the method, and writes a `Payment`. The mark-paid dropdown also offers
+**Split payment** — selecting it reveals per-method amount rows (e.g. part cash + part UPI);
+the request sends `splits: [{ method, amount }]`, the server validates the amounts sum to the
+order total (₹1 tolerance), stamps `paymentMethod: 'split'` with a `paymentSplits` breakdown,
+and writes one `Payment` per split. Online and ₹0/reward-only orders are
 finalized as paid at checkout. `finalizeOrder()` centralizes confirm + loyalty accrual +
 reward-spend; `markPaid` (online) and the cash path both call it. The admin Orders page has
 three tabs (**Active / Pending payment / All**, with live count badges); each row shows a
@@ -261,8 +279,11 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
 (aggregation does not auto-cast like `find`).
 
 ### Security (enterprise)
-- **Rate limiting** (`express-rate-limit`): global ceiling, strict on `/auth`, and on public
-  order placement.
+- **Rate limiting** (`express-rate-limit`, per IP): global ceiling (1000/15min), strict on
+  `/auth` (20/15min, failures only), and on public order placement (30/min). **OTP requests**
+  add a per-IP limiter (6/10min) **plus** per-phone guards in the handler — a 30s resend
+  cooldown and a 5-codes-per-15-min rolling-window cap (counters live on the `Otp` doc) — so a
+  single number can't be SMS-bombed once a real gateway is wired.
 - **Input safety**: `express-mongo-sanitize` (strips `$`/`.` operators → blocks NoSQL
   injection), `hpp` (param pollution), Zod validation on every body, ObjectId param guard.
 - **Headers**: `helmet` with a tight CSP (JSON-only API), `x-powered-by` disabled, `trust proxy`.
@@ -344,7 +365,7 @@ A single-store account is simply a brand with one branch.
 
 Collections: **Brand, User, Employee, Restaurant, Category, Product, BranchMenu, Table, Order,
 LoyaltyProgram, CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment,
-Notification, Subscription, SupportTicket, Otp**.
+Notification, Subscription, SupportTicket, Otp, Lead**.
 
 - **`Brand`** is the **tenant** — `{ ownerId, name, slug (unique), accountType: single|multi,
   branding, tax, currency }`. `Restaurant` is a **branch** with `brandId`.
@@ -365,11 +386,16 @@ Key indexes:
 - `User`: `{ email, restaurantId }` unique; `role`, `restaurantId`. `Employee`: `email` unique.
 - `Order`: `{ restaurantId, status, placedAt }`, `{ restaurantId, createdAt }`,
   `{ restaurantId, orderNumber }` unique. Carries snapshots (`tableName`, item `isVeg` /
-  `prepTimeMinutes`), `customerName/Phone`, and reward fields (`isReward`,
+  `prepTimeMinutes` / `categoryId` for the kitchen category filter), `customerName/Phone`,
+  `paymentMethod` (incl. `split`) + `paymentSplits[]`, and reward fields (`isReward`,
   `loyaltyRewardApplied`, `rewardPointsSpent`, `rewardDeducted`).
 - `Product`: `{ restaurantId, categoryId }`, text index on `name`/`tags`; has
   `prepTimeMinutes` + `loyaltyPoints`.
-- `Table`: `qrToken` unique. `Customer`: `{ restaurantId, phone }` unique (loyalty wallet).
+- `Table`: `qrToken` unique; also carries live `status` (`available | occupied | reserved`) +
+  an embedded `reservation` (name/phone/partySize/time) for the seat-occupancy grid.
+  `Customer`: `{ restaurantId, phone }` unique (loyalty wallet).
+- `Lead`: marketing enquiries from the landing site (`name/email/phone/restaurantName/city/
+  message`, `type: demo|sales`, `status`); not tenant-scoped, surfaced in the company portal.
 - `Redemption`: `{ restaurantId, code }` unique. `Otp`: TTL index on `expiresAt`
   (auto-expiry), code stored bcrypt-hashed.
 
@@ -385,8 +411,9 @@ Schemas mirror the Zod definitions in `@feedo/types`.
   the **brand room**, so brand-wide dashboards watch every branch live.
 - Clients emit `join:restaurant` / `join:brand` / `join:order`; server emits `order:created`,
   `order:updated`, `order:status_changed`, `notification:new`, `dashboard:refresh`,
-  `waiter:called` (diner rang a table) and `waiter:attending` (a staff member accepted —
-  customer app shows an "on the way" pill, and all staff devices clear that table's call).
+  `waiter:called` (diner rang a table), `waiter:attending` (a staff member accepted —
+  customer app shows an "on the way" pill, and all staff devices clear that table's call),
+  and `table:updated` (seat-occupancy/reservation changed — the admin seat grid re-syncs live).
 - Event names + payload maps live in `@feedo/types` (`SOCKET_EVENTS`, `rooms`,
   `ServerToClientEvents`, `ClientToServerEvents`) so server and clients stay in sync.
 - Redis adapter is the planned horizontal-scaling path (architecture is Redis-ready).
@@ -400,7 +427,12 @@ Schemas mirror the Zod definitions in `@feedo/types`.
 - **Font: Poppins** across all apps (loaded from Google Fonts in each `index.html`; set as
   `fontFamily.sans` in the shared Tailwind preset). The brand mark is the lowercase italic
   `feedu` wordmark used in every app header (admin, super-admin, kitchen `feedu` Kitchen,
-  customer hero) — text-only, no image asset.
+  customer hero) — rendered as text, not an image. The only logo image asset is
+  `public/feedu_logo.png` (white italic wordmark on black), wired as the **favicon**
+  (`<link rel="icon">`) in every app's `index.html`. The customer menu page also closes with an
+  **engraved footer**: a big left-aligned `feedu` wordmark with the "here to feed you ♥"
+  tagline on the right, both set in low-opacity white + `text-shadow` so they read as carved
+  into the near-black background.
 - `ThemeProvider` resolves `dark | light | system`, persists to localStorage, and sets
   `.dark` + `[data-accent]` on `<html>`. Six muted accents map to `[data-accent='…']`.
 - Per-restaurant branding (accent + theme mode) is stored on `Restaurant.branding`. The

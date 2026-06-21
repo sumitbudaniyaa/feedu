@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, LayoutGrid, LifeBuoy, LogOut, ReceiptText, Settings, UserRound, Users } from 'lucide-react';
+import { Building2, Inbox, LayoutGrid, LifeBuoy, LogOut, ReceiptText, Settings, UserRound, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, Button, Separator, ThemeToggle, cn } from '@feedo/ui';
 import { initials } from '@feedo/utils';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/restaurants', label: 'Brands & Restaurants', icon: Building2 },
   { to: '/orders', label: 'Orders', icon: ReceiptText },
   { to: '/customers', label: 'Customers', icon: UserRound },
+  { to: '/leads', label: 'Leads', icon: Inbox },
   { to: '/employees', label: 'Employees', icon: Users },
   { to: '/support', label: 'Support', icon: LifeBuoy },
   { to: '/account', label: 'Account', icon: Settings },
@@ -31,11 +32,13 @@ export function ConsoleLayout() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-card/40 px-3 py-5 lg:flex">
-        <div className="flex items-baseline gap-1.5 px-3 pb-6">
+        <div className="flex items-center gap-1.5 px-3 pb-6">
+          <img src="/feedu-mark-light.png" alt="" className="h-6 w-6 object-contain dark:hidden" />
+          <img src="/feedu-mark-dark.png" alt="" className="hidden h-6 w-6 object-contain dark:block" />
           <span className="text-2xl font-black italic leading-none tracking-tight text-foreground">
             feedu
           </span>
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Platform</span>
+          <span className="self-end pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">Platform</span>
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5">

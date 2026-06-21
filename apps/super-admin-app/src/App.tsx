@@ -8,6 +8,7 @@ import { RestaurantDetailPage } from './pages/RestaurantDetailPage.js';
 import { UsersPage } from './pages/UsersPage.js';
 import { OrdersPage } from './pages/OrdersPage.js';
 import { CustomersPage } from './pages/CustomersPage.js';
+import { LeadsPage } from './pages/LeadsPage.js';
 import { AccountPage } from './pages/AccountPage.js';
 import { SupportPage } from './pages/SupportPage.js';
 
@@ -34,6 +35,7 @@ export function App() {
         <Route path="/employees" element={<UsersPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/leads" element={<LeadsPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/account" element={<AccountPage />} />
       </Route>

@@ -27,7 +27,7 @@ export const InvoiceTicket = forwardRef<HTMLDivElement, { order: TrackedOrder }>
     const paid = order.paymentStatus === 'paid';
 
     return (
-      <div ref={ref} className="relative mx-auto w-full max-w-[340px]">
+      <div ref={ref} className="relative w-[320px]">
         <div
           className="overflow-hidden rounded-2xl px-6 py-7 font-mono text-[13px] leading-relaxed shadow-elevated"
           style={{ background: PAPER, color: INK }}

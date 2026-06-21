@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { cartItemSchema, createOrderSchema, orderTypeSchema, phoneSchema, SOCKET_EVENTS, rooms } from '@feedo/types';
+import { cartItemSchema, createLeadSchema, createOrderSchema, orderTypeSchema, phoneSchema, SOCKET_EVENTS, rooms } from '@feedo/types';
 import bcrypt from 'bcryptjs';
 import {
   Brand,
   Customer,
+  Lead,
   LoyaltyReward,
   Order,
   Otp,
@@ -29,6 +30,12 @@ import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../paym
 import { getIO } from '../../sockets/index.js';
 
 const router = Router();
+
+// OTP throttling (per phone): code validity, resend cooldown, and a rolling-window send cap.
+const OTP_CODE_TTL_MS = 5 * 60 * 1000; // code valid for 5 min
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000; // min gap between sends to the same number
+const OTP_WINDOW_MS = 15 * 60 * 1000; // rolling window for the send cap
+const OTP_MAX_PER_WINDOW = 5; // max codes per number per window
 
 // ─── Call a waiter to a table (assistance or bill request) ─────────────────
 router.post(
@@ -67,17 +74,48 @@ router.post(
   validate(z.object({ phone: phoneSchema, name: z.string().optional() })),
   asyncHandler(async (req, res) => {
     const { phone, name } = req.body as { phone: string; name?: string };
-    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+    const now = Date.now();
+
+    // Per-phone guards (on top of the per-IP `otpLimiter`): a resend cooldown and a
+    // rolling-window cap, so a single number can't be SMS-bombed (and SMS cost contained).
+    const existing = await Otp.findOne({ phone });
+    if (existing?.resendAt && existing.resendAt.getTime() > now) {
+      const secs = Math.ceil((existing.resendAt.getTime() - now) / 1000);
+      throw ApiError.tooManyRequests(`Please wait ${secs}s before requesting another code`);
+    }
+    const inWindow = Boolean(
+      existing?.windowStartAt && now - existing.windowStartAt.getTime() < OTP_WINDOW_MS,
+    );
+    if (inWindow && (existing?.sentCount ?? 0) >= OTP_MAX_PER_WINDOW) {
+      throw ApiError.tooManyRequests('Too many codes for this number — try again later');
+    }
+    const windowStartAt = inWindow && existing?.windowStartAt ? existing.windowStartAt : new Date(now);
+    const sentCount = (inWindow ? existing?.sentCount ?? 0 : 0) + 1;
+
+    // Demo/beta (and any non-prod run): fixed 123456, returned so the diner can see it.
+    const code = env.demoOtp ? '123456' : String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
     const codeHash = await bcrypt.hash(code, 8);
+    const codeExpiresAt = new Date(now + OTP_CODE_TTL_MS);
     await Otp.findOneAndUpdate(
       { phone },
-      { phone, codeHash, name, attempts: 0, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+      {
+        phone,
+        codeHash,
+        name,
+        attempts: 0,
+        codeExpiresAt,
+        resendAt: new Date(now + OTP_RESEND_COOLDOWN_MS),
+        windowStartAt,
+        sentCount,
+        // Keep the doc (and its counters) until both the code expiry and the rate window pass.
+        expiresAt: new Date(Math.max(codeExpiresAt.getTime(), windowStartAt.getTime() + OTP_WINDOW_MS)),
+      },
       { upsert: true },
     );
 
-    // No SMS provider wired — log it, and in non-prod return it so the flow is testable.
+    // No SMS provider wired — log it, and in demo/beta return it so the flow is testable.
     logger.info(`OTP for ${phone}: ${code}`);
-    return ok(res, { sent: true, ...(env.isProd ? {} : { devCode: code }) });
+    return ok(res, { sent: true, ...(env.demoOtp ? { devCode: code } : {}) });
   }),
 );
 
@@ -88,6 +126,9 @@ router.post(
     const { phone, code } = req.body as { phone: string; code: string };
     const otp = await Otp.findOne({ phone });
     if (!otp) throw ApiError.badRequest('Request a new code');
+    // The doc outlives the code (it carries rate-limit counters), so check expiry explicitly.
+    if (otp.codeExpiresAt && otp.codeExpiresAt.getTime() < Date.now())
+      throw ApiError.badRequest('Code expired — request a new code');
     if (otp.attempts >= 5) throw ApiError.badRequest('Too many attempts — request a new code');
 
     const valid = await bcrypt.compare(code, otp.codeHash);
@@ -464,6 +505,17 @@ router.get(
           }
         : null,
     });
+  }),
+);
+
+// ─── Capture a sales / demo lead from the marketing site ───────────────────
+router.post(
+  '/leads',
+  validate(createLeadSchema),
+  asyncHandler(async (req, res) => {
+    const lead = await Lead.create(req.body);
+    logger.info(`New ${lead.type} lead from ${lead.email}`);
+    return ok(res, { received: true, id: String(lead._id) }, 201);
   }),
 );
 

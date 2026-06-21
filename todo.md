@@ -175,7 +175,48 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
-### Latest session — employees collection, customer analytics, call-waiter UX, inventory filters
+### Latest session — kitchen category filter, split payments, session-scoped table
+**Kitchen**
+- [x] **Filter the board by category** — a header filter button opens a dropdown checklist for
+      **multi-select** (tap to toggle, badge shows active count, Clear resets); the board and active
+      count narrow to orders containing an item in **any** selected category (none = all). Orders now
+      snapshot `categoryId` per item (model + zod + createOrder/reward builds) — backfills on NEW orders only.
+      Selection **persists across refresh** via `localStorage` (`feedo-kitchen-cat-filter`).
+
+**Admin (restaurant)**
+- [x] **Split payment** as an option in the mark-paid dropdown — per-method amount rows (e.g. part
+      cash + part UPI), running total vs. order total, validated to sum (₹1 tolerance). Sends
+      `splits: [{ method, amount }]`; server stamps `paymentMethod: 'split'` + `paymentSplits[]`
+      and writes one `Payment` per split. `Order.paymentMethod` enum + `Payment.method` widened.
+
+**Customer**
+- [x] **Manually-typed table is session-scoped** — stored in sessionStorage (excluded from the
+      persisted cart via `partialize`), so it survives refreshes but clears on tab close and is never
+      carried into a later visit when the diner may be seated elsewhere.
+- [x] **Ongoing-order pill shows all active orders** (not just the latest); each card self-removes
+      when done. Online-paid orders hide the "Request bill" action in the expanded pill.
+- [x] Non-QR table entry **validates against real tables** (`/public/r/:slug/table?name=`); rejects
+      unknown tables and restaurants with zero tables configured.
+- [x] **Invoice download works on mobile** — renders the ticket to a Blob and opens the native share
+      sheet (`navigator.share` with files, e.g. iOS Safari/Android) to save to Photos/Files; falls back
+      to an object-URL download on desktop. Replaces the data-URL `<a download>` that iOS ignored.
+- [x] **Invoice no longer misaligned in the PNG** — capture root is a fixed `w-[320px]` (was
+      `mx-auto w-full max-w-[340px]`, which html-to-image rendered off-center); centered on-screen via a
+      wrapper, and the capture passes the node's exact width/height + `margin:0`.
+- [x] **OTP login is full-screen, boxless** — removed the `Card` wrapper from `OtpLogin` so the
+      sign-in (Account + Rewards) reads as a native mobile screen: larger icon/heading, h-12 inputs
+      and buttons, roomier spacing.
+
+**Backend / hosting**
+- [x] **Beta OTP mode** — `BETA_MODE=true` (and any non-prod run) sets `env.demoOtp`: the customer
+      OTP is the fixed code **123456**, returned in the request response and shown to the diner
+      ("Beta — use code 123456"). No SMS provider needed for the beta. Documented in `.env.example`.
+- [x] **Per-phone OTP throttling** (on top of the per-IP 6/10min limiter) — a **30s resend cooldown**
+      and a **5-codes-per-15-min** rolling-window cap, returning `429` with a precise message. Counters
+      (`resendAt`/`sentCount`/`windowStartAt`) live on the `Otp` doc; code validity moved to its own
+      `codeExpiresAt` (checked on verify) so the doc can outlive the code to retain the counters.
+
+### Earlier this session — employees collection, customer analytics, call-waiter UX, inventory filters
 **Company portal (Feedu owner)**
 - [x] **Feedu employees in a separate `employees` Mongo collection** (not `users`); auth
       login/refresh/me check employees first; existing super-admin migrated (id preserved)
@@ -219,6 +260,31 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 - [x] Order page banner is **status-driven**: in-progress orders (even from history) show the live
       tracking hero; finished orders show a plain summary. Order History links open via `?view=details`
 - [x] Reward **claim history** on the Rewards page (in-app ₹0 reward orders + legacy claims)
+
+### Latest session — landing polish, legal/about pages, SEO, contact-form fix
+**Landing / marketing site**
+- [x] **Value statement** section: swapped the broken logo for the `feedu` wordmark; lengthened the
+      scroll pin so scroll visibly stops and the line darkens word-by-word before releasing
+- [x] **MultiOutput** ("One scan. Every app in sync."): admin + kitchen as fixed-size landscape shots
+      (now a touch larger); customer + waiter share a matching phone frame (no more mismatched sizes)
+- [x] **Enterprise → restaurant benefits**: replaced tech/infra cards (hardened API, JWT, tenant
+      isolation…) with outcome cards — turn tables faster, fewer wrong orders, bigger bills, regulars,
+      get paid, know what sells
+- [x] **Use-cases** ("One platform. Every kind of **restaurant**." — `restaurant` in maroon accent,
+      matching the Hero/Bento highlights):
+      now a single card with a bento grid of varied tile sizes (cloud kitchens removed); not separate cards
+- [x] Removed the **How-it-works** section entirely
+- [x] **Footer**: centered wordmark + "here to help you feed", a paperclip clipped to the top edge,
+      inline Instagram (@orderwithfeedu) + About/Privacy/Terms links, link columns removed,
+      "A product of TwentyEleven" (→ twentyeleven.in)
+- [x] **/about** page (company, "a product of TwentyEleven") + **/privacy** & **/terms** app-specific
+      legal pages; reachable from the footer; contact = sumit.k.budaniya@gmail.com / +91 82093 33127
+- [x] **SEO**: full title/description/keywords, canonical, robots, Open Graph + Twitter cards, JSON-LD
+      (SoftwareApplication + Organization) on **feedu.in**; `robots.txt` + `sitemap.xml`; favicon +
+      `feedu_logo.png` used as the OG image
+- [x] **Contact-sales "Failed to fetch" fixed** — landing runs on **:5177**, which wasn't in
+      `CORS_ORIGINS`; added it (`.env` + `.env.example`) and friendlier network-error copy
+- [x] Cleanup: removed unused `dot` prop in MultiOutput, deleted unused `sky.png`
 
 ### Prior session — roles, SaaS ops, support, call-waiter, rebrand to "feedu"
 **Customer**

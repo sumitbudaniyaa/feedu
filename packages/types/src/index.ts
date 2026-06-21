@@ -20,3 +20,4 @@ export * from './entities/payment.js';
 export * from './entities/notification.js';
 export * from './entities/analytics.js';
 export * from './entities/subscription.js';
+export * from './entities/lead.js';

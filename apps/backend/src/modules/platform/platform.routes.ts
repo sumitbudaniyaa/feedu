@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { slugify, randomToken } from '@feedo/utils';
+import { updateLeadSchema } from '@feedo/types';
 import {
   Brand,
   BranchMenu,
   Category,
   Customer,
   Employee,
+  Lead,
   LoyaltyProgram,
   LoyaltyReward,
   Order,
@@ -18,6 +20,7 @@ import {
   User,
 } from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
+import { validate } from '../../middleware/validate.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { asyncHandler, ok } from '../../utils/http.js';
@@ -777,6 +780,30 @@ router.patch(
     );
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     return ok(res, restaurant);
+  }),
+);
+
+// ─── Leads (sales/demo enquiries from the marketing site) ──────────────────
+router.get(
+  '/leads',
+  asyncHandler(async (req, res) => {
+    const { status, type } = req.query as { status?: string; type?: string };
+    const filter: Record<string, unknown> = {};
+    if (status) filter.status = status;
+    if (type) filter.type = type;
+    const leads = await Lead.find(filter).sort({ createdAt: -1 }).limit(500).lean();
+    return ok(res, leads);
+  }),
+);
+
+router.patch(
+  '/leads/:id',
+  validateObjectId(),
+  validate(updateLeadSchema),
+  asyncHandler(async (req, res) => {
+    const lead = await Lead.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+    if (!lead) throw ApiError.notFound('Lead not found');
+    return ok(res, lead);
   }),
 );
 

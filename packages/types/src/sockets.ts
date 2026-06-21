@@ -10,6 +10,7 @@ export const SOCKET_EVENTS = {
   DASHBOARD_REFRESH: 'dashboard:refresh',
   WAITER_CALLED: 'waiter:called',
   WAITER_ATTENDING: 'waiter:attending',
+  TABLE_UPDATED: 'table:updated',
 } as const;
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
@@ -23,6 +24,8 @@ export interface ServerToClientEvents {
   'dashboard:refresh': () => void;
   'waiter:called': (payload: { tableName: string; at: string; reason?: 'assistance' | 'bill' }) => void;
   'waiter:attending': (payload: { tableName: string; at: string }) => void;
+  /** A table's occupancy/reservation changed — refresh the seat grid. */
+  'table:updated': (payload: { tableId: string }) => void;
 }
 
 /** Client → server payloads. */

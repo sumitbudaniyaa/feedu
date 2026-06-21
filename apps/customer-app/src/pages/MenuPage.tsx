@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, BellRing, Gift, Search, ShoppingBag, User, UtensilsCrossed } from 'lucide-react';
+import { Bell, BellRing, Gift, Heart, Search, ShoppingBag, User, UtensilsCrossed } from 'lucide-react';
 import { Button, EmptyState, Input, Skeleton, cn, useTheme } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import { SOCKET_EVENTS, type Product } from '@feedo/types';
@@ -135,7 +135,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   });
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-background pb-24">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background">
       {/* Brand-colored gradient hero — the restaurant's accent lives here, not on buttons. */}
       <header
         className="relative isolate overflow-hidden rounded-b-[2rem] px-5 pb-9 pt-8 text-white"
@@ -172,8 +172,11 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         >
           {/* Brand wordmark + rewards / account */}
           <div className="flex items-center justify-between gap-3">
-            <span className="select-none text-2xl font-black italic leading-none tracking-tight text-white drop-shadow-sm">
-              feedu
+            <span className="flex select-none items-center gap-2">
+              <img src="/feedu-mark-dark.png" alt="" className="h-7 w-7 object-contain" />
+              <span className="text-2xl font-black italic leading-none tracking-tight text-white drop-shadow-sm">
+                feedu
+              </span>
             </span>
             <div className="flex shrink-0 items-center gap-2">
               <motion.button
@@ -331,7 +334,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         </motion.div>
       </header>
 
-      <main className="space-y-7 px-5 pt-6">
+      <main className="flex-1 space-y-7 px-5 pb-24 pt-6">
         {/* Curated sections from the Menu CMS */}
         {browsing && sections.length > 0 && (
           <SectionsBlock sections={sections} products={sectionProducts} onCustomise={setSelected} />
@@ -372,6 +375,17 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           )}
         </section>
       </main>
+
+      {/* Brand footer — engraved wordmark left, tagline right */}
+      <footer className="mt-auto flex items-end justify-between gap-3 px-5 pb-4">
+        <span className="select-none text-6xl font-black italic leading-none tracking-tighter text-white/[0.09] [text-shadow:0_1px_1px_rgba(255,255,255,0.06),0_-1px_1px_rgba(0,0,0,0.6)]">
+          feedu
+        </span>
+        <span className="flex items-center gap-1.5 pb-1 text-sm font-medium text-white/[0.16] [text-shadow:0_1px_1px_rgba(255,255,255,0.05)]">
+          here to feed you
+          <Heart className="h-4 w-4 fill-white/[0.16] text-white/[0.16]" />
+        </span>
+      </footer>
 
       {/* "Waiter on the way" pill — shown for 5s when a waiter accepts the call. */}
       <AnimatePresence>

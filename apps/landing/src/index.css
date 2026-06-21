@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Feedu landing — warm, editorial SaaS look: cream canvas, butter-yellow rounded buttons,
+  Inter grotesk + Fraunces serif, pastel feature cards, a maroon hero browser-bar, dark
+  feature/CTA sections and a soft-green footer. (Visual system; Feedu's own content.)
+*/
+:root {
+  --background: 42 56% 96%; /* #FCF8EE cream */
+  --foreground: 30 12% 9%; /* warm near-black */
+  --card: 0 0% 100%;
+  --card-foreground: 30 12% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 30 12% 9%;
+  --primary: 45 84% 71%; /* butter yellow */
+  --primary-foreground: 30 25% 12%;
+  --secondary: 42 40% 91%;
+  --secondary-foreground: 30 12% 9%;
+  --muted: 42 40% 91%;
+  --muted-foreground: 30 7% 42%;
+  --accent: 6 33% 41%; /* maroon micro-accent */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 65% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 145 45% 38%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 30 25% 12%;
+  --border: 40 28% 87%;
+  --input: 40 28% 87%;
+  --ring: 45 84% 64%;
+  --radius: 1.25rem;
+
+  --butter: #f3d277;
+  --butter-deep: #efc85a;
+  --maroon: #8a4b45;
+  --ink: #1b1916; /* dark sections */
+  --green-panel: #dde8cb;
+}
+
+html { color-scheme: light; scroll-behavior: smooth; }
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip; /* clip (not hidden) so position: sticky keeps working */
+}
+
+/* ── Type ────────────────────────────────────────────────── */
+.font-serif { font-family: 'Fraunces', ui-serif, Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.01em; }
+.font-display { font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.035em; }
+
+/* ── Buttons / surfaces ──────────────────────────────────── */
+.btn-yellow { background-color: var(--butter); color: hsl(30 25% 12%); }
+
+.card-warm {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 1px 2px rgba(60,40,20,0.04), 0 16px 40px -28px rgba(60,40,20,0.2);
+}
+
+/* Big product mockup shadow. */
+.shadow-product { box-shadow: 0 50px 90px -40px rgba(60,40,20,0.4), 0 8px 24px -16px rgba(60,40,20,0.16); }
+
+/* Pastel feature-card tints. */
+.tint-green { background-color: #e3ecd6; }
+.tint-blue { background-color: #cfe1ec; }
+.tint-pink { background-color: #f0dde1; }
+.tint-olive { background-color: #dde1c3; }
+.tint-butter { background-color: #f8ecc6; }
+.tint-lilac { background-color: #e2dcef; }
+
+/* Soft film-grain overlay for full-bleed pastel/dark sections. */
+.grain { position: relative; }
+.grain::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Utilities ───────────────────────────────────────────── */
+.mask-x {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+}
+.bg-dots {
+  background-color: hsl(42 40% 97%);
+  background-image: radial-gradient(hsl(38 25% 75% / 0.6) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+/* dotted vertical divider between two feature columns */
+.divider-dotted {
+  background-image: radial-gradient(hsl(30 10% 60% / 0.5) 1.5px, transparent 1.5px);
+  background-size: 100% 14px;
+  background-repeat: repeat-y;
+}
+
+/* ── Marquee ─────────────────────────────────────────────── */
+@keyframes marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes marquee-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+.animate-marquee-left { animation: marquee-left 44s linear infinite; }
+.animate-marquee-right { animation: marquee-right 44s linear infinite; }
+.marquee-row:hover { animation-play-state: paused; }
+
+::selection { background: hsl(45 84% 64% / 0.4); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto;
+  }
+}

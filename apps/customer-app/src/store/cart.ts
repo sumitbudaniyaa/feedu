@@ -59,23 +59,53 @@ function lineKey(l: { productId: string; variantLabel?: string; addonLabels: str
   return `${l.productId}|${l.variantLabel ?? ''}|${[...l.addonLabels].sort().join(',')}`;
 }
 
+/**
+ * A manually-typed table is only valid for the current sitting, so it lives in
+ * sessionStorage (survives refreshes, clears when the tab/browser closes) rather
+ * than the persisted cart in localStorage — otherwise a stale table would carry
+ * into the diner's next visit, when they may be seated elsewhere.
+ */
+const TABLE_KEY = 'feedo-table-name';
+const sessionTable = {
+  read: (): string | null => {
+    try {
+      return sessionStorage.getItem(TABLE_KEY);
+    } catch {
+      return null;
+    }
+  },
+  write: (name: string | null) => {
+    try {
+      if (name) sessionStorage.setItem(TABLE_KEY, name);
+      else sessionStorage.removeItem(TABLE_KEY);
+    } catch {
+      /* ignore (private mode / disabled storage) */
+    }
+  },
+};
+
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       restaurant: null,
       tableId: null,
-      tableName: null,
+      tableName: sessionTable.read(),
       menuPath: null,
       activeOrderIds: [],
       lines: [],
       appliedReward: null,
       setContext: (restaurant, tableId, menuPath) => {
         // Switching restaurants clears the cart + any applied reward (+ manual table).
-        if (get().restaurant && get().restaurant?.slug !== restaurant.slug)
+        if (get().restaurant && get().restaurant?.slug !== restaurant.slug) {
+          sessionTable.write(null);
           set({ lines: [], appliedReward: null, tableName: null });
+        }
         set({ restaurant, tableId, menuPath });
       },
-      setTableName: (tableName) => set({ tableName }),
+      setTableName: (tableName) => {
+        sessionTable.write(tableName);
+        set({ tableName });
+      },
       addActiveOrder: (orderId) =>
         set((s) => ({
           // newest last; dedupe; keep the most recent 10
@@ -119,6 +149,11 @@ export const useCart = create<CartState>()(
       count: () => get().lines.reduce((s, l) => s + l.quantity, 0),
       subtotal: () => get().lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
     }),
-    { name: 'feedo-cart' },
+    {
+      name: 'feedo-cart',
+      // tableName is session-scoped (see sessionTable above) — never persist it to
+      // localStorage, or a stale table would survive into the diner's next visit.
+      partialize: ({ tableName, ...rest }) => rest,
+    },
   ),
 );

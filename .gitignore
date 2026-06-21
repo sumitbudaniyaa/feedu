@@ -15,8 +15,9 @@ out/
 
 # Env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.local
 
 # Logs
 *.log
@@ -25,6 +26,12 @@ logs/
 
 # Editor / OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/

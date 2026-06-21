@@ -22,9 +22,11 @@ const TARGETS = {
     apps: ['@feedo/super-admin-app'],
     ports: '5176',
   },
+  // Marketing site — static, no backend needed.
+  landing: { label: 'Run landing site', apps: ['@feedo/landing'], ports: '5177', noBackend: true },
 };
 
-const MENU = ['all', 'admin', 'user', 'kitchen', 'company'];
+const MENU = ['all', 'admin', 'user', 'kitchen', 'company', 'landing'];
 
 // Aliases so direct mode is forgiving.
 const ALIAS = {
@@ -40,6 +42,9 @@ const ALIAS = {
   super: 'company',
   'super-admin': 'company',
   platform: 'company',
+  landing: 'landing',
+  site: 'landing',
+  marketing: 'landing',
 };
 
 const c = {
@@ -50,7 +55,9 @@ const c = {
 
 function filtersFor(targetKey) {
   if (targetKey === 'all') return []; // no filter = whole workspace (incl. backend)
-  return [...TARGETS[targetKey].apps.flatMap((a) => ['--filter', a]), '--filter', BACKEND];
+  const target = TARGETS[targetKey];
+  const appFilters = target.apps.flatMap((a) => ['--filter', a]);
+  return target.noBackend ? appFilters : [...appFilters, '--filter', BACKEND];
 }
 
 function launch(targetKey) {
@@ -59,7 +66,7 @@ function launch(targetKey) {
 
   console.log('');
   console.log(c.accent('  ▸ ') + c.bold(target.label));
-  console.log(c.dim('    backend → http://localhost:4000'));
+  if (!target.noBackend) console.log(c.dim('    backend → http://localhost:4000'));
   if (target.ports) console.log(c.dim(`    app     → http://localhost:${target.ports}`));
   if (targetKey === 'all') {
     console.log(c.dim('    admin :5173 · customer :5174 · kitchen :5175 · company :5176'));

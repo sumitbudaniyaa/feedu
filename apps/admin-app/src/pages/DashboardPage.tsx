@@ -8,6 +8,7 @@ import type { Order } from '@feedo/types';
 import { useAuth, useBrand, useBranchComparison, useDashboard, useOrders } from '../lib/api.js';
 import { useActiveBranchId } from '../store/branch.js';
 import { OrderDetailsDialog } from '../components/OrderDetailsDialog.js';
+import { SeatOccupancy } from '../components/SeatOccupancy.js';
 
 const BRAND_WIDE = new Set(['owner', 'brand_owner', 'brand_admin']);
 
@@ -161,6 +162,9 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seat occupancy — live table grid with reservations */}
+      <SeatOccupancy />
 
       {/* Recent orders */}
       <Card>

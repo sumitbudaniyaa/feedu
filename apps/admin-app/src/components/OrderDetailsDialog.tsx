@@ -60,9 +60,9 @@ export function OrderDetailsDialog({
   const recordPayment = useRecordPayment();
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  // 'split' is just another option in the method dropdown (part cash + part online, etc.).
   const [method, setMethod] = useState<string>('cash');
-  // Split payment (part cash + part online, etc.).
-  const [splitOn, setSplitOn] = useState(false);
+  const splitOn = method === 'split';
   const [splits, setSplits] = useState<{ method: string; amount: string }[]>([
     { method: 'cash', amount: '' },
     { method: 'upi', amount: '' },
@@ -188,30 +188,22 @@ export function OrderDetailsDialog({
                   <span>Payment pending</span>
                   <Badge variant="destructive">Unpaid</Badge>
                 </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">Collected the payment? Record it below.</p>
-                  <button
-                    type="button"
-                    onClick={() => setSplitOn((v) => !v)}
-                    className="text-xs font-medium text-accent hover:underline"
-                  >
-                    {splitOn ? 'Single method' : 'Split payment'}
-                  </button>
-                </div>
+                <p className="text-xs text-muted-foreground">Collected the payment? Record it below.</p>
 
-                {!splitOn ? (
-                  <div className="flex gap-2">
-                    <Select
-                      value={method}
-                      onChange={(e) => setMethod(e.target.value)}
-                      className="h-8 flex-1 border-0 bg-secondary text-xs shadow-none focus-visible:ring-0"
-                    >
-                      {PAY_METHODS.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </Select>
+                <div className="flex gap-2">
+                  <Select
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value)}
+                    className="h-8 flex-1 border-0 bg-secondary text-xs shadow-none focus-visible:ring-0"
+                  >
+                    {PAY_METHODS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                    <option value="split">Split payment</option>
+                  </Select>
+                  {!splitOn && (
                     <Button
                       size="sm"
                       onClick={() => recordPayment.mutate({ id: order._id, method }, { onSuccess: () => onOpenChange(false) })}
@@ -219,8 +211,10 @@ export function OrderDetailsDialog({
                     >
                       {recordPayment.isPending ? 'Saving…' : 'Mark paid'}
                     </Button>
-                  </div>
-                ) : (
+                  )}
+                </div>
+
+                {splitOn &&
                   (() => {
                     const sum = splits.reduce((s, p) => s + (Number(p.amount) || 0), 0);
                     const balanced = Math.abs(sum - order.total) <= 1 && splits.every((p) => Number(p.amount) > 0);
@@ -292,8 +286,7 @@ export function OrderDetailsDialog({
                         </Button>
                       </div>
                     );
-                  })()
-                )}
+                  })()}
               </div>
             ) : (
               <p className="flex items-center justify-center gap-1.5 text-sm text-success">

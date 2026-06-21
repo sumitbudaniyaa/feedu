@@ -16,9 +16,11 @@ import type {
   LoyaltyProgram,
   LoyaltyReward,
   Product,
+  Reservation,
   Section,
   Subscription,
   Table,
+  TableStatus,
   User,
 } from '@feedo/types';
 
@@ -70,6 +72,17 @@ export const sections = createResource<Section>(apiClient, 'sections', '/section
 export const loyalty = createResource<LoyaltyProgram>(apiClient, 'loyalty', '/loyalty', 'Loyalty program');
 export const rewards = createResource<LoyaltyReward>(apiClient, 'rewards', '/rewards', 'Reward');
 export const tables = createResource<Table>(apiClient, 'tables', '/tables', 'Table');
+
+/** Set a table's seat-occupancy status (available | occupied | reserved) + reservation. */
+export function useUpdateTableStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { successMessage: 'Seat updated' },
+    mutationFn: ({ id, status, reservation }: { id: string; status: TableStatus; reservation?: Reservation | null }) =>
+      apiClient.patch<Table>(`/tables/${id}/status`, { status, reservation }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tables'] }),
+  });
+}
 export const staff = createResource<User>(apiClient, 'staff', '/staff', 'Staff member');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers', 'Customer');
 

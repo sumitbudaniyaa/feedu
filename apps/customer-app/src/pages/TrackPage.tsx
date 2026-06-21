@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { toPng } from 'html-to-image';
+import { toBlob, toPng } from 'html-to-image';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ChefHat, Clock, CookingPot, Download, PartyPopper, Sparkles, XCircle } from 'lucide-react';
 import { Button, Skeleton } from '@feedo/ui';
@@ -36,14 +36,49 @@ export function TrackPage() {
   const downloadInvoice = async () => {
     if (!ticketRef.current) return;
     setDownloading(true);
+    const fileName = `feedu-invoice-${order?.orderNumber ?? 'order'}.png`;
+    const node = ticketRef.current;
+    // Capture the node at its exact box so the ticket is never offset/clipped in the PNG.
+    const opts = {
+      pixelRatio: 2,
+      backgroundColor: '#F7F7F8',
+      cacheBust: true,
+      width: node.offsetWidth,
+      height: node.offsetHeight,
+      style: { margin: '0' },
+    } as const;
     try {
-      const dataUrl = await toPng(ticketRef.current, {
-        pixelRatio: 2,
-        backgroundColor: '#F7F7F8',
-        cacheBust: true,
-      });
+      // Mobile browsers (esp. iOS Safari) ignore the <a download> attribute, so prefer the
+      // Web Share sheet with the image file — it lets the diner save to Photos or share it.
+      const blob = await toBlob(ticketRef.current, opts);
+      if (blob) {
+        const file = new File([blob], fileName, { type: 'image/png' });
+        const canShareFile =
+          typeof navigator !== 'undefined' &&
+          typeof navigator.canShare === 'function' &&
+          navigator.canShare({ files: [file] });
+        if (canShareFile) {
+          try {
+            await navigator.share({ files: [file], title: 'Invoice' });
+            return;
+          } catch (err) {
+            // User dismissed the share sheet — don't fall through to a download.
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+          }
+        }
+        // Desktop / no share support: download from an object URL.
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+      // Last resort if toBlob returned nothing: the original data-URL path.
+      const dataUrl = await toPng(ticketRef.current, opts);
       const link = document.createElement('a');
-      link.download = `feedo-invoice-${order?.orderNumber ?? 'order'}.png`;
+      link.download = fileName;
       link.href = dataUrl;
       link.click();
     } finally {
@@ -119,7 +154,9 @@ export function TrackPage() {
             <Download className="h-4 w-4" /> {downloading ? 'Saving…' : 'Download'}
           </Button>
         </div>
-        <InvoiceTicket ref={ticketRef} order={order} />
+        <div className="flex justify-center">
+          <InvoiceTicket ref={ticketRef} order={order} />
+        </div>
       </div>
 
       <Button variant="outline" className="mt-6 w-full" onClick={goToMenu}>

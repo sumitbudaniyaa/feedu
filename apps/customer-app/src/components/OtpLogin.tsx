@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Phone, ShieldCheck } from 'lucide-react';
-import { Button, Card, Input, Label } from '@feedo/ui';
+import { Button, Input, Label } from '@feedo/ui';
 import { useRequestOtp, useVerifyOtp, useAuth } from '../lib/api.js';
 import { useGuest } from '../store/guest.js';
 
@@ -52,13 +52,15 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
   };
 
   return (
-    <Card className="overflow-hidden p-6">
+    <div className="flex flex-col px-1 pt-8">
       <div className="flex flex-col items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
-          {step === 'phone' ? <Phone className="h-5 w-5 text-accent" /> : <ShieldCheck className="h-5 w-5 text-accent" />}
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/15">
+          {step === 'phone' ? <Phone className="h-7 w-7 text-accent" /> : <ShieldCheck className="h-7 w-7 text-accent" />}
         </div>
-        <h2 className="mt-4 font-semibold">{step === 'phone' ? 'Sign in to Feedu' : 'Enter the code'}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h2 className="mt-5 text-2xl font-bold tracking-tight">
+          {step === 'phone' ? 'Sign in to Feedu' : 'Enter the code'}
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
           {step === 'phone'
             ? 'We’ll text a one-time code to verify your number.'
             : `Sent to ${phone}.`}
@@ -73,11 +75,11 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
             onSubmit={sendCode}
-            className="mt-5 space-y-3"
+            className="mt-8 space-y-4"
           >
             <div className="space-y-1.5">
               <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+              <Input className="h-12" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
             </div>
             <div className="space-y-1.5">
               <Label>Mobile number</Label>
@@ -86,6 +88,7 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
                 inputMode="numeric"
                 maxLength={10}
                 placeholder="10-digit mobile number"
+                className="h-12"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
               />
@@ -95,7 +98,7 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
                 {requestOtp.error instanceof Error ? requestOtp.error.message : 'Could not send code'}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={!phoneValid || requestOtp.isPending}>
+            <Button type="submit" className="h-12 w-full" disabled={!phoneValid || requestOtp.isPending}>
               {requestOtp.isPending ? 'Sending…' : 'Send code'} <ArrowRight className="h-4 w-4" />
             </Button>
           </motion.form>
@@ -106,7 +109,7 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 12 }}
             onSubmit={verify}
-            className="mt-5 space-y-3"
+            className="mt-8 space-y-4"
           >
             <Input
               ref={codeRef}
@@ -120,7 +123,7 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
             />
             {devCode && (
               <p className="rounded-lg bg-secondary p-2 text-center text-xs text-muted-foreground">
-                Dev mode — your code is <span className="font-mono font-bold text-foreground">{devCode}</span>
+                Beta — use code <span className="font-mono font-bold text-foreground">{devCode}</span>
               </p>
             )}
             {verifyOtp.error && (
@@ -128,7 +131,7 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
                 {verifyOtp.error instanceof Error ? verifyOtp.error.message : 'Verification failed'}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={code.length !== 6 || verifyOtp.isPending}>
+            <Button type="submit" className="h-12 w-full" disabled={code.length !== 6 || verifyOtp.isPending}>
               {verifyOtp.isPending ? 'Verifying…' : 'Verify & continue'}
             </Button>
             <button
@@ -144,6 +147,6 @@ export function OtpLogin({ onDone }: { onDone?: () => void }) {
           </motion.form>
         )}
       </AnimatePresence>
-    </Card>
+    </div>
   );
 }

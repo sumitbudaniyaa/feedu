@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Clock, LogOut, Volume2, VolumeX } from 'lucide-react';
+import { Check, Clock, ListFilter, LogOut, Volume2, VolumeX } from 'lucide-react';
 import { SOCKET_EVENTS } from '@feedo/types';
 import type { Order, OrderStatus } from '@feedo/types';
-import { Badge, Button, EmptyState, Select, Skeleton, ThemeToggle, cn } from '@feedo/ui';
+import { Badge, Button, EmptyState, Skeleton, ThemeToggle, cn } from '@feedo/ui';
 import { minutesSince } from '@feedo/utils';
 import { ChefHat } from 'lucide-react';
 import { socket, useAuth, useCategories, useLogin, useLogout, useMe, useOrders, useUpdateOrderStatus } from './lib/api.js';
@@ -22,11 +22,27 @@ function KitchenBoard() {
   const restaurantId = useAuth((s) => s.user?.restaurantId);
   const qc = useQueryClient();
   const { data: categories } = useCategories();
-  const [catFilter, setCatFilter] = useState('all');
+  // Multi-select category filter; empty set = show every category. Persisted so a refresh keeps the selection.
+  const [catFilter, setCatFilter] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('feedo-kitchen-cat-filter') || '[]');
+      return Array.isArray(saved) ? saved.map(String) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const toggleCat = (id: string) =>
+    setCatFilter((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
   const [muted, setMuted] = useState(() => localStorage.getItem('feedo-kitchen-muted') === '1');
 
   // Keep the session user hydrated for restaurantId.
   useMe();
+
+  // Persist the category filter so it survives a page refresh.
+  useEffect(() => {
+    localStorage.setItem('feedo-kitchen-cat-filter', JSON.stringify(catFilter));
+  }, [catFilter]);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -56,11 +72,11 @@ function KitchenBoard() {
 
   const advance = (id: string, status: OrderStatus) => updateStatus.mutate({ id, status });
 
-  // Filter the board to orders containing an item from the selected category.
+  // Filter the board to orders containing an item from any selected category (empty = all).
   const visible =
-    catFilter === 'all'
+    catFilter.length === 0
       ? orders
-      : orders?.filter((o) => o.items.some((it) => String(it.categoryId ?? '') === catFilter));
+      : orders?.filter((o) => o.items.some((it) => catFilter.includes(String(it.categoryId ?? ''))));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -72,19 +88,69 @@ function KitchenBoard() {
         </div>
         <div className="flex items-center gap-2">
           {categories && categories.length > 0 && (
-            <Select
-              value={catFilter}
-              onChange={(e) => setCatFilter(e.target.value)}
-              className="h-9 w-44"
-              title="Filter by category"
-            >
-              <option value="all">All categories</option>
-              {categories.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFilterOpen((v) => !v)}
+                title="Filter by category"
+                className="relative"
+              >
+                <ListFilter className="h-4 w-4" />
+                {catFilter.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground">
+                    {catFilter.length}
+                  </span>
+                )}
+              </Button>
+              {filterOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
+                  <div className="absolute right-0 top-full z-40 mt-2 w-60 rounded-xl border border-border bg-card p-2 shadow-elevated">
+                    <div className="flex items-center justify-between px-2 pb-1.5 pt-1">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Categories
+                      </span>
+                      {catFilter.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setCatFilter([])}
+                          className="text-xs font-medium text-accent hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-72 space-y-0.5 overflow-y-auto">
+                      {categories.map((c) => {
+                        const on = catFilter.includes(c._id);
+                        return (
+                          <button
+                            key={c._id}
+                            type="button"
+                            onClick={() => toggleCat(c._id)}
+                            className={cn(
+                              'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-secondary',
+                              on && 'font-medium',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+                                on ? 'border-accent bg-accent text-accent-foreground' : 'border-border',
+                              )}
+                            >
+                              {on && <Check className="h-3 w-3" />}
+                            </span>
+                            <span className="truncate">{c.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           )}
           <Button variant="ghost" size="icon" onClick={toggleMute} title={muted ? 'Unmute new-order sound' : 'Mute new-order sound'}>
             {muted ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4" />}
@@ -112,11 +178,11 @@ function KitchenBoard() {
         <div className="p-10">
           <EmptyState
             icon={ChefHat}
-            title={catFilter === 'all' ? 'No active orders' : 'No orders in this category'}
+            title={catFilter.length === 0 ? 'No active orders' : 'No orders in these categories'}
             description={
-              catFilter === 'all'
+              catFilter.length === 0
                 ? "New orders appear here the moment they're placed."
-                : 'Try “All categories” or wait for a new order.'
+                : 'Tap “All” or pick other categories to widen the view.'
             }
           />
         </div>

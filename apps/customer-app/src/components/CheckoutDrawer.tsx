@@ -210,6 +210,27 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
                       <span>{requestOtp.isPending ? 'Sending code…' : isAuthed ? payLabel : 'Verify & continue'}</span>
                       <span>{formatCurrency(total)}</span>
                     </Button>
+
+                    {/* Guests may skip verification — but lose rewards/member benefits. */}
+                    {!isAuthed && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTouched(true);
+                            if (detailsValid && !submitting) place();
+                          }}
+                          disabled={submitting || requestOtp.isPending}
+                          className="w-full text-center text-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground disabled:opacity-60"
+                        >
+                          {submitting ? 'Placing order…' : 'Continue without verifying'}
+                        </button>
+                        <p className="rounded-lg bg-secondary/70 p-2 text-center text-[11px] leading-relaxed text-muted-foreground">
+                          Heads up: without verifying your number you won&apos;t earn or redeem{' '}
+                          <span className="font-medium text-foreground">reward points</span> or unlock member benefits on this order.
+                        </p>
+                      </>
+                    )}
                     {method === 'razorpay' && isAuthed && (
                       <p className="text-center text-[11px] text-muted-foreground">Payments secured by Razorpay</p>
                     )}
