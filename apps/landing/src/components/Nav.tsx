@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { ButtonPrimary, ButtonSecondary, cx } from './primitives.js';
+import { ButtonPrimary, cx } from './primitives';
 
 const LINKS = [
   ['Product', '#product'],
