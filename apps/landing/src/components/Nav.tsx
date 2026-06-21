@@ -6,7 +6,6 @@ import { ButtonPrimary, cx } from './primitives';
 const LINKS = [
   ['Product', '#product'],
   ['Features', '#features'],
-  ['How it works', '#how'],
   ['Use cases', '#use-cases'],
 ];
 
