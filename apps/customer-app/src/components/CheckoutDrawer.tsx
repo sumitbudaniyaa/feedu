@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Banknote, CreditCard, ShieldCheck } from 'lucide-react';
-import { Button, Input, Label, cn } from '@feedo/ui';
+import { Button, Input, Label, Textarea, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import { useAuth, useRequestOtp, useVerifyOtp } from '../lib/api.js';
 import { useGuest } from '../store/guest.js';
@@ -14,7 +14,7 @@ interface CheckoutDrawerProps {
   submitting: boolean;
   error?: string | null;
   onClose: () => void;
-  onProceed: (details: { name: string; phone: string; paymentMethod: PaymentMethod }) => void;
+  onProceed: (details: { name: string; phone: string; paymentMethod: PaymentMethod; notes?: string }) => void;
 }
 
 /** Bottom sheet that collects guest details + payment method, then places the order.
@@ -29,6 +29,7 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
   const [name, setName] = useState(guest.name);
   const [phone, setPhone] = useState(guest.phone);
   const [method, setMethod] = useState<PaymentMethod>('razorpay');
+  const [notes, setNotes] = useState('');
   const [touched, setTouched] = useState(false);
 
   // OTP sub-flow (guests only).
@@ -44,7 +45,7 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
   const place = () => {
     // Remember the guest so rewards & past orders auto-load next time.
     guest.save(name.trim(), phone);
-    onProceed({ name: name.trim(), phone, paymentMethod: method });
+    onProceed({ name: name.trim(), phone, paymentMethod: method, notes: notes.trim() || undefined });
   };
 
   const submitDetails = (e: React.FormEvent) => {
@@ -195,6 +196,18 @@ export function CheckoutDrawer({ open, total, submitting, error, onClose, onProc
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Special instructions for the kitchen */}
+                    <div className="space-y-1.5">
+                      <Label>Special instructions <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                      <Textarea
+                        rows={2}
+                        maxLength={300}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="e.g. less spicy, no onions, allergic to peanuts…"
+                      />
                     </div>
 
                     {!isAuthed && (

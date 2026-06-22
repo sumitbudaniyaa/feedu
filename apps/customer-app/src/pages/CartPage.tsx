@@ -72,10 +72,12 @@ export function CartPage() {
     name,
     phone,
     paymentMethod,
+    notes,
   }: {
     name: string;
     phone: string;
     paymentMethod: 'razorpay' | 'cash';
+    notes?: string;
   }) => {
     setError(null);
     setPaying(true);
@@ -94,6 +96,7 @@ export function CartPage() {
         customer: { name, phone },
         rewardId: appliedReward?.rewardId,
         paymentMethod,
+        notes,
       });
 
       // Reward-only (free) or pay-at-counter (cash) → already confirmed server-side, no payment step.

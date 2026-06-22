@@ -175,7 +175,18 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
-### Latest session — kitchen category filter, split payments, session-scoped table
+### Latest session — customer special instructions → kitchen
+**Customer + Kitchen**
+- [x] **Special instructions at checkout** — an optional free-text `Textarea` ("less spicy, no
+      onions, allergic to peanuts…", 300-char cap) in the checkout drawer's details step. Passed
+      through `onProceed` → `CartPage.proceed` → `useCheckout` as `notes`. The type + backend chain
+      already supported it end-to-end (`createOrderSchema.notes` → `checkoutSchema.notes` →
+      `orders.createOrder` → `order.notes`); only the UI was missing.
+- [x] **Kitchen surfaces the note** — `OrderCard` renders `order.notes` in a highlighted band
+      (white bg + amber left-accent + `NotebookPen` icon) so it stays legible on every card theme
+      (black/amber/green). `listOrders` returns lean docs, so no DTO change was needed.
+
+### Prior session — kitchen category filter, split payments, session-scoped table
 **Kitchen**
 - [x] **Filter the board by category** — a header filter button opens a dropdown checklist for
       **multi-select** (tap to toggle, badge shows active count, Clear resets); the board and active

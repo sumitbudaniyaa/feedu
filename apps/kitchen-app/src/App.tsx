@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Check, Clock, ListFilter, LogOut, Volume2, VolumeX } from 'lucide-react';
+import { Check, Clock, ListFilter, LogOut, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { SOCKET_EVENTS } from '@feedo/types';
 import type { Order, OrderStatus } from '@feedo/types';
 import { Badge, Button, EmptyState, Skeleton, ThemeToggle, cn } from '@feedo/ui';
@@ -276,6 +276,17 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (id: string,
             </div>
           ))}
         </div>
+
+        {/* Customer instructions — white band with dark text so it pops on every card theme. */}
+        {order.notes && (
+          <div className="mx-4 mb-4 flex gap-2 rounded-lg border-l-4 border-amber-500 bg-white px-3 py-2.5 text-neutral-900 shadow-sm">
+            <NotebookPen className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Instructions</p>
+              <p className="text-sm font-semibold leading-snug">{order.notes}</p>
+            </div>
+          </div>
+        )}
 
         <div className={cn('flex items-center justify-between border-t px-5 py-3', t.divide)}>
           <span className={cn('flex items-center gap-1.5 text-sm font-semibold', urgent && order.status !== 'ready' ? 'text-red-600' : t.sub)}>

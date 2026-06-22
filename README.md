@@ -34,13 +34,14 @@ Razorpay · JWT.
 - **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
   `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
   **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **call-waiter** from the
-  table, cart, **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
+  table, cart, optional **special instructions for the kitchen** at checkout (e.g. "less spicy, no
+  onions"), **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
   **Rewards** (wallet + in-app free-reward orders + **claim history**) and **Account** (details, order
   history, log out) pages, order confirmation + tracking with a downloadable ticket invoice. Dine-in
   only; direct (non-QR) entry asks for the table number and **validates it against the restaurant's
   real tables** (tolerant "5" ↔ "Table 5"; rejects unknown tables).
 - **Kitchen** — real-time KDS (`feedu` Kitchen), prominent table number, veg/non-veg markers,
-  status-colored cards, one-tap flow.
+  status-colored cards, **customer special instructions surfaced in a highlighted band**, one-tap flow.
 - **Super-admin = the feedu company portal (you, the SaaS owner)** — separate **feedu SaaS revenue**
   (MRR/ARR/paying restaurants) vs marketplace GMV; one combined **Brands & Restaurants** page (search +
   account-type/status filters) that **onboards single-store or multi-store accounts** (a multi-store
