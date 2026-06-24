@@ -32,7 +32,8 @@ Razorpay · JWT.
   - Every action raises a **meaningful toast** (per-action message; auth is silent);
     onboarding is super-admin-only (no self-signup).
 - **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
-  `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle, a full product
+  `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle (shown only when the
+  menu has non-veg items — hidden for fully-vegetarian restaurants), a full product
   **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **call-waiter** from the
   table, cart, optional **special instructions for the kitchen** at checkout (e.g. "less spicy, no
   onions"), **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate

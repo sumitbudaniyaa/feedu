@@ -185,6 +185,9 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 - [x] **Kitchen surfaces the note** — `OrderCard` renders `order.notes` in a highlighted band
       (white bg + amber left-accent + `NotebookPen` icon) so it stays legible on every card theme
       (black/amber/green). `listOrders` returns lean docs, so no DTO change was needed.
+- [x] **VEG-mode toggle is conditional** — `MenuPage` only renders the header VEG toggle when the
+      menu has at least one non-veg item (`products.some((p) => p.isVeg === false)`); hidden for
+      fully-vegetarian restaurants since there's nothing to filter out.
 
 ### Prior session — kitchen category filter, split payments, session-scoped table
 **Kitchen**

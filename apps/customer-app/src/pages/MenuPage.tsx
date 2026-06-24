@@ -127,6 +127,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   // Curated sections show while browsing "All" with no search — veg mode still shows them,
   // just narrowed to eligible (veg) products so empty sections drop out.
   const browsing = activeCat === 'all' && !search;
+  // The VEG-mode toggle only makes sense when there's something to filter out —
+  // hide it for fully-vegetarian restaurants (no non-veg products on the menu).
+  const hasNonVeg = products.some((p) => p.isVeg === false);
   const sectionProducts = vegOnly ? products.filter((p) => p.isVeg === true) : products;
   const filtered = products.filter((p) => {
     const matchesCat = activeCat === 'all' || p.categoryId === activeCat;
@@ -304,7 +307,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
               </div>
             )}
           </div>
-          {/* Veg-only filter — Zomato-style: VEG / MODE label over a simple toggle. */}
+          {/* Veg-only filter — Zomato-style: VEG / MODE label over a simple toggle.
+              Only shown when the menu actually has non-veg items to hide. */}
+          {hasNonVeg && (
           <div className="flex h-14 shrink-0 flex-col items-center justify-center gap-1.5">
             <span className="text-center leading-none">
               <span className="block text-sm font-extrabold tracking-wide text-white">VEG</span>
@@ -331,6 +336,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
               />
             </button>
           </div>
+          )}
         </motion.div>
       </header>
 
