@@ -175,6 +175,22 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
+### Latest session — favorite dishes (customer + admin)
+**Backend**
+- [x] New `Favorite` model (`{restaurantId, phone, productId}`, unique per trio) + `GET/POST/DELETE
+      /public/r/:slug/favorites` (all `requireCustomer` — favorites are tied to the OTP-verified diner).
+- [x] `getCustomerAnalytics` now resolves the diner's favorites to product names and returns them.
+
+**Customer app**
+- [x] `FavoritesProvider` (server-backed via `useFavorites`/`useAddFavorite`/`useRemoveFavorite`),
+      `FavoriteButton` heart on `ProductCard` image + `ProductSheet` hero (guests are routed to sign in).
+- [x] `FavoritesRow` — quick-order circles on the home page (browsing only, signed-in only); tap adds
+      simple items straight to cart or opens the sheet for items with variants/add-ons.
+
+**Admin app**
+- [x] Per-diner analytics dialog shows a **Favorites** section (chips). `CustomerAnalytics` type gained
+      a `favorites: {productId, name}[]` field.
+
 ### Latest session — loyalty earn bug (brand-scoped program not awarding points)
 **Backend (bug fix)**
 - [x] **Points program lookup is now brand-aware** — `accrueCustomer` looked up the points

@@ -5,6 +5,7 @@ import { Button, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
 import { useCart } from '../store/cart.js';
+import { FavoriteButton } from '../store/favorites.js';
 
 /** Full-detail bottom sheet: shows everything about a product and its order options. */
 export function ProductSheet({
@@ -90,6 +91,7 @@ export function ProductSheet({
                 >
                   <X className="h-5 w-5" />
                 </button>
+                <FavoriteButton productId={product._id} tone="light" className="absolute right-14 top-3" />
                 {product.isVeg !== undefined && (
                   <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium shadow-soft backdrop-blur">
                     <span

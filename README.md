@@ -18,7 +18,7 @@ Razorpay · JWT.
   points, **configurable sizes/variants**, **Cloudinary** image hosting), Menu CMS, loyalty rewards +
   **points-expiry**, Analytics (revenue/table, table turnover, avg serve time, peak hours, top products),
   tables & QR codes, **staff (with mobile number)**, **customer analytics** (click a diner → spend,
-  most-ordered, reward claims, visits), settings (branding/tax/go-live + **subscription details**),
+  most-ordered, **favorite dishes**, reward claims, visits), settings (branding/tax/go-live + **subscription details**),
   **support tickets** (chat), downloadable invoices. **Waiter role** is limited to a **dedicated mobile
   waiter app** (live table **calls ring** with sound/vibrate + **slide-to-attend**, plus orders).
   - **Multi-store owner**: a default **"All branches"** (centralized) view — combined dashboard +
@@ -34,7 +34,9 @@ Razorpay · JWT.
 - **Customer (mobile)** — **dark, Zomato-style** QR/slug ordering: animated gradient header with the
   `feedu` wordmark, rotating search placeholder, a header **VEG mode** toggle (shown only when the
   menu has non-veg items — hidden for fully-vegetarian restaurants), a full product
-  **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **call-waiter** from the
+  **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **favorite dishes** (tap the
+  heart on any item; signed-in diners get a **quick-order circle row** on the home page to reorder in
+  one tap), **call-waiter** from the
   table, cart, optional **special instructions for the kitchen** at checkout (e.g. "less spicy, no
   onions"), **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
   **Rewards** (wallet + in-app free-reward orders + **claim history**) and **Account** (details, order

@@ -146,6 +146,32 @@ export function createPublicHooks(client: ApiClient) {
         enabled: Boolean(slug && isAuthed),
       });
     },
+    /** The signed-in diner's favorite product ids for this restaurant. */
+    useFavorites(slug?: string, isAuthed?: boolean) {
+      return useQuery({
+        queryKey: ['public', 'favorites', slug],
+        queryFn: () => client.get<{ productIds: string[] }>(`/public/r/${slug}/favorites`),
+        enabled: Boolean(slug && isAuthed),
+      });
+    },
+    /** Add a product to favorites, then refresh the list. */
+    useAddFavorite(slug: string) {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (productId: string) =>
+          client.post<{ favorited: boolean }>(`/public/r/${slug}/favorites`, { productId }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'favorites', slug] }),
+      });
+    },
+    /** Remove a product from favorites, then refresh the list. */
+    useRemoveFavorite(slug: string) {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (productId: string) =>
+          client.delete<{ favorited: boolean }>(`/public/r/${slug}/favorites/${productId}`),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'favorites', slug] }),
+      });
+    },
     /**
      * Claim a reward. If linked to a menu item it's placed as a free ₹0 order
      * (returned as `order`) that flows to the kitchen; otherwise a claim code is

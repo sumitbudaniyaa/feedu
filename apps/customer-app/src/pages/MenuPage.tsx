@@ -11,6 +11,7 @@ import { ProductSheet } from '../components/ProductSheet.js';
 import { OngoingOrderPill } from '../components/OngoingOrderPill.js';
 import { ProductCard } from '../components/ProductCard.js';
 import { SectionsBlock } from '../components/SectionsBlock.js';
+import { FavoritesProvider, FavoritesRow } from '../store/favorites.js';
 
 export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   const params = useParams();
@@ -22,6 +23,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
   const { setAccent } = useTheme();
   const setContext = useCart((s) => s.setContext);
+  const incSimple = useCart((s) => s.incSimple);
   const count = useCart((s) => s.count());
   const subtotal = useCart((s) => s.subtotal());
   const tableName = useCart((s) => s.tableName);
@@ -138,7 +140,15 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
     return matchesCat && matchesSearch && matchesVeg;
   });
 
+  // Tap a favorite circle → order directly. Items with options open the sheet
+  // (the diner must pick a variant/add-on); simple items drop straight in the cart.
+  const pickFavorite = (p: Product) => {
+    if (p.variants.length > 0 || p.addons.length > 0) setSelected(p);
+    else incSimple({ productId: p._id, name: p.name, addonLabels: [], unitPrice: p.basePrice });
+  };
+
   return (
+    <FavoritesProvider slug={data.restaurant.slug}>
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background">
       {/* Brand-colored gradient hero — the restaurant's accent lives here, not on buttons. */}
       <header
@@ -341,6 +351,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       </header>
 
       <main className="flex-1 space-y-7 px-5 pb-24 pt-6">
+        {/* Quick-order circles for the diner's favorite dishes (home only). */}
+        {browsing && <FavoritesRow products={products} onPick={pickFavorite} />}
+
         {/* Curated sections from the Menu CMS */}
         {browsing && sections.length > 0 && (
           <SectionsBlock sections={sections} products={sectionProducts} onCustomise={setSelected} />
@@ -507,5 +520,6 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         )}
       </AnimatePresence>
     </div>
+    </FavoritesProvider>
   );
 }

@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import {
   Brand,
   Customer,
+  Favorite,
   Lead,
   LoyaltyReward,
   Order,
@@ -388,6 +389,56 @@ router.get(
     ]);
 
     return ok(res, { customer, orders, rewards, redemptions });
+  }),
+);
+
+// ─── Favorites (per diner, per restaurant — requires OTP login) ─────────
+/** List the signed-in diner's favorite product ids for this restaurant. */
+router.get(
+  '/r/:slug/favorites',
+  optionalCustomerAuth,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    const phone = req.customerPhone!;
+    const restaurant = await findLiveRestaurant(req.params.slug!);
+    const favorites = await Favorite.find({ restaurantId: restaurant._id, phone }).select('productId').lean();
+    return ok(res, { productIds: favorites.map((f) => String(f.productId)) });
+  }),
+);
+
+const favoriteSchema = z.object({ productId: z.string() });
+
+/** Add a product to favorites (idempotent upsert). */
+router.post(
+  '/r/:slug/favorites',
+  optionalCustomerAuth,
+  requireCustomer,
+  validate(favoriteSchema),
+  asyncHandler(async (req, res) => {
+    const phone = req.customerPhone!;
+    const { productId } = req.body as { productId: string };
+    if (!isValidObjectId(productId)) throw ApiError.badRequest('Invalid product');
+    const restaurant = await findLiveRestaurant(req.params.slug!);
+    await Favorite.updateOne(
+      { restaurantId: restaurant._id, phone, productId },
+      { $setOnInsert: { restaurantId: restaurant._id, phone, productId } },
+      { upsert: true },
+    );
+    return ok(res, { favorited: true }, 201);
+  }),
+);
+
+/** Remove a product from favorites. */
+router.delete(
+  '/r/:slug/favorites/:productId',
+  optionalCustomerAuth,
+  requireCustomer,
+  asyncHandler(async (req, res) => {
+    const phone = req.customerPhone!;
+    if (!isValidObjectId(req.params.productId)) throw ApiError.badRequest('Invalid product');
+    const restaurant = await findLiveRestaurant(req.params.slug!);
+    await Favorite.deleteOne({ restaurantId: restaurant._id, phone, productId: req.params.productId });
+    return ok(res, { favorited: false });
   }),
 );
 

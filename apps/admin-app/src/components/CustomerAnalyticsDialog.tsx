@@ -8,7 +8,7 @@ import {
   DialogTitle,
   Skeleton,
 } from '@feedo/ui';
-import { Clock, Gift, ReceiptText, Sparkles, TrendingUp, Trophy } from 'lucide-react';
+import { Clock, Gift, Heart, ReceiptText, Sparkles, TrendingUp, Trophy } from 'lucide-react';
 import { formatCurrency, formatDate, initials } from '@feedo/utils';
 import type { CustomerAnalytics } from '@feedo/api';
 import { useCustomerAnalytics } from '../lib/api.js';
@@ -97,6 +97,21 @@ export function CustomerInsights({ data }: { data: CustomerAnalytics }) {
             </div>
           ) : (
             <Empty>No items ordered yet.</Empty>
+          )}
+        </Section>
+
+        {/* Favorites the diner saved in the app */}
+        <Section icon={Heart} title="Favorites">
+          {data.favorites.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {data.favorites.map((f) => (
+                <Badge key={f.productId} variant="outline" className="gap-1">
+                  <Heart className="h-3 w-3 fill-red-500 text-red-500" /> {f.name}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <Empty>No favorites saved yet.</Empty>
           )}
         </Section>
 

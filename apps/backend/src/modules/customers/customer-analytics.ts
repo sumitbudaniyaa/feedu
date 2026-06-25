@@ -1,14 +1,26 @@
-import { Customer, Order, Redemption } from '../../models/index.js';
+import { Customer, Favorite, Order, Product, Redemption } from '../../models/index.js';
 
 const REVENUE_STATUSES = ['confirmed', 'preparing', 'ready', 'served', 'completed'];
 
 /** Rich per-diner analytics derived from their orders (shared by admin + platform). */
 export async function getCustomerAnalytics(restaurantId: string, phone: string) {
-  const [customer, orders, redemptions] = await Promise.all([
+  const [customer, orders, redemptions, favoriteDocs] = await Promise.all([
     Customer.findOne({ restaurantId, phone }).lean(),
     Order.find({ restaurantId, customerPhone: phone }).sort({ placedAt: -1 }).lean(),
     Redemption.find({ restaurantId, customerPhone: phone }).sort({ createdAt: -1 }).limit(20).lean(),
+    Favorite.find({ restaurantId, phone }).sort({ createdAt: -1 }).lean(),
   ]);
+
+  // Resolve favorited products to names (skip any that were since deleted).
+  const favProducts = favoriteDocs.length
+    ? await Product.find({ _id: { $in: favoriteDocs.map((f) => f.productId) } })
+        .select('name')
+        .lean()
+    : [];
+  const favNameById = new Map(favProducts.map((p) => [String(p._id), p.name]));
+  const favorites = favoriteDocs
+    .map((f) => ({ productId: String(f.productId), name: favNameById.get(String(f.productId)) }))
+    .filter((f): f is { productId: string; name: string } => Boolean(f.name));
 
   const paid = orders.filter((o) => REVENUE_STATUSES.includes(o.status));
 
@@ -50,5 +62,6 @@ export async function getCustomerAnalytics(restaurantId: string, phone: string) 
     rewardClaims: rewardClaims.slice(0, 10),
     redemptions,
     recentOrders: orders.slice(0, 10),
+    favorites,
   };
 }

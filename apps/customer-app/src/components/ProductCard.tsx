@@ -4,6 +4,7 @@ import { Button, Card, cn } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
 import type { Product } from '@feedo/types';
 import { useCart } from '../store/cart.js';
+import { FavoriteButton } from '../store/favorites.js';
 
 /** Cart-aware add logic shared by every product surface. */
 export function useAddProduct(product: Product) {
@@ -53,6 +54,7 @@ export function ProductImage({ product, className }: { product: Product; classNa
       <span className="absolute left-2 top-2">
         <VegDot isVeg={product.isVeg} />
       </span>
+      <FavoriteButton productId={product._id} className="absolute right-2 top-2" />
     </div>
   );
 }

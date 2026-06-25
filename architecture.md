@@ -227,6 +227,13 @@ query misses every onboarded (brand-scoped) restaurant and silently awards 0 poi
 can also set an optional **points expiry** (`expiryDays`) — configured in the admin loyalty form
 via a "can expire" toggle + days input.
 
+**Favorites** — a signed-in (OTP) diner can favorite menu items (heart on the product
+card/sheet). Stored server-side in the `Favorite` model (`{restaurantId, phone, productId}`,
+unique per trio) via `GET/POST/DELETE /public/r/:slug/favorites` (all `requireCustomer`). The
+customer home page shows favorited dishes as **quick-order circles** (tap → add simple items
+straight to cart, or open the sheet for items with variants/add-ons). Favorites also surface in
+the admin **per-diner analytics** (`getCustomerAnalytics` resolves them to product names).
+
 **Rewards are ordered in-app, never a counter code.** Admins manage a `LoyaltyReward`
 catalog where each reward **must link a menu item** (enforced in the admin form + the
 `/rewards` create schema). A diner (OTP-signed-in) adds a reward to their cart — it becomes a

@@ -99,6 +99,7 @@ export interface CustomerAnalytics {
   rewardClaims: Order[];
   redemptions: { _id: string; rewardTitle: string; pointsCost: number; createdAt: string }[];
   recentOrders: Order[];
+  favorites: { productId: string; name: string }[];
 }
 
 export interface SupportTicketReply {
