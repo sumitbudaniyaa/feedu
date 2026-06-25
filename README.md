@@ -73,7 +73,7 @@ Razorpay · JWT.
 | customer-app | 5174 | QR ordering PWA (mobile-first) |
 | kitchen-app | 5175 | Kitchen Display System |
 | super-admin-app | 5176 | Internal SaaS console |
-| landing | 5177 | Public marketing site (static, no backend) — incl. `/demo`, `/contact-sales`, `/about`, `/privacy`, `/terms` |
+| landing | 5177 | Public marketing site (static, no backend) — incl. `/contact-sales`, `/about`, `/privacy`, `/terms` |
 
 ## Getting started
 
