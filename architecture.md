@@ -220,9 +220,12 @@ Two layers: **earning** and **claiming/ordering**.
 **Earning** — products may define `loyaltyPoints` (per unit), summed into
 `order.loyaltyPointsEarned` at creation and credited to the guest's `Customer` record
 (keyed `restaurantId + phone`) when the order is paid. A points `LoyaltyProgram` (pts per ₹)
-is the fallback when items don't define their own points. A program can also set an optional
-**points expiry** (`expiryDays`) — configured in the admin loyalty form via a "can expire"
-toggle + days input.
+is the fallback when items don't define their own points. The program is **brand-owned**
+(stamped with `brandId`; `restaurantId` is legacy), so the earn lookup (`findPointsProgram`)
+must resolve it **brand-aware** (`{ $or: [{ brandId }, { restaurantId }] }`) — a `restaurantId`-only
+query misses every onboarded (brand-scoped) restaurant and silently awards 0 points. A program
+can also set an optional **points expiry** (`expiryDays`) — configured in the admin loyalty form
+via a "can expire" toggle + days input.
 
 **Rewards are ordered in-app, never a counter code.** Admins manage a `LoyaltyReward`
 catalog where each reward **must link a menu item** (enforced in the admin form + the

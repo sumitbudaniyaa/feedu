@@ -175,6 +175,17 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
+### Latest session — loyalty earn bug (brand-scoped program not awarding points)
+**Backend (bug fix)**
+- [x] **Points program lookup is now brand-aware** — `accrueCustomer` looked up the points
+      `LoyaltyProgram` by `restaurantId` only, but the admin loyalty form creates programs
+      `level: 'brand'` (stamped `brandId`, no `restaurantId`). On any onboarded restaurant (always
+      has a `brandId`) the lookup found nothing → **0 points awarded** (the seed restaurant worked
+      only because its program is `restaurantId`-stamped). Added `findPointsProgram()` which resolves
+      the restaurant's `brandId` and queries `{ $or: [{ brandId }, { restaurantId }] }`. Per-item
+      `loyaltyPoints` were unaffected (resolved brand-aware already). Dead `accrueLoyalty`/
+      `CustomerLoyalty` path left as-is (gated on a `customerId` no caller passes — flagged separately).
+
 ### Latest session — customer special instructions → kitchen
 **Customer + Kitchen**
 - [x] **Special instructions at checkout** — an optional free-text `Textarea` ("less spicy, no

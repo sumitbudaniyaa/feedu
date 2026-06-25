@@ -530,6 +530,20 @@ export async function recordPayment(
   return obj;
 }
 
+/**
+ * Find the active points program for a branch. Programs are **brand-owned**
+ * (stamped with `brandId`; `restaurantId` is legacy), so we must look them up
+ * brand-aware — querying by `restaurantId` alone misses every onboarded
+ * (brand-scoped) restaurant and silently awards 0 points.
+ */
+async function findPointsProgram(restaurantId: string) {
+  const restaurant = await Restaurant.findById(restaurantId).select('brandId').lean();
+  const scope = restaurant?.brandId
+    ? { $or: [{ brandId: restaurant.brandId }, { restaurantId }] }
+    : { restaurantId };
+  return LoyaltyProgram.findOne({ ...scope, type: 'points', isActive: true }).lean();
+}
+
 /** Upsert a guest customer (by phone) and award loyalty points. Returns points earned. */
 async function accrueCustomer(
   restaurantId: string,
@@ -537,11 +551,7 @@ async function accrueCustomer(
 ): Promise<number> {
   let earned = points ?? 0;
   if (points === undefined) {
-    const program = await LoyaltyProgram.findOne({
-      restaurantId,
-      type: 'points',
-      isActive: true,
-    }).lean();
+    const program = await findPointsProgram(restaurantId);
     earned = program?.conditions?.pointsPerCurrency
       ? Math.floor(total * program.conditions.pointsPerCurrency)
       : 0;
