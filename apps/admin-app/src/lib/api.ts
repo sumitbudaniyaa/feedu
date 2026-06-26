@@ -119,8 +119,6 @@ function useSessionAction(path: (id: string) => string, successMessage: string) 
 export const useSeatTable = () => useSessionAction((id) => `/tables/${id}/seat`, 'Table seated');
 /** Free a table (close its live session). */
 export const useFreeTable = () => useSessionAction((id) => `/tables/${id}/free`, 'Table freed');
-/** Flag a table for the bill (still occupied). */
-export const useRequestBill = () => useSessionAction((id) => `/tables/${id}/bill`, 'Bill requested');
 
 export const staff = createResource<User>(apiClient, 'staff', '/staff', 'Staff member');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers', 'Customer');

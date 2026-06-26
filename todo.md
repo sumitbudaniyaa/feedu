@@ -187,9 +187,15 @@ Replaced order-name-derived occupancy with a first-class **session** lifecycle.
       now resolves the table by id (or canonical name for link-entry) and links the order to its session.
 **Admin app**
 - [x] `SeatOccupancy` reworked: occupancy derived from live sessions (joined by **tableId**, no more
-      name matching); cells show party size + duration + a bill-requested marker; dialog has
-      **Seat party / Request bill / Free table** plus reservations. New hooks `useActiveSessions`,
-      `useSeatTable`, `useFreeTable`, `useRequestBill`.
+      name matching); cells show party size + duration + a bill-requested marker; dialog actions are
+      **Seat party / Free table** plus reservations. Hooks `useActiveSessions`, `useSeatTable`, `useFreeTable`.
+
+**Refinements (this session)**
+- [x] Admin grid only **frees** a table; the **Request bill** button + `/tables/:id/bill` endpoint removed.
+- [x] `bill_requested` is now set automatically — by the diner's **call-waiter → bill** (`requestBill`)
+      and by a **counter payment** (`recordPayment` → `requestBillBySession`).
+- [x] **Auto-expiry:** QR self-seats with no order are freed after **10 min** (`pruneStaleSessions`,
+      run lazily on each `getActiveSessions` read — no background job). Staff seats / ordered sessions persist.
 
 ### Latest session — stock caps (customer) + clearer inventory badges (admin)
 **Customer app**

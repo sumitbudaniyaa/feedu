@@ -90,7 +90,7 @@ const STAFF = ['owner', 'manager', 'branch_manager', 'cashier', 'kitchen_staff',
 router.get(
   '/sessions/active',
   asyncHandler(async (req, res) => {
-    return ok(res, await sessions.getActiveSessions(String(req.branchId)));
+    return ok(res, await sessions.getActiveSessions(String(req.branchId), req.brandId ? String(req.brandId) : null));
   }),
 );
 
@@ -109,17 +109,6 @@ router.post(
       partySize: Number.isFinite(partySize) && partySize > 0 ? partySize : undefined,
     });
     return ok(res, session, 201);
-  }),
-);
-
-/** Request the bill — keeps the table occupied but flags it for settlement. */
-router.post(
-  '/:id/bill',
-  validateObjectId(),
-  authorize(...STAFF),
-  asyncHandler(async (req, res) => {
-    await sessions.requestBill(String(req.branchId), String(req.params.id), req.brandId ? String(req.brandId) : null);
-    return ok(res, { billRequested: true });
   }),
 );
 

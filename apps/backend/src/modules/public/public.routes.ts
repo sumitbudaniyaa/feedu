@@ -27,7 +27,7 @@ import { asyncHandler, ok } from '../../utils/http.js';
 import { logger } from '../../utils/logger.js';
 import { env } from '../../config/env.js';
 import * as orders from '../orders/orders.service.js';
-import { ensureSession } from '../tables/sessions.service.js';
+import { ensureSession, requestBill } from '../tables/sessions.service.js';
 import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../payments/payments.service.js';
 import { getIO } from '../../sockets/index.js';
 
@@ -43,7 +43,7 @@ router.post(
   '/r/:slug/call-waiter',
   validate(z.object({ tableName: z.string().min(1), reason: z.enum(['assistance', 'bill']).optional() })),
   asyncHandler(async (req, res) => {
-    const restaurant = await Restaurant.findOne({ slug: req.params.slug }).select('_id').lean();
+    const restaurant = await Restaurant.findOne({ slug: req.params.slug }).select('_id brandId').lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
     const { tableName, reason } = req.body as { tableName: string; reason?: 'assistance' | 'bill' };
     const io = getIO() as unknown as {
@@ -54,6 +54,17 @@ router.post(
       at: new Date().toISOString(),
       reason: reason ?? 'assistance',
     });
+    // A bill request also flags the table's live session as ready to settle.
+    if (reason === 'bill') {
+      const table = await Table.findOne({ restaurantId: restaurant._id, name: tableName }).select('_id').lean();
+      if (table) {
+        await requestBill(
+          String(restaurant._id),
+          String(table._id),
+          restaurant.brandId ? String(restaurant.brandId) : null,
+        ).catch(() => undefined);
+      }
+    }
     return ok(res, { called: true });
   }),
 );

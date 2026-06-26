@@ -9,7 +9,6 @@ import {
   tables as tablesResource,
   useActiveSessions,
   useFreeTable,
-  useRequestBill,
   useRestaurant,
   useSeatTable,
   useUpdateTableStatus,
@@ -145,7 +144,6 @@ export function SeatOccupancy() {
 function SeatDialog({ table, session, onClose }: { table: Table | null; session?: TableSession; onClose: () => void }) {
   const seat = useSeatTable();
   const free = useFreeTable();
-  const bill = useRequestBill();
   const reserve = useUpdateTableStatus();
   const [name, setName] = useState('');
   const [partySize, setPartySize] = useState('');
@@ -166,12 +164,11 @@ function SeatDialog({ table, session, onClose }: { table: Table | null; session?
   if (!table) return null;
   const occupied = Boolean(session);
   const reserved = !occupied && (table.status ?? 'available') === 'reserved';
-  const busy = seat.isPending || free.isPending || bill.isPending || reserve.isPending;
+  const busy = seat.isPending || free.isPending || reserve.isPending;
 
   const doSeat = () =>
     seat.mutate({ id: table._id, partySize: partySize ? Number(partySize) : undefined }, { onSuccess: onClose });
   const doFree = () => free.mutate({ id: table._id }, { onSuccess: onClose });
-  const doBill = () => bill.mutate({ id: table._id }, { onSuccess: onClose });
   const doReserve = () =>
     reserve.mutate(
       {
@@ -208,14 +205,9 @@ function SeatDialog({ table, session, onClose }: { table: Table | null; session?
           )}
 
           {occupied ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" onClick={doBill} disabled={busy || session?.status === 'bill_requested'}>
-                <ReceiptText className="h-4 w-4" /> {session?.status === 'bill_requested' ? 'Bill requested' : 'Request bill'}
-              </Button>
-              <Button variant="default" size="sm" onClick={doFree} disabled={busy}>
-                <CircleSlash className="h-4 w-4" /> Free table
-              </Button>
-            </div>
+            <Button variant="default" className="w-full" onClick={doFree} disabled={busy}>
+              <CircleSlash className="h-4 w-4" /> Free table
+            </Button>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               <Button variant="default" size="sm" onClick={doSeat} disabled={busy}>

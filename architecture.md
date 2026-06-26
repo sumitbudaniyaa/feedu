@@ -58,7 +58,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 
 | App | Audience | Purpose | Default accent |
 |-----|----------|---------|----------------|
-| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard (incl. a live **session-driven seat-occupancy grid** — one-tap **seat / request-bill / free** + reservations, occupancy auto-lit by QR scans, party size + duration shown, synced via `table:updated`), orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
+| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard (incl. a live **session-driven seat-occupancy grid** — one-tap **seat / free** + reservations, occupancy auto-lit by QR scans, party size + duration shown, a bill-requested marker driven by the diner's bill request / counter payment, QR-no-order seats auto-freed after 10 min, synced via `table:updated`), orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
 | `customer-app` | Diners (mobile) | QR ordering, browsing, cart, optional **special instructions for the kitchen** at checkout, Razorpay checkout, mobile-OTP login (incl. at guest checkout, with a **"continue without verifying"** option that still places the order but forfeits reward points / member benefits), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers, **customer special instructions in a highlighted band per order**, multi-select category filter (persisted across refresh, dark-optimized KDS) | emerald |
 | `super-admin-app` | Feedu internal | One combined **Brands & Restaurants** page (search + type/status filters), single/multi-store onboarding, brand-level + per-branch suspend, combined SaaS plan editing, delete; platform analytics | blue |
@@ -221,12 +221,17 @@ seating to settlement — not when an order happens to match by name. Lifecycle:
 **seat** (staff one-tap `POST /tables/:id/seat`, or a customer scanning the table QR which calls
 `ensureSession`) → the session opens (occupied immediately, before any order) → orders link to it by
 **`order.sessionId`** (a real FK; `createOrder` resolves the table by id, or by canonical name for
-link-entry diners, and joins/opens the session) → **request bill** (`/tables/:id/bill` → `bill_requested`)
-→ **free** (`/tables/:id/free` → session `closed`, table available). `ensureSession` is idempotent
-(re-scans/refreshes join the existing session) and **converts a reservation** (clears the hold on
-arrival). The seat grid derives status as `live session → occupied`, else `reserved`, else `available`,
-joining sessions to tables by id — so renaming a table or a fuzzy order name can no longer break it.
-Reservations still live on `Table` (`status: reserved` + embedded details) via `/tables/:id/status`.
+link-entry diners, and joins/opens the session) → **`bill_requested`** is set automatically when the
+diner taps **call-waiter → bill** (`requestBill`) or when staff **record a counter payment**
+(`recordPayment` → `requestBillBySession`) — staff don't set it manually → **free** (`/tables/:id/free`
+→ session `closed`, table available); **the admin grid's only session action is "Free table."**
+`ensureSession` is idempotent (re-scans/refreshes join the existing session) and **converts a
+reservation** (clears the hold on arrival). **Auto-expiry:** a QR self-seat with **no order** is
+auto-freed after **10 min** (`pruneStaleSessions`, run lazily on each grid read — no cron); staff-seated
+tables and any session with an order never expire. The seat grid derives status as `live session →
+occupied`, else `reserved`, else `available`, joining sessions to tables by id — so renaming a table or
+a fuzzy order name can no longer break it. Reservations still live on `Table` (`status: reserved` +
+embedded details) via `/tables/:id/status`.
 
 ### Loyalty & rewards
 Two layers: **earning** and **claiming/ordering**.

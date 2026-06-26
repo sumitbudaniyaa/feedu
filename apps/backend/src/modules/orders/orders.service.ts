@@ -16,7 +16,7 @@ import { ApiError } from '../../utils/ApiError.js';
 import { getIO } from '../../sockets/index.js';
 import { logger } from '../../utils/logger.js';
 import { resolveOrderProducts } from '../menu/menu.service.js';
-import { ensureSession } from '../tables/sessions.service.js';
+import { ensureSession, requestBillBySession } from '../tables/sessions.service.js';
 
 /** Valid forward transitions for an order's status. */
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -544,6 +544,12 @@ export async function recordPayment(
 
   const obj = order.toObject();
   emit(SOCKET_EVENTS.ORDER_UPDATED, restaurantId, obj);
+  // Settling an order at the counter marks its table as ready to clear.
+  if (order.sessionId) {
+    await requestBillBySession(String(order.sessionId), order.brandId ? String(order.brandId) : null).catch(
+      () => undefined,
+    );
+  }
   return obj;
 }
 

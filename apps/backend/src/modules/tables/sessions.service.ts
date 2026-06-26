@@ -1,6 +1,9 @@
 import { SOCKET_EVENTS, rooms } from '@feedo/types';
-import { Table, TableSession } from '../../models/index.js';
+import { Order, Table, TableSession } from '../../models/index.js';
 import { getIO } from '../../sockets/index.js';
+
+/** A QR self-seat with no order placed is auto-freed after this long. */
+const STALE_QR_MS = 10 * 60 * 1000; // 10 minutes
 
 type Io = { to: (room: string) => { emit: (e: string, p: unknown) => void } };
 
@@ -57,14 +60,60 @@ export async function closeSession(restaurantId: string, tableId: string, brandI
 
 /** Flag the table's live session as bill-requested (still occupied). */
 export async function requestBill(restaurantId: string, tableId: string, brandId?: string | null) {
-  await TableSession.updateOne(
+  const updated = await TableSession.updateOne(
     { restaurantId, tableId, status: 'open' },
     { status: 'bill_requested' },
   );
-  emitTableUpdated(restaurantId, brandId, tableId);
+  if (updated.modifiedCount > 0) emitTableUpdated(restaurantId, brandId, tableId);
 }
 
-/** All live sessions for a branch — the grid joins these to its tables by id. */
-export function getActiveSessions(restaurantId: string) {
+/** Flag a specific session as bill-requested (e.g. when its order is settled). */
+export async function requestBillBySession(sessionId: string, brandId?: string | null) {
+  const session = await TableSession.findOneAndUpdate(
+    { _id: sessionId, status: 'open' },
+    { status: 'bill_requested' },
+    { new: true },
+  );
+  if (session) emitTableUpdated(String(session.restaurantId), brandId, String(session.tableId));
+}
+
+/**
+ * Auto-free QR self-seats that never turned into an order (a curious scan that
+ * walked away). Staff-seated tables and any session with a linked order are kept.
+ * Run lazily whenever the grid is read — no background job needed.
+ */
+export async function pruneStaleSessions(restaurantId: string, brandId?: string | null) {
+  const cutoff = new Date(Date.now() - STALE_QR_MS);
+  const candidates = await TableSession.find({
+    restaurantId,
+    status: { $in: LIVE },
+    openedBy: 'qr',
+    openedAt: { $lte: cutoff },
+  })
+    .select('_id tableId')
+    .lean();
+  if (!candidates.length) return;
+
+  // Keep any session that actually has an order — only expire the empty ones.
+  const withOrders = new Set(
+    (await Order.find({ sessionId: { $in: candidates.map((c) => c._id) } }).distinct('sessionId')).map(String),
+  );
+  const stale = candidates.filter((c) => !withOrders.has(String(c._id)));
+  if (!stale.length) return;
+
+  await TableSession.updateMany(
+    { _id: { $in: stale.map((s) => s._id) } },
+    { status: 'closed', closedAt: new Date() },
+  );
+  await Table.updateMany(
+    { _id: { $in: stale.map((s) => s.tableId) }, restaurantId },
+    { status: 'available', reservation: null },
+  );
+  for (const s of stale) emitTableUpdated(restaurantId, brandId, String(s.tableId));
+}
+
+/** All live sessions for a branch — prunes stale QR seats first, then returns the rest. */
+export async function getActiveSessions(restaurantId: string, brandId?: string | null) {
+  await pruneStaleSessions(restaurantId, brandId);
   return TableSession.find({ restaurantId, status: { $in: LIVE } }).lean();
 }
