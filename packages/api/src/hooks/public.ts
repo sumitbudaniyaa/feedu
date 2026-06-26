@@ -92,10 +92,14 @@ export function createPublicHooks(client: ApiClient) {
         queryFn: () => client.get<TrackedOrder>(`/public/orders/${orderId}`),
         enabled: Boolean(orderId),
         refetchInterval: (q) => {
-          const status = q.state.data?.status;
-          return status && ['completed', 'cancelled', 'refunded', 'served'].includes(status)
-            ? false
-            : 5000;
+          const o = q.state.data;
+          if (!o) return 5000;
+          // Stop only once the order is truly finished: cancelled/refunded, or
+          // served/completed AND paid (a pay-at-counter order can be served while
+          // unpaid — keep polling so the later payment is picked up).
+          if (['cancelled', 'refunded'].includes(o.status)) return false;
+          if (['served', 'completed'].includes(o.status) && o.paymentStatus === 'paid') return false;
+          return 5000;
         },
       });
     },

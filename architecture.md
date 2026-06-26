@@ -324,6 +324,34 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
   `crud` create/update schema parse → 400 with the offending field), and JWT errors mapped to
   clean 4xx envelopes; internals never leaked.
 
+### Performance & indexing
+- **Compound indexes cover every hot path.** Tenant-scoped lists are keyed by `restaurantId`/
+  `brandId` first; notable compounds: `Order {restaurantId, status, placedAt}` (kitchen/active),
+  `{restaurantId, createdAt}` (history), `{restaurantId, orderNumber}` unique, and
+  **`{restaurantId, customerPhone, placedAt}`** (per-diner account + analytics — added so an
+  individual guest's orders don't trigger a full per-restaurant scan). Uniqueness is enforced at the
+  DB for `Customer {restaurantId, phone}`, `Favorite {restaurantId, phone, productId}`,
+  `BranchMenu {branchId, productId}`, `User {email, restaurantId}`, table `qrToken`, brand/restaurant
+  `slug`. `Otp` has a TTL index (`expireAfterSeconds: 0`) that self-expires codes.
+- **Read shape**: list/analytics reads use `.lean()`; `resolveBranchMenu`/`resolveOrderProducts`
+  resolve the brand catalog + branch overrides in batched queries (no per-item round-trips);
+  TanStack Query dedupes/caches on the client; `compression()` gzips responses.
+- **Realtime over polling**: kitchen/admin/seat updates ride Socket.IO rooms; the customer
+  order-tracker polls only until the order is terminal (cancelled/refunded, or served/completed+paid).
+
+### Audit findings
+- **Uploads** *(config — confirmed set in prod)*: requires `CLOUDINARY_*` env vars — otherwise uploads
+  fall back to **local `/uploads`**, which is **ephemeral on Render/Vercel** (lost on redeploy). Code
+  already prefers Cloudinary when configured.
+- ✅ **Dead loyalty path removed**: `accrueLoyalty` + the `CustomerLoyalty` model/collection (and its
+  `earnedReward` sub-schema) are deleted — they were written by no live caller and read nowhere. The
+  single source of truth for the wallet is the `Customer` model.
+- ✅ **Reward double-spend edge fixed**: `finalizeOrder` now only sets `rewardDeducted` when the
+  conditional point deduction actually modified a doc (`res.modifiedCount > 0`); otherwise it retries on
+  the next finalize, so a concurrent spend can't leave a flagged-but-not-taken deduction.
+- ✅ **Repeated `Restaurant.findById` trimmed**: `findPointsProgram` now takes `brandId` from the caller
+  (the order already carries it) instead of re-fetching the restaurant on every loyalty accrual.
+
 ### API response envelope
 ```ts
 // success
@@ -399,8 +427,8 @@ A single-store account is simply a brand with one branch.
 
 ## 8. Database Overview
 
-Collections: **Brand, User, Employee, Restaurant, Category, Product, BranchMenu, Table, Order,
-LoyaltyProgram, CustomerLoyalty, LoyaltyReward, Redemption, Customer, Section, Payment,
+Collections: **Brand, User, Employee, Restaurant, Category, Product, BranchMenu, Table, TableSession,
+Order, LoyaltyProgram, LoyaltyReward, Redemption, Customer, Favorite, Section, Payment,
 Notification, Subscription, SupportTicket, Otp, Lead**.
 
 - **`Brand`** is the **tenant** — `{ ownerId, name, slug (unique), accountType: single|multi,

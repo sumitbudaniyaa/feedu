@@ -89,6 +89,9 @@ const orderSchema = new Schema(
 orderSchema.index({ restaurantId: 1, status: 1, placedAt: -1 });
 orderSchema.index({ restaurantId: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, orderNumber: 1 }, { unique: true });
+// Per-diner history + analytics (customer account, customer-analytics) — avoids a
+// full per-restaurant scan when filtering an individual guest by phone.
+orderSchema.index({ restaurantId: 1, customerPhone: 1, placedAt: -1 });
 
 export type OrderDoc = InferSchemaType<typeof orderSchema>;
 export const Order = model('Order', orderSchema);

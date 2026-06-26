@@ -187,9 +187,7 @@ function SeatDialog({ table, session, onClose }: { table: Table | null; session?
     <Dialog open={Boolean(table)} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>
-            {table.name} · {table.seats ?? 2} seats
-          </DialogTitle>
+          <DialogTitle>{table.name}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

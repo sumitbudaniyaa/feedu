@@ -175,6 +175,23 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
+### Latest session — security & efficiency audit (no behaviour change)
+Reviewed the whole app; security posture already strong (helmet + tight CSP, CORS allowlist,
+`express-mongo-sanitize`, `hpp`, layered rate limiters + per-phone OTP guards, JWT + bcrypt-12 RBAC,
+tenant scoping, 1 MB body cap, Razorpay HMAC verify, bcrypt-hashed OTPs, `Otp` TTL index).
+- [x] **Added index** `Order {restaurantId, customerPhone, placedAt}` — per-diner account + analytics
+      no longer scan all of a restaurant's orders. (Pure perf, zero behaviour change.)
+- [x] Documented the **Performance & indexing** posture + **audit findings** in `architecture.md`.
+
+**Follow-up — audit findings resolved**
+- [x] **Removed dead loyalty path**: deleted `accrueLoyalty`, the `CustomerLoyalty` model + collection,
+      and its `earnedReward` sub-schema (written by no live caller, read nowhere). Wallet = `Customer` only.
+- [x] **Reward double-spend fixed**: `finalizeOrder` only sets `rewardDeducted` when the deduction
+      `modifiedCount > 0`; otherwise retries next finalize — no flagged-but-not-taken deduction.
+- [x] **Trimmed repeated `Restaurant.findById`**: `findPointsProgram` takes `brandId` from the order
+      instead of re-fetching the restaurant on every accrual.
+- Cloudinary env (the only config item) — **confirmed already set in Render**.
+
 ### Latest session — table sessions (solid seat allotment)
 Replaced order-name-derived occupancy with a first-class **session** lifecycle.
 **Backend**

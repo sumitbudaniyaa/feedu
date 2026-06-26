@@ -4,7 +4,6 @@ import { computeTotals } from '@feedo/utils';
 import {
   BranchMenu,
   Customer,
-  CustomerLoyalty,
   LoyaltyProgram,
   Order,
   Payment,
@@ -14,7 +13,6 @@ import {
 } from '../../models/index.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getIO } from '../../sockets/index.js';
-import { logger } from '../../utils/logger.js';
 import { resolveOrderProducts } from '../menu/menu.service.js';
 import { ensureSession, requestBillBySession } from '../tables/sessions.service.js';
 
@@ -245,35 +243,8 @@ export async function createOrder({
     }),
   );
 
-  // Loyalty accrual (points programs).
-  if (customerId) {
-    await accrueLoyalty(restaurantId, customerId, totals.total).catch((e) =>
-      logger.warn('Loyalty accrual failed', e),
-    );
-  }
-
   if (!silent) emit(SOCKET_EVENTS.ORDER_CREATED, restaurantId, order.toObject());
   return order.toObject();
-}
-
-async function accrueLoyalty(restaurantId: string, customerId: string, total: number) {
-  const program = await LoyaltyProgram.findOne({
-    restaurantId,
-    type: 'points',
-    isActive: true,
-  }).lean();
-  const points = program?.conditions?.pointsPerCurrency
-    ? Math.floor(total * program.conditions.pointsPerCurrency)
-    : 0;
-
-  await CustomerLoyalty.updateOne(
-    { restaurantId, customerId },
-    {
-      $inc: { points, totalOrders: 1, totalSpent: total },
-      $setOnInsert: { restaurantId, customerId },
-    },
-    { upsert: true },
-  );
 }
 
 export async function updateStatus(restaurantId: string, orderId: string, status: OrderStatus) {
@@ -466,16 +437,20 @@ export async function finalizeOrder(
       name: order.customerName ?? undefined,
       total: order.total,
       points: order.loyaltyPointsEarned > 0 ? order.loyaltyPointsEarned : undefined,
+      brandId: order.brandId ? String(order.brandId) : null,
     });
     order.loyaltyPointsEarned = earned;
 
     // Spend points for a reward applied to this order (once, when it's committed).
+    // Only mark it deducted if the conditional update actually took the points —
+    // otherwise a concurrent spend could leave the balance too low and we'd flag a
+    // deduction that never happened (free reward). Retried on the next finalize.
     if (order.loyaltyRewardApplied && order.rewardPointsSpent > 0 && !order.rewardDeducted) {
-      await Customer.updateOne(
+      const res = await Customer.updateOne(
         { restaurantId, phone: order.customerPhone, points: { $gte: order.rewardPointsSpent } },
         { $inc: { points: -order.rewardPointsSpent } },
       );
-      order.rewardDeducted = true;
+      if (res.modifiedCount > 0) order.rewardDeducted = true;
     }
   }
   await order.save();
@@ -557,24 +532,28 @@ export async function recordPayment(
  * Find the active points program for a branch. Programs are **brand-owned**
  * (stamped with `brandId`; `restaurantId` is legacy), so we must look them up
  * brand-aware — querying by `restaurantId` alone misses every onboarded
- * (brand-scoped) restaurant and silently awards 0 points.
+ * (brand-scoped) restaurant and silently awards 0 points. `brandId` is passed in
+ * by the caller (it already has the order) so we don't re-fetch the restaurant.
  */
-async function findPointsProgram(restaurantId: string) {
-  const restaurant = await Restaurant.findById(restaurantId).select('brandId').lean();
-  const scope = restaurant?.brandId
-    ? { $or: [{ brandId: restaurant.brandId }, { restaurantId }] }
-    : { restaurantId };
+async function findPointsProgram(restaurantId: string, brandId: string | null) {
+  const scope = brandId ? { $or: [{ brandId }, { restaurantId }] } : { restaurantId };
   return LoyaltyProgram.findOne({ ...scope, type: 'points', isActive: true }).lean();
 }
 
 /** Upsert a guest customer (by phone) and award loyalty points. Returns points earned. */
 async function accrueCustomer(
   restaurantId: string,
-  { phone, name, total, points }: { phone: string; name?: string; total: number; points?: number },
+  {
+    phone,
+    name,
+    total,
+    points,
+    brandId,
+  }: { phone: string; name?: string; total: number; points?: number; brandId: string | null },
 ): Promise<number> {
   let earned = points ?? 0;
   if (points === undefined) {
-    const program = await findPointsProgram(restaurantId);
+    const program = await findPointsProgram(restaurantId, brandId);
     earned = program?.conditions?.pointsPerCurrency
       ? Math.floor(total * program.conditions.pointsPerCurrency)
       : 0;

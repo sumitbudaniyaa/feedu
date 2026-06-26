@@ -90,7 +90,6 @@ export function TablesPage() {
               </button>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{t.name}</p>
-                <p className="text-xs text-muted-foreground">{t.seats} seats</p>
               </div>
               <Button
                 size="icon"
