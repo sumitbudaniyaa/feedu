@@ -191,6 +191,17 @@ export function InventoryPage() {
               <div className="flex flex-1 flex-col p-2.5">
                 <p className="truncate text-sm font-medium leading-tight">{p.name}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{catName(p.categoryId)}</p>
+                {!branchMode && (
+                  <label className="mt-1.5 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>{e.isAvailable ? 'Available' : 'Unavailable'}</span>
+                    <Switch
+                      checked={e.isAvailable}
+                      onCheckedChange={(v) => toggleAvailable(p, v)}
+                      aria-label="Available"
+                      className="origin-right scale-75"
+                    />
+                  </label>
+                )}
                 <div className="mt-auto flex items-center justify-between pt-2">
                   <span className="text-sm font-semibold">{formatCurrency(p.basePrice)}</span>
                   {branchMode ? (
@@ -199,14 +210,7 @@ export function InventoryPage() {
                       <Switch checked={e.isAvailable} onCheckedChange={(v) => toggleAvailable(p, v)} />
                     </label>
                   ) : (
-                    <div className="-mr-1 flex items-center">
-                      <Switch
-                        checked={e.isAvailable}
-                        onCheckedChange={(v) => toggleAvailable(p, v)}
-                        aria-label={e.isAvailable ? 'Available' : 'Unavailable'}
-                        title={e.isAvailable ? 'Available — tap to hide' : 'Unavailable — tap to show'}
-                        className="mr-1"
-                      />
+                    <div className="-mr-1 flex">
                       <Button
                         size="icon"
                         variant="ghost"
