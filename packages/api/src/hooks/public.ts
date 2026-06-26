@@ -3,6 +3,7 @@ import type {
   Category,
   CreateOrderInput,
   Customer,
+  LoyaltyProgram,
   LoyaltyReward,
   Order,
   Product,
@@ -19,6 +20,8 @@ export interface AccountPayload {
   orders: Order[];
   rewards: LoyaltyReward[];
   redemptions: Redemption[];
+  /** The active visit-based punch card (null when the restaurant has none). */
+  visitProgram: LoyaltyProgram | null;
 }
 
 export interface CheckoutResult {
@@ -189,6 +192,15 @@ export function createPublicHooks(client: ApiClient) {
             `/public/r/${slug}/redeem`,
             body,
           ),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'account'] }),
+      });
+    },
+    /** Claim the visit-based punch-card reward (places a free ₹0 order). */
+    useClaimVisit(slug: string) {
+      const qc = useQueryClient();
+      return useMutation({
+        mutationFn: (body: { tableId?: string }) =>
+          client.post<{ order: Order; visits: number }>(`/public/r/${slug}/claim-visit`, body),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['public', 'account'] }),
       });
     },

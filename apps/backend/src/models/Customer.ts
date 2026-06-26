@@ -11,6 +11,8 @@ const customerSchema = new Schema(
     phone: { type: String, required: true },
     name: { type: String },
     points: { type: Number, default: 0 },
+    // Punch-card stamps for the visit-based program — +1 per paid visit, decremented on claim.
+    visits: { type: Number, default: 0 },
     totalOrders: { type: Number, default: 0 },
     totalSpent: { type: Number, default: 0 },
     lastOrderAt: { type: Date },

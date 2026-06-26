@@ -7,6 +7,7 @@ import {
   Customer,
   Favorite,
   Lead,
+  LoyaltyProgram,
   LoyaltyReward,
   Order,
   Otp,
@@ -398,14 +399,70 @@ router.get(
     const restaurant = await findLiveRestaurant(req.params.slug!);
     const restaurantId = restaurant._id;
 
-    const [customer, orders, rewards, redemptions] = await Promise.all([
+    const [customer, orders, rewards, redemptions, visitProgram] = await Promise.all([
       Customer.findOne({ restaurantId, phone }).lean(),
       Order.find({ restaurantId, customerPhone: phone }).sort({ placedAt: -1 }).limit(15).lean(),
       LoyaltyReward.find({ ...rewardScope(restaurant), isActive: true }).sort({ pointsCost: 1 }).lean(),
       Redemption.find({ restaurantId, customerPhone: phone }).sort({ createdAt: -1 }).limit(10).lean(),
+      // The active visit-based punch card (brand-owned, brand-aware lookup).
+      LoyaltyProgram.findOne({ ...rewardScope(restaurant), type: 'visit_based', isActive: true }).lean(),
     ]);
 
-    return ok(res, { customer, orders, rewards, redemptions });
+    return ok(res, { customer, orders, rewards, redemptions, visitProgram });
+  }),
+);
+
+const claimVisitSchema = z.object({ tableId: z.string().optional() });
+
+/**
+ * Claim the visit-based punch-card reward. Atomically spends the required number
+ * of stamps (prevents double-claim), places the free item as a ₹0 order, and
+ * refunds the stamps if order placement fails. Requires OTP login.
+ */
+router.post(
+  '/r/:slug/claim-visit',
+  optionalCustomerAuth,
+  requireCustomer,
+  validate(claimVisitSchema),
+  asyncHandler(async (req, res) => {
+    const phone = req.customerPhone!;
+    const { tableId } = req.body as { tableId?: string };
+    const restaurant = await findLiveRestaurant(req.params.slug!);
+    const restaurantId = String(restaurant._id);
+
+    const program = await LoyaltyProgram.findOne({
+      ...rewardScope(restaurant),
+      type: 'visit_based',
+      isActive: true,
+    }).lean();
+    if (!program?.rewardProductId) throw ApiError.badRequest('No visit reward available');
+    const need = program.conditions?.requiredVisits ?? 0;
+    if (need <= 0) throw ApiError.badRequest('Visit reward is not configured');
+
+    // Atomic stamp spend — guards against double-claims / negative balances.
+    const customer = await Customer.findOneAndUpdate(
+      { restaurantId, phone, visits: { $gte: need } },
+      { $inc: { visits: -need } },
+      { new: true },
+    );
+    if (!customer) throw ApiError.badRequest('Not enough visits yet');
+
+    try {
+      const order = await orders.createRewardOrder({
+        restaurantId,
+        rewardId: String(program._id),
+        rewardTitle: program.rewardDescription || program.title,
+        productId: String(program.rewardProductId),
+        customer: { name: customer.name ?? undefined, phone },
+        type: 'dine_in',
+        tableId: tableId && isValidObjectId(tableId) ? tableId : undefined,
+      });
+      return ok(res, { order, visits: customer.visits }, 201);
+    } catch (err) {
+      // Refund the stamps so the diner isn't charged for nothing.
+      await Customer.updateOne({ restaurantId, phone }, { $inc: { visits: need } });
+      throw err;
+    }
   }),
 );
 

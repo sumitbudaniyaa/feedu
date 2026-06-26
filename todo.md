@@ -175,6 +175,20 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
+### Latest session — loyalty rework (editable rules + visit-based punch card)
+- [x] **Edit earning rules** — the earning-rule dialog now supports edit (create *or* update); the rules
+      list got an Edit button.
+- [x] **Restricted to two systems** — the type dropdown offers only **Points** and **Visit based**
+      (Repeat order + Category based removed from the UI).
+- [x] **Visit-based punch card built end-to-end**:
+      - `LoyaltyProgram` `visit_based` uses `conditions.requiredVisits` + `rewardProductId` (admin form
+        adds those inputs). `Customer.visits` stamp counter, **+1 per paid order** in `accrueCustomer`.
+      - `account` payload returns the active `visitProgram`; customer **Rewards page** shows a stamp
+        card + progress and a **Claim** when eligible.
+      - `POST /public/r/:slug/claim-visit` atomically spends N stamps (`$gte` guard), places the free
+        item as a ₹0 order (`createRewardOrder`), refunds stamps on failure. Hook `useClaimVisit`.
+      - Types: `Customer.visits` added to the zod schema; `AccountPayload.visitProgram` added.
+
 ### Latest session — security & efficiency audit (no behaviour change)
 Reviewed the whole app; security posture already strong (helmet + tight CSP, CORS allowlist,
 `express-mongo-sanitize`, `hpp`, layered rate limiters + per-phone OTP guards, JWT + bcrypt-12 RBAC,
@@ -182,6 +196,10 @@ tenant scoping, 1 MB body cap, Razorpay HMAC verify, bcrypt-hashed OTPs, `Otp` T
 - [x] **Added index** `Order {restaurantId, customerPhone, placedAt}` — per-diner account + analytics
       no longer scan all of a restaurant's orders. (Pure perf, zero behaviour change.)
 - [x] Documented the **Performance & indexing** posture + **audit findings** in `architecture.md`.
+
+**Bug fix — repeat-customers metric**
+- [x] Admin analytics "Repeat customers" grouped by `customerId` (a User ref, always `null` for diners)
+      → always 0%. Now groups by `customerPhone` (the real diner identity).
 
 **Follow-up — audit findings resolved**
 - [x] **Removed dead loyalty path**: deleted `accrueLoyalty`, the `CustomerLoyalty` model + collection,

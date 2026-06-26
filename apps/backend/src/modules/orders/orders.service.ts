@@ -563,7 +563,8 @@ async function accrueCustomer(
     { restaurantId, phone },
     {
       $set: { lastOrderAt: new Date(), ...(name ? { name } : {}) },
-      $inc: { totalOrders: 1, totalSpent: total, points: earned },
+      // +1 visit stamp (punch card) alongside points/orders/spend.
+      $inc: { totalOrders: 1, totalSpent: total, points: earned, visits: 1 },
       $setOnInsert: { restaurantId, phone },
     },
     { upsert: true },

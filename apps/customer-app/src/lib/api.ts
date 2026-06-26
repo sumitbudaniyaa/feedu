@@ -31,6 +31,7 @@ export const {
   useAddFavorite,
   useRemoveFavorite,
   useRedeem,
+  useClaimVisit,
   useRequestOtp,
   useVerifyOtp,
 } = createPublicHooks(apiClient);

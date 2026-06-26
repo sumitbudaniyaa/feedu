@@ -15,8 +15,9 @@ Razorpay · JWT.
 - **Admin (restaurant owner — your client)** — range-aware dashboard (revenue/orders/AOV scoped to
   Day/Week/Month), live orders with **Active / Pending-payment / All** tabs (count badges, prominent
   table number, mark-as-paid with method), inventory (image upload, stock, prep time, per-item loyalty
-  points, **configurable sizes/variants**, **Cloudinary** image hosting), Menu CMS, loyalty rewards +
-  **points-expiry**, Analytics (revenue/table, table turnover, avg serve time, peak hours, top products),
+  points, **configurable sizes/variants**, **Cloudinary** image hosting), Menu CMS, loyalty (two
+  **editable** earning systems — **points** + **points-expiry**, or a **visit-based punch card**
+  "buy N get one free" — plus a points rewards catalog), Analytics (revenue/table, table turnover, avg serve time, peak hours, top products),
   tables & QR codes, **staff (with mobile number)**, **customer analytics** (click a diner → spend,
   most-ordered, **favorite dishes**, reward claims, visits), settings (branding/tax/go-live + **subscription details**),
   **support tickets** (chat), downloadable invoices. **Waiter role** is limited to a **dedicated mobile
@@ -39,7 +40,7 @@ Razorpay · JWT.
   one tap), **call-waiter** from the
   table, cart, optional **special instructions for the kitchen** at checkout (e.g. "less spicy, no
   onions"), **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
-  **Rewards** (wallet + in-app free-reward orders + **claim history**) and **Account** (details, order
+  **Rewards** (wallet + **visit-based punch card** with stamps/progress + in-app free-reward orders + **claim history**) and **Account** (details, order
   history, log out) pages, order confirmation + tracking with a downloadable ticket invoice. Dine-in
   only; direct (non-QR) entry asks for the table number and **validates it against the restaurant's
   real tables** (tolerant "5" ↔ "Table 5"; rejects unknown tables).

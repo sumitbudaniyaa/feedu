@@ -18,7 +18,7 @@ import {
   useConfirm,
 } from '@feedo/ui';
 import { formatRelativeTime } from '@feedo/utils';
-import type { LoyaltyReward, LoyaltyRewardType, Product } from '@feedo/types';
+import type { LoyaltyProgram, LoyaltyReward, LoyaltyRewardType, Product } from '@feedo/types';
 import {
   loyalty as loyaltyApi,
   products as productsApi,
@@ -46,6 +46,7 @@ export function LoyaltyPage() {
   const confirm = useConfirm();
 
   const [programOpen, setProgramOpen] = useState(false);
+  const [editingProgram, setEditingProgram] = useState<LoyaltyProgram | null>(null);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<LoyaltyReward | null>(null);
 
@@ -56,7 +57,13 @@ export function LoyaltyPage() {
         description="How diners earn points, and what they can claim with them."
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setProgramOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingProgram(null);
+                setProgramOpen(true);
+              }}
+            >
               <Coins className="h-4 w-4" /> Earning rule
             </Button>
             <Button
@@ -176,6 +183,16 @@ export function LoyaltyPage() {
                   onCheckedChange={(v) => updateProgram.mutate({ id: p._id, body: { isActive: v } })}
                 />
                 <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingProgram(p);
+                    setProgramOpen(true);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
                   size="icon"
                   variant="ghost"
                   onClick={async () => {
@@ -201,7 +218,12 @@ export function LoyaltyPage() {
         reward={editingReward}
         products={products ?? []}
       />
-      <ProgramDialog open={programOpen} onOpenChange={setProgramOpen} />
+      <ProgramDialog
+        open={programOpen}
+        onOpenChange={setProgramOpen}
+        program={editingProgram}
+        products={products ?? []}
+      />
     </div>
   );
 }
@@ -381,113 +403,165 @@ function initialReward(reward: LoyaltyReward | null) {
   };
 }
 
-function ProgramDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+// Only two earning systems are offered.
+const PROGRAM_TYPES: LoyaltyRewardType[] = ['points', 'visit_based'];
+
+function ProgramDialog({
+  open,
+  onOpenChange,
+  program,
+  products,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  program: LoyaltyProgram | null;
+  products: Product[];
+}) {
   const create = loyaltyApi.useCreate();
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState<LoyaltyRewardType>('points');
-  const [rewardDescription, setReward] = useState('');
-  const [pointsPerCurrency, setPpc] = useState('0.1');
-  const [everyNthOrder, setNth] = useState('5');
-  const [canExpire, setCanExpire] = useState(false);
-  const [expiryDays, setExpiryDays] = useState('90');
+  const update = loyaltyApi.useUpdate();
+  const pending = create.isPending || update.isPending;
+
+  const [form, setForm] = useState(() => initialProgram(program));
+  const key = program?._id ?? 'new';
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setForm(initialProgram(program));
+  }
+
+  const set = <K extends keyof ReturnType<typeof initialProgram>>(
+    k: K,
+    v: ReturnType<typeof initialProgram>[K],
+  ) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const conditions =
-      type === 'points'
-        ? { pointsPerCurrency: Number(pointsPerCurrency) }
-        : type === 'repeat_order'
-          ? { everyNthOrder: Number(everyNthOrder) }
-          : {};
-    create.mutate(
-      {
-        title,
-        type,
-        isActive: true,
-        conditions,
-        rewardDescription: rewardDescription || undefined,
-        expiryDays: canExpire ? Number(expiryDays) : 0,
-      },
-      {
-        onSuccess: () => {
-          onOpenChange(false);
-          setTitle('');
-          setReward('');
-        },
-      },
-    );
+      form.type === 'points'
+        ? { pointsPerCurrency: Number(form.pointsPerCurrency) }
+        : { requiredVisits: Number(form.requiredVisits) };
+    const body = {
+      title: form.title,
+      type: form.type,
+      isActive: true,
+      conditions,
+      rewardProductId: form.type === 'visit_based' ? form.rewardProductId || undefined : undefined,
+      rewardDescription: form.rewardDescription || undefined,
+      expiryDays: form.type === 'points' && form.canExpire ? Number(form.expiryDays) : 0,
+    };
+    const onDone = { onSuccess: () => onOpenChange(false) };
+    if (program) update.mutate({ id: program._id, body }, onDone);
+    else create.mutate(body, onDone);
   };
+
+  const visit = form.type === 'visit_based';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New earning rule</DialogTitle>
+          <DialogTitle>{program ? 'Edit earning rule' : 'New earning rule'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Copper Rewards" required />
+            <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Copper Rewards" required />
           </div>
           <div className="space-y-1.5">
             <Label>Type</Label>
-            <Select value={type} onChange={(e) => setType(e.target.value as LoyaltyRewardType)}>
-              {(Object.keys(TYPE_LABEL) as LoyaltyRewardType[]).map((t) => (
+            <Select value={form.type} onChange={(e) => set('type', e.target.value as LoyaltyRewardType)}>
+              {PROGRAM_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {TYPE_LABEL[t]}
                 </option>
               ))}
             </Select>
           </div>
-          {type === 'points' && (
+
+          {form.type === 'points' && (
             <div className="space-y-1.5">
               <Label>Points per ₹1 spent</Label>
-              <Input type="number" step="0.01" min="0" value={pointsPerCurrency} onChange={(e) => setPpc(e.target.value)} />
+              <Input type="number" step="0.01" min="0" value={form.pointsPerCurrency} onChange={(e) => set('pointsPerCurrency', e.target.value)} />
             </div>
           )}
-          {type === 'repeat_order' && (
-            <div className="space-y-1.5">
-              <Label>Reward every Nth order</Label>
-              <Input type="number" min="1" value={everyNthOrder} onChange={(e) => setNth(e.target.value)} />
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Input value={rewardDescription} onChange={(e) => setReward(e.target.value)} placeholder="Earn 10 pts per ₹100" />
-          </div>
 
-          {/* Points expiry */}
-          <div className="space-y-2 rounded-lg border border-border p-3">
-            <label className="flex items-center justify-between">
-              <span className="text-sm font-medium">Points can expire</span>
-              <Switch checked={canExpire} onCheckedChange={setCanExpire} />
-            </label>
-            {canExpire && (
+          {visit && (
+            <>
               <div className="space-y-1.5">
-                <Label>Expire after (days of inactivity)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={expiryDays}
-                  onChange={(e) => setExpiryDays(e.target.value)}
-                />
+                <Label>Free reward after how many visits?</Label>
+                <Input type="number" min="1" value={form.requiredVisits} onChange={(e) => set('requiredVisits', e.target.value)} placeholder="10" />
                 <p className="text-xs text-muted-foreground">
-                  A diner&apos;s points reset to 0 if they don&apos;t order within this many days.
+                  A stamp is added on each paid visit — at this many, the diner can claim the free item.
                 </p>
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label>Free item</Label>
+                <Select value={form.rewardProductId} onChange={(e) => set('rewardProductId', e.target.value)} required>
+                  <option value="" disabled>
+                    Select an item…
+                  </option>
+                  {products.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+                {products.length === 0 && <p className="text-xs text-destructive">Add a product in Inventory first.</p>}
+              </div>
+            </>
+          )}
+
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Input
+              value={form.rewardDescription}
+              onChange={(e) => set('rewardDescription', e.target.value)}
+              placeholder={visit ? 'Buy 9, get the 10th free' : 'Earn 10 pts per ₹100'}
+            />
           </div>
+
+          {/* Points expiry (points programs only) */}
+          {form.type === 'points' && (
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <label className="flex items-center justify-between">
+                <span className="text-sm font-medium">Points can expire</span>
+                <Switch checked={form.canExpire} onCheckedChange={(v) => set('canExpire', v)} />
+              </label>
+              {form.canExpire && (
+                <div className="space-y-1.5">
+                  <Label>Expire after (days of inactivity)</Label>
+                  <Input type="number" min="1" value={form.expiryDays} onChange={(e) => set('expiryDays', e.target.value)} />
+                  <p className="text-xs text-muted-foreground">
+                    A diner&apos;s points reset to 0 if they don&apos;t order within this many days.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending || !title}>
-              {create.isPending ? 'Creating…' : 'Create'}
+            <Button type="submit" disabled={pending || !form.title || (visit && !form.rewardProductId)}>
+              {pending ? 'Saving…' : program ? 'Save' : 'Create'}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
+}
+
+function initialProgram(p: LoyaltyProgram | null) {
+  return {
+    title: p?.title ?? '',
+    type: (p?.type === 'visit_based' ? 'visit_based' : 'points') as LoyaltyRewardType,
+    pointsPerCurrency: p?.conditions?.pointsPerCurrency != null ? String(p.conditions.pointsPerCurrency) : '0.1',
+    requiredVisits: p?.conditions?.requiredVisits != null ? String(p.conditions.requiredVisits) : '10',
+    rewardProductId: p?.rewardProductId ?? '',
+    rewardDescription: p?.rewardDescription ?? '',
+    canExpire: Boolean(p?.expiryDays && p.expiryDays > 0),
+    expiryDays: p?.expiryDays ? String(p.expiryDays) : '90',
+  };
 }

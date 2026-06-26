@@ -125,9 +125,10 @@ async function computeDashboard(
         .select('name stock')
         .limit(10)
         .lean(),
+      // Diners are identified by phone (customerId refs a User and is null for guests).
       Order.aggregate([
-        { $match: { ...matchPaid, customerId: { $ne: null } } },
-        { $group: { _id: '$customerId', orders: { $sum: 1 } } },
+        { $match: { ...matchPaid, customerPhone: { $ne: null } } },
+        { $group: { _id: '$customerPhone', orders: { $sum: 1 } } },
       ]),
       Order.aggregate([
         { $match: { ...matchPaid, placedAt: { $gte: rangeStart } } },

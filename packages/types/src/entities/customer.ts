@@ -8,6 +8,8 @@ export const customerSchema = z.object({
   phone: z.string(),
   name: z.string().optional(),
   points: z.number().int().min(0).default(0),
+  /** Punch-card stamps for the visit-based program. */
+  visits: z.number().int().min(0).default(0),
   totalOrders: z.number().int().min(0).default(0),
   totalSpent: moneySchema.default(0),
   lastOrderAt: z.coerce.date().optional(),

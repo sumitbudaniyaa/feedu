@@ -1,10 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Gift, Sparkles, User } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Gift, Sparkles, Ticket, User } from 'lucide-react';
 import { Badge, Button, Card, Skeleton, cn } from '@feedo/ui';
 import { formatDate, formatTime } from '@feedo/utils';
-import type { LoyaltyReward, Order, Redemption } from '@feedo/types';
-import { useAccount, useAuth } from '../lib/api.js';
+import type { LoyaltyProgram, LoyaltyReward, Order, Redemption } from '@feedo/types';
+import { useAccount, useAuth, useClaimVisit } from '../lib/api.js';
 import { useCart } from '../store/cart.js';
 import { useGuest } from '../store/guest.js';
 import { OtpLogin } from '../components/OtpLogin.js';
@@ -88,6 +88,15 @@ export function RewardsPage() {
               </div>
             </motion.div>
 
+            {/* Visit-based punch card */}
+            {data.visitProgram && (
+              <PunchCard
+                slug={restaurant.slug}
+                program={data.visitProgram}
+                visits={data.customer?.visits ?? 0}
+              />
+            )}
+
             {/* Rewards catalog with eligibility */}
             <section className="space-y-3">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -139,6 +148,85 @@ export function RewardsPage() {
         )}
       </main>
     </div>
+  );
+}
+
+function PunchCard({ slug, program, visits }: { slug: string; program: LoyaltyProgram; visits: number }) {
+  const navigate = useNavigate();
+  const tableId = useCart((s) => s.tableId);
+  const addActiveOrder = useCart((s) => s.addActiveOrder);
+  const claim = useClaimVisit(slug);
+
+  const need = program.conditions?.requiredVisits ?? 0;
+  const eligible = need > 0 && visits >= need;
+  const label = program.rewardDescription || program.title;
+  const left = Math.max(0, need - visits);
+
+  const doClaim = () =>
+    claim.mutate(
+      { tableId: tableId ?? undefined },
+      {
+        onSuccess: ({ order }) => {
+          addActiveOrder(order._id);
+          navigate(`/order/${order._id}`, { state: { justPlaced: true } });
+        },
+      },
+    );
+
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <Ticket className="h-4 w-4" /> Punch card
+      </h2>
+      <Card className={cn('p-4', eligible && 'border-accent/40')}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="min-w-0 truncate font-medium">{label}</p>
+          <Badge variant={eligible ? 'accent' : 'outline'}>
+            {Math.min(visits, need)}/{need}
+          </Badge>
+        </div>
+
+        {/* Stamps — compact dots for typical cards, a bar for very large ones. */}
+        {need <= 12 ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {Array.from({ length: need }).map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-semibold',
+                  i < visits ? 'border-accent bg-accent text-accent-foreground' : 'border-border text-muted-foreground',
+                )}
+              >
+                {i < visits ? <Check className="h-3.5 w-3.5" /> : i + 1}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
+            <motion.div
+              className="h-full rounded-full bg-accent"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, Math.round((visits / need) * 100))}%` }}
+            />
+          </div>
+        )}
+
+        {eligible ? (
+          <Button variant="success" className="mt-4 w-full" onClick={doClaim} disabled={claim.isPending}>
+            {claim.isPending ? 'Claiming…' : `Claim free ${label}`}
+          </Button>
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {left} more visit{left === 1 ? '' : 's'} to your free reward.
+          </p>
+        )}
+        {claim.error && (
+          <p className="mt-2 text-xs text-destructive">
+            {claim.error instanceof Error ? claim.error.message : 'Could not claim'}
+          </p>
+        )}
+      </Card>
+    </section>
   );
 }
 

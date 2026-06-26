@@ -234,9 +234,18 @@ a fuzzy order name can no longer break it. Reservations still live on `Table` (`
 embedded details) via `/tables/:id/status`.
 
 ### Loyalty & rewards
-Two layers: **earning** and **claiming/ordering**.
+Two **earning systems** (a `LoyaltyProgram.type` of `points` or `visit_based` — the admin form
+offers only these two; rules are **editable**, not just create/delete), plus a points rewards catalog.
 
-**Earning** — products may define `loyaltyPoints` (per unit), summed into
+**Visit-based (punch card)** — a `visit_based` program sets `conditions.requiredVisits` (N) +
+`rewardProductId` + description ("buy 9, get the 10th free"). `Customer.visits` is a stamp counter,
+**+1 per paid order** (in `accrueCustomer`). The diner's Rewards page shows the active punch card
+(`account.visitProgram` + `customer.visits`) as stamps/progress; at N stamps they
+`POST /public/r/:slug/claim-visit`, which **atomically spends N stamps** (`visits: { $gte: N }` →
+`$inc -N`, guarding double-claim), places the free product as a ₹0 order via `createRewardOrder`, and
+**refunds the stamps on failure**. Like rewards, the program is brand-owned (brand-aware lookup).
+
+**Points earning** — products may define `loyaltyPoints` (per unit), summed into
 `order.loyaltyPointsEarned` at creation and credited to the guest's `Customer` record
 (keyed `restaurantId + phone`) when the order is paid. A points `LoyaltyProgram` (pts per ₹)
 is the fallback when items don't define their own points. The program is **brand-owned**
