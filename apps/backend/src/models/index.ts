@@ -6,6 +6,7 @@ export { BranchMenu } from './BranchMenu.js';
 export { Category } from './Category.js';
 export { Product } from './Product.js';
 export { Table } from './Table.js';
+export { TableSession } from './TableSession.js';
 export { Order } from './Order.js';
 export { LoyaltyProgram, CustomerLoyalty } from './Loyalty.js';
 export { LoyaltyReward, Redemption } from './Reward.js';

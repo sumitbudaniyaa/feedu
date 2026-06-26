@@ -180,10 +180,13 @@ export function InventoryPage() {
                     {p.name[0]}
                   </div>
                 )}
-                {!e.isAvailable && <Badge variant="destructive" className="absolute left-1.5 top-1.5">Off</Badge>}
-                {e.isAvailable && e.stock != null && e.stock <= p.lowStockThreshold && (
+                {!e.isAvailable ? (
+                  <Badge variant="destructive" className="absolute left-1.5 top-1.5">Off</Badge>
+                ) : e.stock != null && e.stock <= 0 ? (
+                  <Badge variant="destructive" className="absolute left-1.5 top-1.5">Sold out</Badge>
+                ) : e.stock != null && e.stock <= p.lowStockThreshold ? (
                   <Badge variant="warning" className="absolute left-1.5 top-1.5">Low · {e.stock}</Badge>
-                )}
+                ) : null}
               </div>
               <div className="flex flex-1 flex-col p-2.5">
                 <p className="truncate text-sm font-medium leading-tight">{p.name}</p>

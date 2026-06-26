@@ -10,6 +10,7 @@ import { crud } from '../../utils/crud.js';
 import { asyncHandler, ok } from '../../utils/http.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { getIO } from '../../sockets/index.js';
+import * as sessions from './sessions.service.js';
 
 const handlers = crud({
   model: Table,
@@ -79,6 +80,57 @@ router.patch(
     io.to(rooms.restaurant(String(req.branchId))).emit(SOCKET_EVENTS.TABLE_UPDATED, payload);
     if (req.brandId) io.to(rooms.brand(String(req.brandId))).emit(SOCKET_EVENTS.TABLE_UPDATED, payload);
     return ok(res, table);
+  }),
+);
+
+// ─── Table sessions (seating lifecycle) ───────────────────────────────
+const STAFF = ['owner', 'manager', 'branch_manager', 'cashier', 'kitchen_staff', 'waiter'] as const;
+
+/** All live sessions for the branch — the seat grid joins these by tableId. */
+router.get(
+  '/sessions/active',
+  asyncHandler(async (req, res) => {
+    return ok(res, await sessions.getActiveSessions(String(req.branchId)));
+  }),
+);
+
+/** Seat a party (one-tap occupy, before any order). Idempotent — joins a live session. */
+router.post(
+  '/:id/seat',
+  validateObjectId(),
+  authorize(...STAFF),
+  asyncHandler(async (req, res) => {
+    const table = await Table.findOne({ _id: req.params.id, restaurantId: req.branchId }).lean();
+    if (!table) throw ApiError.notFound('Table not found');
+    const partySize = Number((req.body as { partySize?: unknown }).partySize);
+    const session = await sessions.ensureSession(String(req.branchId), String(table._id), {
+      brandId: req.brandId ? String(req.brandId) : null,
+      openedBy: 'staff',
+      partySize: Number.isFinite(partySize) && partySize > 0 ? partySize : undefined,
+    });
+    return ok(res, session, 201);
+  }),
+);
+
+/** Request the bill — keeps the table occupied but flags it for settlement. */
+router.post(
+  '/:id/bill',
+  validateObjectId(),
+  authorize(...STAFF),
+  asyncHandler(async (req, res) => {
+    await sessions.requestBill(String(req.branchId), String(req.params.id), req.brandId ? String(req.brandId) : null);
+    return ok(res, { billRequested: true });
+  }),
+);
+
+/** Free the table — closes the live session (settle / clear). */
+router.post(
+  '/:id/free',
+  validateObjectId(),
+  authorize(...STAFF),
+  asyncHandler(async (req, res) => {
+    await sessions.closeSession(String(req.branchId), String(req.params.id), req.brandId ? String(req.brandId) : null);
+    return ok(res, { freed: true });
   }),
 );
 

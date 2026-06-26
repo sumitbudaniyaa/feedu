@@ -83,6 +83,45 @@ export function useUpdateTableStatus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tables'] }),
   });
 }
+
+/** A live table session (one party's visit, seating → settlement). */
+export interface TableSession {
+  _id: string;
+  tableId: string;
+  status: 'open' | 'bill_requested' | 'closed';
+  partySize?: number;
+  openedBy: 'qr' | 'staff';
+  openedAt: string;
+}
+
+/** Live sessions for the branch — the seat grid joins these to its tables by id. */
+export function useActiveSessions() {
+  return useQuery({
+    queryKey: ['tables', 'sessions'],
+    queryFn: () => apiClient.get<TableSession[]>('/tables/sessions/active'),
+  });
+}
+
+function useSessionAction(path: (id: string) => string, successMessage: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { successMessage },
+    mutationFn: ({ id, partySize }: { id: string; partySize?: number }) =>
+      apiClient.post(path(id), { partySize }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tables'] });
+      qc.invalidateQueries({ queryKey: ['tables', 'sessions'] });
+    },
+  });
+}
+
+/** Seat a party (occupy before any order). */
+export const useSeatTable = () => useSessionAction((id) => `/tables/${id}/seat`, 'Table seated');
+/** Free a table (close its live session). */
+export const useFreeTable = () => useSessionAction((id) => `/tables/${id}/free`, 'Table freed');
+/** Flag a table for the bill (still occupied). */
+export const useRequestBill = () => useSessionAction((id) => `/tables/${id}/bill`, 'Bill requested');
+
 export const staff = createResource<User>(apiClient, 'staff', '/staff', 'Staff member');
 export const customers = createResource<Customer>(apiClient, 'customers', '/customers', 'Customer');
 

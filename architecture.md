@@ -58,7 +58,7 @@ Packages never import from apps. `types` is the lowest-level shared package.
 
 | App | Audience | Purpose | Default accent |
 |-----|----------|---------|----------------|
-| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard (incl. a live **seat-occupancy grid** with one-tap reserve/occupy/free + reservation details, synced via `table:updated`), orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
+| `admin-app` | Restaurant owner / manager / **branch manager** | Dashboard (incl. a live **session-driven seat-occupancy grid** — one-tap **seat / request-bill / free** + reservations, occupancy auto-lit by QR scans, party size + duration shown, synced via `table:updated`), orders, inventory, menu CMS, loyalty, analytics, settings. Multi-store owners default to a centralized **All-branches** view (combined dashboard + branch comparison), manage branches + branch-manager logins, and edit **brand** settings; branch managers are locked to one branch. Per-branch inventory availability/stock overrides. Toasts on every action. | violet |
 | `customer-app` | Diners (mobile) | QR ordering, browsing, cart, optional **special instructions for the kitchen** at checkout, Razorpay checkout, mobile-OTP login (incl. at guest checkout, with a **"continue without verifying"** option that still places the order but forfeits reward points / member benefits), separate Rewards (wallet + in-app reward orders) & Account (history/logout) pages, live order tracking (**dark, Zomato-style**; dine-in only) | per-restaurant |
 | `kitchen-app` | Kitchen staff | Live order queue, status transitions, timers, **customer special instructions in a highlighted band per order**, multi-select category filter (persisted across refresh, dark-optimized KDS) | emerald |
 | `super-admin-app` | Feedu internal | One combined **Brands & Restaurants** page (search + type/status filters), single/multi-store onboarding, brand-level + per-branch suspend, combined SaaS plan editing, delete; platform analytics | blue |
@@ -147,10 +147,11 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
 - `/products`, `/categories`, `/sections`, `/loyalty`, `/rewards` — **brand-level** CRUD (shared
   catalog, scoped to `req.brandId` via `crud({ level: 'brand' })`); `/tables`, `/staff`,
   `/customers` — **branch-level** CRUD (scoped to `req.branchId`). `/rewards` also exposes
-  `/redemptions` (list + fulfil/cancel). `/tables/:id/status` sets a table's live **seat
-  occupancy** (`available | occupied | reserved` + reservation details) and emits
-  `table:updated` to the branch + brand rooms for live grids.
-  `/customers/:id` returns per-diner analytics (spend, AOV, most-ordered, reward claims, visits).
+  `/redemptions` (list + fulfil/cancel). **Seat occupancy is session-driven** (see
+  *Table sessions* below): `/tables/:id/seat` (occupy), `/tables/:id/free` (close), `/tables/:id/bill`
+  (request bill), `GET /tables/sessions/active` (live sessions for the grid); `/tables/:id/status`
+  still sets a **reservation** hold. All emit `table:updated` to the branch + brand rooms.
+  `/customers/:id` returns per-diner analytics (spend, AOV, most-ordered, favorites, reward claims, visits).
   `/staff` create + `:id` edit accept name/email/mobile/role/password (password optional on edit).
 - `/orders` — list / create / `:id/status` (state-machine transitions, emits realtime;
   "served" auto-completes; unpaid online orders excluded from staff lists)
@@ -213,6 +214,19 @@ app (Overview / **Brands & Restaurants** / Orders / Customers / Employees / Supp
 one combined accounts page lists every brand with its branches (search + type/status filters),
 onboards single- or multi-store accounts, and offers **brand-level** suspend / combined-plan
 editing / delete **and** per-branch suspend / add-branch.
+
+### Table sessions (seat occupancy)
+A table is **occupied exactly when it has a live `TableSession`** — one party's visit from
+seating to settlement — not when an order happens to match by name. Lifecycle:
+**seat** (staff one-tap `POST /tables/:id/seat`, or a customer scanning the table QR which calls
+`ensureSession`) → the session opens (occupied immediately, before any order) → orders link to it by
+**`order.sessionId`** (a real FK; `createOrder` resolves the table by id, or by canonical name for
+link-entry diners, and joins/opens the session) → **request bill** (`/tables/:id/bill` → `bill_requested`)
+→ **free** (`/tables/:id/free` → session `closed`, table available). `ensureSession` is idempotent
+(re-scans/refreshes join the existing session) and **converts a reservation** (clears the hold on
+arrival). The seat grid derives status as `live session → occupied`, else `reserved`, else `available`,
+joining sessions to tables by id — so renaming a table or a fuzzy order name can no longer break it.
+Reservations still live on `Table` (`status: reserved` + embedded details) via `/tables/:id/status`.
 
 ### Loyalty & rewards
 Two layers: **earning** and **claiming/ordering**.
@@ -358,6 +372,11 @@ A single-store account is simply a brand with one branch.
   via `BranchMenu`. `resolveBranchMenu` / `resolveOrderProducts` merge brand catalog +
   branch overrides (`price = override ?? base`, `stock = override ?? product`,
   `available = (override ?? true) && product`).
+- **Stock caps** — the effective `stock` flows to the customer app on each menu item
+  (`null` = untracked, no cap). The cart store clamps every quantity change to it (`capToStock`),
+  and the product card / sheet / cart surfaces disable `+` at the ceiling and show
+  "Out of stock" / "Only N left". The backend still re-checks stock at order creation (hard guard).
+  Admin inventory flags items as **Sold out** (stock 0) or **Low · N** (≤ `lowStockThreshold`).
 - **`resolveTenant`** sets `req.brandId`, `req.branchId` and `req.branchIds` from the JWT.
   The active branch is chosen via the **`x-branch-id`** header; a brand-wide role may switch
   to any branch in its token snapshot **or** any branch belonging to its brand (verified with

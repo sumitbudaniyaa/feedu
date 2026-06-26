@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Armchair, CalendarPlus, CircleCheck, CircleSlash } from 'lucide-react';
+import { Armchair, CalendarPlus, CircleCheck, CircleSlash, ReceiptText } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogHeader, DialogTitle, Input, Label, Skeleton, cn } from '@feedo/ui';
 import { SOCKET_EVENTS, type Table, type TableStatus } from '@feedo/types';
-import { socket, tables as tablesResource, useOrders, useRestaurant, useUpdateTableStatus } from '../lib/api.js';
-
-// Orders that mean a table is actively in use (not yet closed out).
-const ACTIVE_ORDER = new Set(['pending', 'confirmed', 'preparing', 'ready', 'served']);
-
-/** Normalise a table name for matching against an order's tableName snapshot. */
-const norm = (s?: string | null) => (s ?? '').trim().toLowerCase().replace(/^table\s*/i, '');
+import { minutesSince } from '@feedo/utils';
+import {
+  socket,
+  tables as tablesResource,
+  useActiveSessions,
+  useFreeTable,
+  useRequestBill,
+  useRestaurant,
+  useSeatTable,
+  useUpdateTableStatus,
+  type TableSession,
+} from '../lib/api.js';
 
 const STATUS_STYLE: Record<TableStatus, string> = {
   available: 'border-border bg-secondary/60 text-muted-foreground hover:border-foreground/30',
@@ -23,41 +28,42 @@ const LEGEND: Array<[TableStatus, string]> = [
   ['reserved', 'Reserved'],
 ];
 
+/** Compact "23m" / "1h 5m" since a session opened. */
+function since(openedAt: string) {
+  const m = minutesSince(openedAt);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+}
+
 export function SeatOccupancy() {
   const { data: tables, isLoading } = tablesResource.useList();
-  const { data: orders } = useOrders();
+  const { data: sessions } = useActiveSessions();
   const { data: restaurant } = useRestaurant();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Table | null>(null);
 
-  // Live-sync: refresh the grid whenever any device changes a table's status or an order moves.
+  // Live-sync: any seat/session/order change emits TABLE_UPDATED → refresh the grid.
   useEffect(() => {
     const rid = restaurant?._id;
     if (!rid) return;
     if (!socket.connected) socket.connect();
     socket.emit('join:restaurant', rid);
-    const onUpdate = () => qc.invalidateQueries({ queryKey: ['tables'] });
-    const onOrder = () => qc.invalidateQueries({ queryKey: ['orders'] });
-    socket.on(SOCKET_EVENTS.TABLE_UPDATED, onUpdate);
-    socket.on(SOCKET_EVENTS.ORDER_CREATED, onOrder);
-    socket.on(SOCKET_EVENTS.ORDER_UPDATED, onOrder);
-    socket.on(SOCKET_EVENTS.ORDER_STATUS_CHANGED, onOrder);
+    const refresh = () => {
+      qc.invalidateQueries({ queryKey: ['tables'] });
+      qc.invalidateQueries({ queryKey: ['tables', 'sessions'] });
+    };
+    socket.on(SOCKET_EVENTS.TABLE_UPDATED, refresh);
     return () => {
-      socket.off(SOCKET_EVENTS.TABLE_UPDATED, onUpdate);
-      socket.off(SOCKET_EVENTS.ORDER_CREATED, onOrder);
-      socket.off(SOCKET_EVENTS.ORDER_UPDATED, onOrder);
-      socket.off(SOCKET_EVENTS.ORDER_STATUS_CHANGED, onOrder);
+      socket.off(SOCKET_EVENTS.TABLE_UPDATED, refresh);
     };
   }, [restaurant?._id, qc]);
 
-  // Tables with a live order are auto-occupied (unless explicitly reserved).
-  const busyTables = new Set(
-    (orders ?? []).filter((o) => ACTIVE_ORDER.has(o.status) && o.tableName).map((o) => norm(o.tableName)),
-  );
+  // A table is occupied exactly when it has a live session (joined by id — no name matching).
+  const sessionByTable = new Map<string, TableSession>();
+  for (const s of sessions ?? []) sessionByTable.set(String(s.tableId), s);
+
   const effectiveStatus = (t: Table): TableStatus => {
-    const s = (t.status ?? 'available') as TableStatus;
-    if (s === 'reserved') return 'reserved';
-    return busyTables.has(norm(t.name)) ? 'occupied' : s;
+    if (sessionByTable.has(t._id)) return 'occupied';
+    return (t.status ?? 'available') === 'reserved' ? 'reserved' : 'available';
   };
 
   const counts = (tables ?? []).reduce(
@@ -91,18 +97,18 @@ export function SeatOccupancy() {
           <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-10 lg:grid-cols-12">
             {tables.map((t) => {
               const status = effectiveStatus(t);
-              // Compact label: drop a leading "Table " so a small cell fits "12".
+              const session = sessionByTable.get(t._id);
+              const billed = session?.status === 'bill_requested';
               const label = t.name.replace(/^table\s*/i, '').trim() || t.name;
-              const byOrder = status === 'occupied' && (t.status ?? 'available') !== 'occupied';
               return (
                 <button
                   key={t._id}
                   onClick={() => setSelected(t)}
                   title={
-                    status === 'reserved' && t.reservation?.name
-                      ? `${t.name} · Reserved (${t.reservation.name})`
-                      : byOrder
-                        ? `${t.name} · Occupied (active order)`
+                    session
+                      ? `${t.name} · Occupied${session.partySize ? ` (party ${session.partySize})` : ''} · ${since(session.openedAt)}${billed ? ' · bill requested' : ''}`
+                      : status === 'reserved' && t.reservation?.name
+                        ? `${t.name} · Reserved (${t.reservation.name})`
                         : `${t.name} · ${status}`
                   }
                   className={cn(
@@ -111,7 +117,11 @@ export function SeatOccupancy() {
                   )}
                 >
                   {label}
-                  {byOrder && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
+                  {billed && (
+                    <span className="absolute right-0.5 top-0.5">
+                      <ReceiptText className="h-2.5 w-2.5" />
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -123,36 +133,55 @@ export function SeatOccupancy() {
         )}
       </CardContent>
 
-      <SeatDialog table={selected} onClose={() => setSelected(null)} />
+      <SeatDialog
+        table={selected}
+        session={selected ? sessionByTable.get(selected._id) : undefined}
+        onClose={() => setSelected(null)}
+      />
     </Card>
   );
 }
 
-function SeatDialog({ table, onClose }: { table: Table | null; onClose: () => void }) {
-  const update = useUpdateTableStatus();
+function SeatDialog({ table, session, onClose }: { table: Table | null; session?: TableSession; onClose: () => void }) {
+  const seat = useSeatTable();
+  const free = useFreeTable();
+  const bill = useRequestBill();
+  const reserve = useUpdateTableStatus();
   const [name, setName] = useState('');
   const [partySize, setPartySize] = useState('');
   const [time, setTime] = useState('');
 
-  // Prefill from an existing reservation when opening.
   useEffect(() => {
     setName(table?.reservation?.name ?? '');
-    setPartySize(table?.reservation?.partySize ? String(table.reservation.partySize) : '');
+    setPartySize(
+      session?.partySize
+        ? String(session.partySize)
+        : table?.reservation?.partySize
+          ? String(table.reservation.partySize)
+          : '',
+    );
     setTime(table?.reservation?.time ?? '');
-  }, [table]);
+  }, [table, session]);
 
   if (!table) return null;
-  const status = (table.status ?? 'available') as TableStatus;
+  const occupied = Boolean(session);
+  const reserved = !occupied && (table.status ?? 'available') === 'reserved';
+  const busy = seat.isPending || free.isPending || bill.isPending || reserve.isPending;
 
-  const set = (next: TableStatus) =>
-    update.mutate(
+  const doSeat = () =>
+    seat.mutate({ id: table._id, partySize: partySize ? Number(partySize) : undefined }, { onSuccess: onClose });
+  const doFree = () => free.mutate({ id: table._id }, { onSuccess: onClose });
+  const doBill = () => bill.mutate({ id: table._id }, { onSuccess: onClose });
+  const doReserve = () =>
+    reserve.mutate(
       {
         id: table._id,
-        status: next,
-        reservation:
-          next === 'reserved'
-            ? { name: name.trim() || 'Guest', partySize: partySize ? Number(partySize) : undefined, time: time.trim() || undefined }
-            : null,
+        status: 'reserved',
+        reservation: {
+          name: name.trim() || 'Guest',
+          partySize: partySize ? Number(partySize) : undefined,
+          time: time.trim() || undefined,
+        },
       },
       { onSuccess: onClose },
     );
@@ -161,44 +190,78 @@ function SeatDialog({ table, onClose }: { table: Table | null; onClose: () => vo
     <Dialog open={Boolean(table)} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>{table.name} · {table.seats ?? 2} seats</DialogTitle>
+          <DialogTitle>
+            {table.name} · {table.seats ?? 2} seats
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant={status === 'available' ? 'default' : 'outline'} size="sm" onClick={() => set('available')} disabled={update.isPending}>
-              <CircleSlash className="h-4 w-4" /> Free
-            </Button>
-            <Button variant={status === 'occupied' ? 'default' : 'outline'} size="sm" onClick={() => set('occupied')} disabled={update.isPending}>
-              <CircleCheck className="h-4 w-4" /> Occupied
-            </Button>
-            <Button variant={status === 'reserved' ? 'default' : 'outline'} size="sm" onClick={() => set('reserved')} disabled={update.isPending || !name.trim()}>
-              <CalendarPlus className="h-4 w-4" /> Reserve
-            </Button>
-          </div>
+          {occupied && session && (
+            <div className="flex items-center justify-between rounded-xl bg-accent/10 px-3 py-2 text-sm">
+              <span className="font-medium">Occupied{session.partySize ? ` · party of ${session.partySize}` : ''}</span>
+              <span className="text-muted-foreground">
+                {since(session.openedAt)}
+                {session.openedBy === 'qr' ? ' · QR' : ''}
+                {session.status === 'bill_requested' ? ' · bill ✓' : ''}
+              </span>
+            </div>
+          )}
 
-          <div className="space-y-3 rounded-xl border border-border p-3">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Armchair className="h-3.5 w-3.5" /> Reservation details
-            </p>
-            <div className="space-y-1.5">
-              <Label>Guest name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rahul" className="h-10" />
-            </div>
+          {occupied ? (
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <Label>Party size</Label>
-                <Input value={partySize} onChange={(e) => setPartySize(e.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" placeholder="4" className="h-10" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Time</Label>
-                <Input value={time} onChange={(e) => setTime(e.target.value)} placeholder="7:30 PM" className="h-10" />
-              </div>
+              <Button variant="outline" size="sm" onClick={doBill} disabled={busy || session?.status === 'bill_requested'}>
+                <ReceiptText className="h-4 w-4" /> {session?.status === 'bill_requested' ? 'Bill requested' : 'Request bill'}
+              </Button>
+              <Button variant="default" size="sm" onClick={doFree} disabled={busy}>
+                <CircleSlash className="h-4 w-4" /> Free table
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Fill the guest name, then tap <span className="font-medium">Reserve</span>. Updates live across every device.
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="default" size="sm" onClick={doSeat} disabled={busy}>
+                <CircleCheck className="h-4 w-4" /> Seat party
+              </Button>
+              <Button variant={reserved ? 'default' : 'outline'} size="sm" onClick={doReserve} disabled={busy || !name.trim()}>
+                <CalendarPlus className="h-4 w-4" /> {reserved ? 'Update' : 'Reserve'}
+              </Button>
+            </div>
+          )}
+
+          {occupied ? (
+            <p className="text-center text-xs text-muted-foreground">
+              Freeing the table closes this visit and unlinks it from new orders.
             </p>
-          </div>
+          ) : (
+            <div className="space-y-3 rounded-xl border border-border p-3">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Armchair className="h-3.5 w-3.5" /> Details
+              </p>
+              <div className="space-y-1.5">
+                <Label>Guest name (for reservations)</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rahul" className="h-10" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label>Party size</Label>
+                  <Input
+                    value={partySize}
+                    onChange={(e) => setPartySize(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                    inputMode="numeric"
+                    placeholder="4"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Time</Label>
+                  <Input value={time} onChange={(e) => setTime(e.target.value)} placeholder="7:30 PM" className="h-10" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tap <span className="font-medium">Seat party</span> to occupy now, or fill a name and{' '}
+                <span className="font-medium">Reserve</span>. Updates live across every device.
+              </p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

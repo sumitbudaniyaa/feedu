@@ -9,6 +9,13 @@ export interface CartLine {
   addonLabels: string[];
   unitPrice: number; // computed client-side for preview (server is authoritative)
   quantity: number;
+  /** Effective stock for this product; null/undefined = not inventory-tracked (no cap). */
+  stock?: number | null;
+}
+
+/** Clamp a requested quantity to the available stock (no cap when untracked). */
+function capToStock(qty: number, stock?: number | null) {
+  return stock == null ? qty : Math.max(0, Math.min(qty, stock));
 }
 
 /** Minimal restaurant snapshot kept so the cart page works without a refetch. */
@@ -120,13 +127,17 @@ export const useCart = create<CartState>()(
         set((state) => {
           const existing = state.lines.find((l) => l.key === key);
           if (existing) {
+            // Never let the cart exceed available stock.
+            const capped = capToStock(existing.quantity + qty, line.stock ?? existing.stock);
             return {
               lines: state.lines.map((l) =>
-                l.key === key ? { ...l, quantity: l.quantity + qty } : l,
+                l.key === key ? { ...l, stock: line.stock ?? l.stock, quantity: capped } : l,
               ),
             };
           }
-          return { lines: [...state.lines, { ...line, key, quantity: qty }] };
+          const capped = capToStock(qty, line.stock);
+          if (capped <= 0) return state; // out of stock — nothing to add
+          return { lines: [...state.lines, { ...line, key, quantity: capped }] };
         });
       },
       setQty: (key, qty) =>
@@ -134,7 +145,9 @@ export const useCart = create<CartState>()(
           lines:
             qty <= 0
               ? state.lines.filter((l) => l.key !== key)
-              : state.lines.map((l) => (l.key === key ? { ...l, quantity: qty } : l)),
+              : state.lines.map((l) =>
+                  l.key === key ? { ...l, quantity: capToStock(qty, l.stock) } : l,
+                ),
         })),
       productQty: (productId) =>
         get()

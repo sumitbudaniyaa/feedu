@@ -16,6 +16,7 @@ import { ApiError } from '../../utils/ApiError.js';
 import { getIO } from '../../sockets/index.js';
 import { logger } from '../../utils/logger.js';
 import { resolveOrderProducts } from '../menu/menu.service.js';
+import { ensureSession } from '../tables/sessions.service.js';
 
 /** Valid forward transitions for an order's status. */
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
@@ -159,12 +160,27 @@ export async function createOrder({
     return sum + (product?.loyaltyPoints ?? 0) * cartItem.quantity;
   }, 0);
 
-  // Snapshot the table name for invoices / KDS. A scanned QR resolves the real
-  // table; a diner ordering via the link can type their table number manually.
+  // Snapshot the table name for invoices / KDS, and resolve the real table id.
+  // A scanned QR carries the id; a diner ordering via the link types a name we
+  // match back to the canonical table (so the order links by id, not a string).
   let tableName: string | undefined = input.tableName?.trim() || undefined;
+  let resolvedTableId: string | null = input.tableId ? String(input.tableId) : null;
   if (input.tableId) {
     const table = await Table.findOne({ _id: input.tableId, restaurantId }).select('name').lean();
     tableName = table?.name ?? tableName;
+  } else if (tableName) {
+    const table = await Table.findOne({ restaurantId, name: tableName }).select('_id').lean();
+    if (table) resolvedTableId = String(table._id);
+  }
+
+  // Dine-in → ensure the table has a live session and link this order to it.
+  let sessionId: string | null = null;
+  if (input.type === 'dine_in' && resolvedTableId) {
+    const session = await ensureSession(restaurantId, resolvedTableId, {
+      brandId: restaurant.brandId ? String(restaurant.brandId) : null,
+      openedBy: 'qr',
+    });
+    sessionId = String(session._id);
   }
 
   // Persist order (retry once on duplicate order number race).
@@ -175,8 +191,9 @@ export async function createOrder({
         restaurantId,
         brandId: restaurant.brandId ?? undefined,
         orderNumber: await nextOrderNumber(restaurantId),
-        tableId: input.tableId ?? null,
+        tableId: resolvedTableId,
         tableName,
+        sessionId,
         customerId: customerId ?? null,
         customerName: customer?.name,
         customerPhone: customer?.phone,

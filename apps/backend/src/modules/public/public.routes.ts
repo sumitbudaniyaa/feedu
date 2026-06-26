@@ -27,6 +27,7 @@ import { asyncHandler, ok } from '../../utils/http.js';
 import { logger } from '../../utils/logger.js';
 import { env } from '../../config/env.js';
 import * as orders from '../orders/orders.service.js';
+import { ensureSession } from '../tables/sessions.service.js';
 import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../payments/payments.service.js';
 import { getIO } from '../../sockets/index.js';
 
@@ -212,6 +213,11 @@ router.get(
     if (!restaurant.isLive) throw ApiError.notFound('This restaurant is currently offline');
     await assertSubscriptionActive(String(restaurant._id));
     const menu = await loadMenu(String(restaurant._id), restaurant.brandId ? String(restaurant.brandId) : null);
+    // Scanning the table QR self-seats the party — open (or join) a live session.
+    await ensureSession(String(restaurant._id), String(table._id), {
+      brandId: restaurant.brandId ? String(restaurant.brandId) : null,
+      openedBy: 'qr',
+    }).catch(() => undefined);
     return ok(res, { restaurant: await withBrandName(restaurant), table, ...menu });
   }),
 );

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Gift, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
-import { Badge, Button, Card, EmptyState } from '@feedo/ui';
+import { Badge, Button, Card, EmptyState, cn } from '@feedo/ui';
 import { computeTotals, formatCurrency } from '@feedo/utils';
 import { useCart } from '../store/cart.js';
 import { useAccount, useAuth, useCheckout, usePayOrder } from '../lib/api.js';
@@ -157,7 +157,9 @@ export function CartPage() {
       <main className="space-y-5 px-5 pt-2">
         {lines.length > 0 && (
           <Card className="divide-y divide-border">
-            {lines.map((l) => (
+            {lines.map((l) => {
+              const atMax = l.stock != null && l.quantity >= l.stock;
+              return (
               <div key={l.key} className="flex items-center gap-3 p-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{l.name}</p>
@@ -165,19 +167,21 @@ export function CartPage() {
                     {[l.variantLabel, ...l.addonLabels].filter(Boolean).join(' · ') || 'Regular'}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{formatCurrency(l.unitPrice)} each</p>
+                  {atMax && <p className="mt-0.5 text-xs font-medium text-amber-600">Max available reached</p>}
                 </div>
                 <div className="flex items-center gap-2 rounded-lg border border-border px-1.5 py-1">
                   <button onClick={() => setQty(l.key, l.quantity - 1)} className="px-1">
                     {l.quantity === 1 ? <Trash2 className="h-3.5 w-3.5 text-destructive" /> : <Minus className="h-3.5 w-3.5" />}
                   </button>
                   <span className="w-5 text-center text-sm font-semibold tabular-nums">{l.quantity}</span>
-                  <button onClick={() => setQty(l.key, l.quantity + 1)} className="px-1">
+                  <button onClick={() => setQty(l.key, l.quantity + 1)} disabled={atMax} className={cn('px-1', atMax && 'opacity-40')}>
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <span className="w-16 text-right text-sm font-semibold">{formatCurrency(l.unitPrice * l.quantity)}</span>
               </div>
-            ))}
+              );
+            })}
           </Card>
         )}
 

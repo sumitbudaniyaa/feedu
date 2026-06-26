@@ -12,11 +12,21 @@ export function useAddProduct(product: Product) {
   const decSimple = useCart((s) => s.decSimple);
   const qty = useCart((s) => s.productQty(product._id));
   const hasOptions = product.variants.length > 0 || product.addons.length > 0;
+  // Inventory: null = untracked (no cap); 0 = sold out; otherwise the ceiling.
+  const tracked = product.stock != null;
+  const outOfStock = tracked && (product.stock ?? 0) <= 0;
+  const atMax = tracked && qty >= (product.stock ?? 0);
 
   const addSimple = () =>
-    incSimple({ productId: product._id, name: product.name, addonLabels: [], unitPrice: product.basePrice });
+    incSimple({
+      productId: product._id,
+      name: product.name,
+      addonLabels: [],
+      unitPrice: product.basePrice,
+      stock: product.stock,
+    });
 
-  return { qty, hasOptions, addSimple, dec: () => decSimple(product._id) };
+  return { qty, hasOptions, atMax, outOfStock, addSimple, dec: () => decSimple(product._id) };
 }
 
 export function VegDot({ isVeg }: { isVeg?: boolean }) {
@@ -69,8 +79,16 @@ export function AddControl({
   onCustomise: () => void;
   size?: 'sm' | 'md';
 }) {
-  const { qty, hasOptions, addSimple, dec } = useAddProduct(product);
+  const { qty, hasOptions, atMax, outOfStock, addSimple, dec } = useAddProduct(product);
   const h = size === 'sm' ? 'h-7' : 'h-8';
+
+  if (outOfStock) {
+    return (
+      <Button size="sm" variant="outline" disabled className={cn(h, 'rounded-lg px-3 text-muted-foreground')}>
+        Out of stock
+      </Button>
+    );
+  }
 
   if (qty === 0) {
     return (
@@ -108,7 +126,12 @@ export function AddControl({
       <motion.span key={qty} initial={{ scale: 1.4 }} animate={{ scale: 1 }} className="w-4 text-center text-sm font-semibold tabular-nums">
         {qty}
       </motion.span>
-      <motion.button whileTap={{ scale: 0.8 }} onClick={addSimple} className="px-1">
+      <motion.button
+        whileTap={{ scale: 0.8 }}
+        onClick={addSimple}
+        disabled={atMax}
+        className={cn('px-1', atMax && 'opacity-40')}
+      >
         <Plus className="h-3.5 w-3.5" />
       </motion.button>
     </div>

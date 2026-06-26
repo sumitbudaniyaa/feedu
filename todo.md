@@ -175,6 +175,35 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
+### Latest session — table sessions (solid seat allotment)
+Replaced order-name-derived occupancy with a first-class **session** lifecycle.
+**Backend**
+- [x] New `TableSession` model (`{restaurantId, tableId, status: open|bill_requested|closed, partySize,
+      openedBy, openedAt, closedAt}`) + `Order.sessionId` FK.
+- [x] `sessions.service` — `ensureSession` (idempotent seat/join; clears a reservation on arrival),
+      `closeSession` (free), `requestBill`, `getActiveSessions`; emits `table:updated`.
+- [x] Endpoints `POST /tables/:id/seat|free|bill` (staff) + `GET /tables/sessions/active`.
+- [x] **QR scan auto-seats** (`/public/qr/:qrToken` → `ensureSession`, `openedBy:'qr'`). `createOrder`
+      now resolves the table by id (or canonical name for link-entry) and links the order to its session.
+**Admin app**
+- [x] `SeatOccupancy` reworked: occupancy derived from live sessions (joined by **tableId**, no more
+      name matching); cells show party size + duration + a bill-requested marker; dialog has
+      **Seat party / Request bill / Free table** plus reservations. New hooks `useActiveSessions`,
+      `useSeatTable`, `useFreeTable`, `useRequestBill`.
+
+### Latest session — stock caps (customer) + clearer inventory badges (admin)
+**Customer app**
+- [x] **Cart quantity is capped at available stock.** `CartLine` carries the effective `stock`
+      (from `resolveBranchMenu`); the cart store clamps `add`/`setQty` via `capToStock` (null = untracked,
+      no cap). UI guards: `ProductCard` shows "Out of stock" / disables `+` at max; `ProductSheet`
+      caps the qty stepper, disables Add when sold out, and shows "Only N left"; `CartPage` disables `+`
+      at the cap with a "Max available reached" hint. Favorites quick-add passes `stock` too. (Backend
+      already rejected over-stock orders — this is the UX guard.)
+
+**Admin app**
+- [x] Inventory low-stock badge now distinguishes **Sold out** (stock 0, red) from **Low · N** (warning)
+      instead of the misleading "Low · 0". ("Low stock" filter + badge already existed.)
+
 ### Latest session — favorite dishes (customer + admin)
 **Backend**
 - [x] New `Favorite` model (`{restaurantId, phone, productId}`, unique per trio) + `GET/POST/DELETE

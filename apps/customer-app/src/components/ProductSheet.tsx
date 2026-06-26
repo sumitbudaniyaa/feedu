@@ -41,6 +41,13 @@ export function ProductSheet({
   const toggleAddon = (label: string) =>
     setAddons((prev) => (prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]));
 
+  // Inventory caps: null stock = untracked (no cap); 0 = sold out.
+  const stock = product?.stock;
+  const tracked = stock != null;
+  const outOfStock = tracked && (stock ?? 0) <= 0;
+  const maxQty = tracked ? (stock ?? 0) : Infinity;
+  const lowStock = tracked && (stock ?? 0) > 0 && (stock ?? 0) <= (product?.lowStockThreshold ?? 5);
+
   return (
     <AnimatePresence>
       {product && (
@@ -111,6 +118,13 @@ export function ProductSheet({
                 <div>
                   <h2 className="text-xl font-bold tracking-tight">{product.name}</h2>
                   <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(product.basePrice)}</p>
+                  {outOfStock ? (
+                    <p className="mt-1 text-sm font-medium text-destructive">Out of stock</p>
+                  ) : (
+                    lowStock && (
+                      <p className="mt-1 text-sm font-medium text-amber-600">Only {stock} left</p>
+                    )
+                  )}
                   {product.description && (
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{product.description}</p>
                   )}
@@ -194,8 +208,9 @@ export function ProductSheet({
                 <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
                 <motion.button
                   whileTap={{ scale: 0.85 }}
-                  onClick={() => setQty((q) => q + 1)}
-                  className="flex h-8 w-8 items-center justify-center"
+                  onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+                  disabled={qty >= maxQty}
+                  className={cn('flex h-8 w-8 items-center justify-center', qty >= maxQty && 'opacity-40')}
                   aria-label="Increase"
                 >
                   <Plus className="h-4 w-4" />
@@ -204,6 +219,7 @@ export function ProductSheet({
               <Button
                 variant="success"
                 className="h-12 flex-1 justify-between rounded-xl"
+                disabled={outOfStock}
                 onClick={() => {
                   add(
                     {
@@ -212,13 +228,14 @@ export function ProductSheet({
                       variantLabel: variant,
                       addonLabels: addons,
                       unitPrice,
+                      stock: product.stock,
                     },
                     qty,
                   );
                   onClose();
                 }}
               >
-                <span>Add {qty} to order</span>
+                <span>{outOfStock ? 'Out of stock' : `Add ${qty} to order`}</span>
                 <span>{formatCurrency(unitPrice * qty)}</span>
               </Button>
             </div>

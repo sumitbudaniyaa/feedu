@@ -144,7 +144,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   // (the diner must pick a variant/add-on); simple items drop straight in the cart.
   const pickFavorite = (p: Product) => {
     if (p.variants.length > 0 || p.addons.length > 0) setSelected(p);
-    else incSimple({ productId: p._id, name: p.name, addonLabels: [], unitPrice: p.basePrice });
+    else incSimple({ productId: p._id, name: p.name, addonLabels: [], unitPrice: p.basePrice, stock: p.stock });
   };
 
   return (
