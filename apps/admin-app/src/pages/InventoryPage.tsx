@@ -199,7 +199,14 @@ export function InventoryPage() {
                       <Switch checked={e.isAvailable} onCheckedChange={(v) => toggleAvailable(p, v)} />
                     </label>
                   ) : (
-                    <div className="-mr-1 flex">
+                    <div className="-mr-1 flex items-center">
+                      <Switch
+                        checked={e.isAvailable}
+                        onCheckedChange={(v) => toggleAvailable(p, v)}
+                        aria-label={e.isAvailable ? 'Available' : 'Unavailable'}
+                        title={e.isAvailable ? 'Available — tap to hide' : 'Unavailable — tap to show'}
+                        className="mr-1"
+                      />
                       <Button
                         size="icon"
                         variant="ghost"
