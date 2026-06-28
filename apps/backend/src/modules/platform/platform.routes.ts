@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { slugify, randomToken } from '@feedo/utils';
-import { updateLeadSchema } from '@feedo/types';
+import { updateLeadSchema, SELF_SERVE_BRANCH_LIMIT } from '@feedo/types';
 import {
   Brand,
   BranchMenu,
@@ -335,6 +335,7 @@ router.get(
         name: brand.name,
         slug: brand.slug,
         accountType: brand.accountType ?? 'single',
+        maxBranches: brand.maxBranches ?? SELF_SERVE_BRANCH_LIMIT,
         cuisineType: brand.cuisineType ?? [],
         accent: brand.branding?.accent ?? 'violet',
         createdAt: brand.createdAt,
@@ -364,12 +365,28 @@ router.patch(
   '/brands/:id',
   validateObjectId(),
   asyncHandler(async (req, res) => {
-    const { isLive } = req.body as { isLive?: boolean };
-    if (typeof isLive !== 'boolean') throw ApiError.badRequest('isLive (boolean) required');
+    const { isLive, maxBranches } = req.body as { isLive?: boolean; maxBranches?: number };
     const brand = await Brand.findById(req.params.id).lean();
     if (!brand) throw ApiError.notFound('Brand not found');
-    const result = await Restaurant.updateMany({ brandId: brand._id }, { isLive });
-    return ok(res, { isLive, branchesUpdated: result.modifiedCount ?? 0 });
+
+    // Edit the self-serve branch cap (Feedu team only).
+    if (maxBranches !== undefined) {
+      const n = Number(maxBranches);
+      if (!Number.isInteger(n) || n < 1) throw ApiError.badRequest('maxBranches must be a positive integer');
+      await Brand.updateOne({ _id: brand._id }, { maxBranches: n });
+    }
+
+    // Suspend / reactivate every branch.
+    let branchesUpdated = 0;
+    if (typeof isLive === 'boolean') {
+      const result = await Restaurant.updateMany({ brandId: brand._id }, { isLive });
+      branchesUpdated = result.modifiedCount ?? 0;
+    }
+
+    if (maxBranches === undefined && typeof isLive !== 'boolean') {
+      throw ApiError.badRequest('Provide isLive (boolean) or maxBranches');
+    }
+    return ok(res, { isLive, maxBranches, branchesUpdated });
   }),
 );
 
@@ -533,6 +550,7 @@ router.post(
       plan = 'starter',
       durationDays,
       accountType = 'single',
+      maxBranches,
     } = req.body as Record<string, string | number>;
 
     if (!restaurantName || !ownerName || !email || !password) {
@@ -574,6 +592,8 @@ router.post(
       name: restaurantName,
       slug: brandSlug,
       accountType: type,
+      // Self-serve branch cap (multi-store). Falls back to the model default.
+      ...(type === 'multi' && Number(maxBranches) >= 1 ? { maxBranches: Number(maxBranches) } : {}),
     });
 
     // Create every branch under the brand (inheriting brand branding/tax/currency).

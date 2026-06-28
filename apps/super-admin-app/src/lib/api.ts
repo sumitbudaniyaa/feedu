@@ -23,6 +23,7 @@ export const {
   useBrands,
   useOnboardBranch,
   useSuspendBrand,
+  useSetBrandMaxBranches,
   useUpdateBrandSubscription,
   useDeleteBrand,
   useRestaurants,

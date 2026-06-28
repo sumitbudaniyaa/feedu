@@ -137,8 +137,10 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   (resolves the branch's own or the brand's combined plan), `/me/brand` GET (account type, branding,
   tax → drives the multi-branch UI) + PATCH (brand-wide: name/branding/tax — **propagated to every
   branch**). Branches: `GET/POST /branches`, `PATCH/DELETE /branches/:id` (edit / suspend / delete,
-  brand-wide; never the last branch). Owners self-add up to `SELF_SERVE_BRANCH_LIMIT` (5)
-  branches; beyond that only the super-admin (`/platform/brands/:id/branches`, uncapped) adds more.
+  brand-wide; never the last branch). Owners self-add up to the brand's **`maxBranches`** cap — a
+  per-brand limit the super-admin sets at onboarding (`POST /platform/restaurants`) and edits later
+  (`PATCH /platform/brands/:id { maxBranches }`), defaulting to `SELF_SERVE_BRANCH_LIMIT` (5). Beyond
+  it, only the super-admin (`/platform/brands/:id/branches`, uncapped) adds more.
   Branch managers: `GET/POST /branches/:id/managers` and
   `PATCH/DELETE /branches/:id/managers/:userId` — create a **branch-locked** `branch_manager` login,
   reset its password, or remove it.
@@ -379,7 +381,11 @@ configured in `.env`. Keys: `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (backend),
 - **Login**: verifies bcrypt hash, issues tokens. Checks the **`Employee`** collection first
   (Feedu staff / super admins), then `User` (restaurant accounts). Token brand context is
   recomputed on login/refresh, so newly added branches appear after the next refresh.
-- **Refresh** / **me**: same dual lookup (Employee → User).
+- **Refresh** / **me**: same dual lookup (Employee → User). If the account no longer exists (e.g. the
+  brand/restaurant was deleted), both return **401** — so a stale session on a still-valid access token
+  fails its next refresh and **auto-logs-out** (the client re-validates `me` on window focus). Tokens are
+  stateless, so worst-case lifetime of a deleted session is the access-token TTL (~15 min); there's no
+  real-time server push to kill an open session the instant it's deleted.
 - **Onboarding is super-admin-only** — there is no owner self-signup. `/platform/restaurants`
   POST creates the owner `User` + a `Brand` (with `accountType`) + one or more branches
   (`Restaurant`) + a `Subscription` (per-branch for single, one combined for multi), rejecting

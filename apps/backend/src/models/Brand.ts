@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from 'mongoose';
+import { SELF_SERVE_BRANCH_LIMIT } from '@feedo/types';
 
 /**
  * A Brand is the tenant in the multi-branch model. It owns the shared menu,
@@ -18,6 +19,11 @@ const brandSchema = new Schema(
      * whole brand (a single combined subscription covers every branch).
      */
     accountType: { type: String, enum: ['single', 'multi'], default: 'single', index: true },
+    /**
+     * Max branches the brand owner can self-add (multi-store). Set by the Feedu
+     * team at onboarding and editable later; defaults to the standard self-serve cap.
+     */
+    maxBranches: { type: Number, default: SELF_SERVE_BRANCH_LIMIT, min: 1 },
     description: String,
     cuisineType: { type: [String], default: [] },
     branding: {

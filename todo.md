@@ -175,6 +175,24 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 
 ## Recently added
 
+### Latest session — stale session after account deletion (auto-logout fix)
+- [x] Deleting a brand/restaurant from super-admin removed the owner + data, but the admin stayed
+      "logged in" on the still-valid access token because **`/auth/me` returned 404** (not an auth
+      error) when the account was gone — the client only logs out on **401**. Changed `me` to throw
+      **`unauthorized` (401)** when the account no longer exists → client refresh fails → auto-logout.
+- [x] `useMe` now `refetchOnWindowFocus` with a 60s `staleTime`, so a deleted/disabled session is
+      caught on the next focus instead of lingering until the ~15-min token expiry.
+
+### Latest session — per-brand branch cap (`maxBranches`)
+Made the multi-store self-serve branch limit a **per-brand setting** the Feedu team controls, instead
+of a global constant.
+- [x] `Brand.maxBranches` (default `SELF_SERVE_BRANCH_LIMIT`). Self-serve add-branch check uses it.
+- [x] Onboarding (`POST /platform/restaurants`) accepts `maxBranches` (multi-store); `PATCH
+      /platform/brands/:id` now also edits `maxBranches` (alongside isLive).
+- [x] Exposed on `me/brand` (admin) + the platform brands payload; **admin BranchesPage** uses the
+      brand's cap; **super-admin** sets it in the onboarding form and edits it in the brand plan dialog.
+- [x] Hooks: `useSetBrandMaxBranches`; types `BrandInfo.maxBranches`, `PlatformBrand.maxBranches`.
+
 ### Latest session — loyalty rework (editable rules + visit-based punch card)
 - [x] **Edit earning rules** — the earning-rule dialog now supports edit (create *or* update); the rules
       list got an Edit button.

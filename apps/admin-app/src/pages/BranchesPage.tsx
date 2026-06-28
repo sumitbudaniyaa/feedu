@@ -19,6 +19,7 @@ import {
 import { formatDate } from '@feedo/utils';
 import { SELF_SERVE_BRANCH_LIMIT } from '@feedo/types';
 import {
+  useBrand,
   useBranches,
   useBranchManagers,
   useCreateBranch,
@@ -34,6 +35,7 @@ import { PageHeader } from '../components/PageHeader.js';
 
 export function BranchesPage() {
   const { data: branches, isLoading } = useBranches();
+  const { data: brand } = useBrand();
   const active = useActiveBranchId();
   const qc = useQueryClient();
   const updateBranch = useUpdateBranch();
@@ -73,7 +75,8 @@ export function BranchesPage() {
     if (ok) deleteBranch.mutate(b._id);
   };
 
-  const atLimit = (branches?.length ?? 0) >= SELF_SERVE_BRANCH_LIMIT;
+  const limit = brand?.maxBranches ?? SELF_SERVE_BRANCH_LIMIT;
+  const atLimit = (branches?.length ?? 0) >= limit;
 
   return (
     <div className="space-y-6">
@@ -89,7 +92,7 @@ export function BranchesPage() {
 
       {atLimit && (
         <Card className="border-dashed p-3 text-sm text-muted-foreground">
-          You've reached the {SELF_SERVE_BRANCH_LIMIT}-branch self-serve limit.{' '}
+          You've reached the {limit}-branch self-serve limit.{' '}
           <span className="font-medium text-foreground">Contact the Feedu team</span> to add more branches.
         </Card>
       )}

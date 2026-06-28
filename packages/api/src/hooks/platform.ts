@@ -45,6 +45,8 @@ export interface PlatformBrand {
   name: string;
   slug: string;
   accountType: 'single' | 'multi';
+  /** Self-serve branch cap the owner can add up to (multi-store). */
+  maxBranches: number;
   cuisineType: string[];
   accent: string;
   createdAt: string;
@@ -175,6 +177,16 @@ export function createPlatformHooks(client: ApiClient) {
         meta: { successMessage: 'Brand updated' },
         mutationFn: ({ id, isLive }: { id: string; isLive: boolean }) =>
           client.patch(`/platform/brands/${id}`, { isLive }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    /** Set the brand's self-serve branch cap (max stores the owner can add). */
+    useSetBrandMaxBranches() {
+      const qc = useQueryClient();
+      return useMutation({
+        meta: { successMessage: 'Branch limit updated' },
+        mutationFn: ({ id, maxBranches }: { id: string; maxBranches: number }) =>
+          client.patch(`/platform/brands/${id}`, { maxBranches }),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },

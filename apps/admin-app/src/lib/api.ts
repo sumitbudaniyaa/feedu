@@ -164,6 +164,8 @@ export interface BrandInfo {
   slug: string;
   accountType: 'single' | 'multi';
   branchCount: number;
+  /** Self-serve branch cap set by the Feedu team. */
+  maxBranches: number;
   description?: string;
   cuisineType?: string[];
   branding?: { accent?: string; themeMode?: string };

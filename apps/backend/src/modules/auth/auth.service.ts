@@ -158,7 +158,10 @@ export async function me(userId: string) {
   const employee = await Employee.findById(userId);
   if (employee) return employee.toJSON();
   const user = await User.findById(userId);
-  if (!user) throw ApiError.notFound('User not found');
+  // A valid token whose account no longer exists (e.g. the brand/restaurant was
+  // deleted from the super-admin) is an auth failure, not a 404 — return 401 so the
+  // client attempts a refresh, that also fails, and the stale session logs out.
+  if (!user) throw ApiError.unauthorized('Account no longer exists');
   return user.toJSON();
 }
 

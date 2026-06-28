@@ -49,12 +49,13 @@ router.post(
     const brand = await Brand.findById(req.brandId).lean();
     if (!brand) throw ApiError.notFound('Brand not found');
 
-    // Owners can self-add up to 5 branches; beyond that, only the Feedu team
-    // (super-admin) can add more (with plan changes).
+    // Owners can self-add up to the brand's configured cap (set by the Feedu team
+    // at onboarding, editable later); beyond that only super-admin can add more.
+    const limit = brand.maxBranches ?? SELF_SERVE_BRANCH_LIMIT;
     const branchCount = await Restaurant.countDocuments({ brandId: brand._id });
-    if (branchCount >= SELF_SERVE_BRANCH_LIMIT) {
+    if (branchCount >= limit) {
       throw ApiError.forbidden(
-        `You can add up to ${SELF_SERVE_BRANCH_LIMIT} branches yourself. Contact the Feedu team to add more.`,
+        `You can add up to ${limit} branches yourself. Contact the Feedu team to add more.`,
       );
     }
 
@@ -288,6 +289,7 @@ router.get(
       tax: brand.tax,
       currency: brand.currency,
       branchCount,
+      maxBranches: brand.maxBranches ?? SELF_SERVE_BRANCH_LIMIT,
     });
   }),
 );

@@ -47,7 +47,11 @@ export function createAuthHooks({ client, useAuth }: AuthDeps) {
       queryKey: ['me'],
       queryFn: () => client.get<PublicUser>('/auth/me'),
       enabled: isAuthed,
-      staleTime: 5 * 60 * 1000,
+      // Re-validate the session on focus so a deleted/disabled account is caught
+      // promptly (the request 401s → refresh fails → auto-logout) rather than
+      // lingering on a still-valid access token.
+      staleTime: 60 * 1000,
+      refetchOnWindowFocus: true,
     });
   }
 

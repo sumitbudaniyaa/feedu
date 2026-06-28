@@ -24,6 +24,7 @@ import {
   useDeleteBrand,
   useOnboardBranch,
   useOnboardRestaurant,
+  useSetBrandMaxBranches,
   useSuspendBrand,
   useToggleLive,
   useUpdateBrandSubscription,
@@ -286,6 +287,7 @@ const STATUSES = ['active', 'trialing', 'past_due', 'cancelled'] as const;
 
 function BrandPlanDialog({ brand, open, onClose }: { brand: PlatformBrand; open: boolean; onClose: () => void }) {
   const update = useUpdateBrandSubscription();
+  const setLimit = useSetBrandMaxBranches();
   const sub = brand.subscription;
   const [form, setForm] = useState({
     plan: sub?.plan ?? 'starter',
@@ -293,6 +295,7 @@ function BrandPlanDialog({ brand, open, onClose }: { brand: PlatformBrand; open:
     price: String(sub?.price ?? 0),
     billingCycle: (sub?.billingCycle as Cycle) ?? 'monthly',
     durationDays: '',
+    maxBranches: String(brand.maxBranches ?? 5),
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -306,6 +309,11 @@ function BrandPlanDialog({ brand, open, onClose }: { brand: PlatformBrand; open:
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
+            // Save the self-serve branch cap (multi-store) if it changed.
+            const nextLimit = Number(form.maxBranches);
+            if (brand.accountType === 'multi' && nextLimit >= 1 && nextLimit !== brand.maxBranches) {
+              setLimit.mutate({ id: brand._id, maxBranches: nextLimit });
+            }
             update.mutate(
               {
                 id: brand._id,
@@ -366,6 +374,20 @@ function BrandPlanDialog({ brand, open, onClose }: { brand: PlatformBrand; open:
               <p className="text-xs text-muted-foreground">Current expiry: {formatDate(sub.currentPeriodEnd)}</p>
             )}
           </div>
+          {brand.accountType === 'multi' && (
+            <div className="space-y-1.5">
+              <Label>Max branches (owner self-serve cap)</Label>
+              <Input
+                type="number"
+                min="1"
+                value={form.maxBranches}
+                onChange={(e) => set('maxBranches', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Currently {brand.branchCount} of {brand.maxBranches} used. Beyond the cap, only Feedu can add branches.
+              </p>
+            </div>
+          )}
           {update.isError && (
             <p className="text-sm text-destructive">
               {update.error instanceof Error ? update.error.message : 'Could not update plan'}
@@ -461,6 +483,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
     price: '0',
     billingCycle: 'monthly' as Cycle,
     accountType: 'single' as 'single' | 'multi',
+    maxBranches: '5',
   });
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
   // Multi-store: the brand's outlets, entered during onboarding.
@@ -470,7 +493,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const removeBranch = (i: number) => setBranches((b) => (b.length > 1 ? b.filter((_, idx) => idx !== i) : b));
 
   const reset = () => {
-    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly', accountType: 'single' });
+    setForm({ restaurantName: '', ownerName: '', email: '', contactNumber: '', password: '', price: '0', billingCycle: 'monthly', accountType: 'single', maxBranches: '5' });
     setBranches(['']);
   };
 
@@ -490,6 +513,7 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
         billingCycle: form.billingCycle,
         accountType: form.accountType,
         branches: isMulti ? cleanBranches : undefined,
+        maxBranches: isMulti ? Number(form.maxBranches) || undefined : undefined,
       },
       {
         onSuccess: () => {
@@ -590,6 +614,19 @@ function OnboardDialog({ open, onClose }: { open: boolean; onClose: () => void }
               <p className="text-xs text-muted-foreground">
                 One combined fee covers all branches. You can add more later from this page.
               </p>
+              <div className="space-y-1.5 border-t border-border pt-3">
+                <Label>Max branches the owner can self-add</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={form.maxBranches}
+                  onChange={(e) => set('maxBranches', e.target.value)}
+                  placeholder="5"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Beyond this, only the Feedu team can add branches. Editable later.
+                </p>
+              </div>
             </div>
           )}
 
