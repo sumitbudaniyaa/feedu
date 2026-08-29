@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { createOrderSchema, manualPaymentMethodSchema, updateOrderStatusSchema } from '@feedo/types';
+import { LoyaltyReward } from '../../models/index.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/params.js';
 import { validate } from '../../middleware/validate.js';
@@ -35,10 +36,24 @@ router.post(
   authorize('owner', 'manager', 'waiter', 'branch_manager'),
   validate(createOrderSchema),
   asyncHandler(async (req, res) => {
+    let rewardObj: { rewardId: string; productId: string; pointsCost: number } | undefined;
+    if (req.body.loyaltyRewardId) {
+      const rew = await LoyaltyReward.findById(req.body.loyaltyRewardId).lean();
+      if (rew && rew.productId) {
+        rewardObj = {
+          rewardId: String(rew._id),
+          productId: String(rew.productId),
+          pointsCost: rew.pointsCost,
+        };
+      }
+    }
+
     // Staff orders are taken in person → confirmed immediately (payment collected at counter).
     const order = await orders.createOrder({
       restaurantId: req.branchId!,
       input: req.body,
+      customer: req.body.customer,
+      reward: rewardObj,
       autoConfirm: true,
       paymentMethod: 'cash',
       channel: 'counter',

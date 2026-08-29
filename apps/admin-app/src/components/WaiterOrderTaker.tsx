@@ -2,11 +2,16 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check,
+  Gift,
   Minus,
+  Phone,
   Plus,
   Search,
   Send,
+  Sparkles,
+  Star,
   Trash2,
+  User,
   UtensilsCrossed,
   X,
 } from 'lucide-react';
@@ -26,8 +31,8 @@ import {
   cn,
 } from '@feedo/ui';
 import { formatCurrency } from '@feedo/utils';
-import type { CartItem, Product } from '@feedo/types';
-import { categories, products, tables, useCreateOrder } from '../lib/api.js';
+import type { CartItem, Customer, LoyaltyReward, Product } from '@feedo/types';
+import { categories, customers, products, rewards, tables, useCreateOrder } from '../lib/api.js';
 
 interface TicketItem {
   id: string; // unique key in ticket
@@ -46,6 +51,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
   const { data: prods, isLoading: loadingProducts } = products.useList();
   const { data: cats, isLoading: loadingCats } = categories.useList();
   const { data: tbls, isLoading: loadingTables } = tables.useList();
+  const { data: rewardList } = rewards.useList();
   const createOrder = useCreateOrder();
 
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway'>('dine_in');
@@ -54,6 +60,30 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [vegOnly, setVegOnly] = useState(false);
+
+  // Customer & Loyalty State
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [selectedReward, setSelectedReward] = useState<LoyaltyReward | null>(null);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
+
+  const cleanPhone = customerPhone.trim();
+  const { data: matchedCustomers, isLoading: searchingCustomer } = customers.useList(
+    { search: cleanPhone },
+    { enabled: cleanPhone.length >= 3 },
+  );
+
+  const activeCustomer: Customer | undefined = useMemo(() => {
+    if (!cleanPhone || !matchedCustomers) return undefined;
+    return matchedCustomers.find((c) => c.phone === cleanPhone || c.phone.endsWith(cleanPhone));
+  }, [cleanPhone, matchedCustomers]);
+
+  // Available and eligible rewards for this customer
+  const eligibleRewards = useMemo(() => {
+    if (!rewardList) return [];
+    const customerPoints = activeCustomer?.points ?? 0;
+    return rewardList.filter((r) => r.isActive !== false && r.productId && customerPoints >= r.pointsCost);
+  }, [rewardList, activeCustomer]);
 
   // Ticket state
   const [ticket, setTicket] = useState<TicketItem[]>([]);
@@ -95,7 +125,6 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
       setItemNotes('');
       setCustomizingQty(1);
     } else {
-      // Add simple item directly
       addItemToTicket({
         id: `${product._id}-${Date.now()}`,
         productId: product._id,
@@ -111,7 +140,6 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
 
   const addItemToTicket = (item: TicketItem) => {
     setTicket((prev) => {
-      // Check if identical item (same product, same variant, same addons, same notes) exists
       const existingIdx = prev.findIndex(
         (p) =>
           p.productId === item.productId &&
@@ -178,12 +206,12 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
   };
 
   // Ticket totals
-  const totalCount = ticket.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCount = ticket.reduce((sum, item) => sum + item.quantity, 0) + (selectedReward ? 1 : 0);
   const subtotal = ticket.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   // Send order to kitchen
   const handleSendOrder = () => {
-    if (ticket.length === 0) return;
+    if (ticket.length === 0 && !selectedReward) return;
     if (orderType === 'dine_in' && !effectiveTableName) {
       alert('Please select or enter a table number for dine-in orders.');
       return;
@@ -199,6 +227,13 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
 
     const matchedTable = tbls?.find((t) => t.name.toLowerCase() === effectiveTableName.toLowerCase());
 
+    const customerPayload = cleanPhone
+      ? {
+          phone: cleanPhone,
+          name: customerName.trim() || activeCustomer?.name || undefined,
+        }
+      : undefined;
+
     createOrder.mutate(
       {
         type: orderType,
@@ -206,13 +241,18 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
         tableName: effectiveTableName,
         items,
         notes: orderNotes.trim() || undefined,
+        loyaltyRewardId: selectedReward?._id,
+        customer: customerPayload,
       },
       {
         onSuccess: () => {
           const successDesc = `Order placed for ${effectiveTableName || 'counter'} (${totalCount} item${totalCount > 1 ? 's' : ''})`;
           setSuccessMessage(successDesc);
           setTicket([]);
+          setSelectedReward(null);
           setOrderNotes('');
+          setCustomerPhone('');
+          setCustomerName('');
           setTicketDrawerOpen(false);
           if (orderType === 'takeaway') {
             setCustomTable('');
@@ -241,7 +281,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
   }
 
   return (
-    <div className="relative space-y-4 pb-28">
+    <div className="relative space-y-4 pb-44">
       {/* Success notification banner */}
       <AnimatePresence>
         {successMessage && (
@@ -263,14 +303,16 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
       {/* Order Type & Table Header */}
       <Card className="border-border/80 bg-card/80 backdrop-blur">
         <CardContent className="p-3.5 space-y-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex rounded-lg bg-secondary p-1 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setOrderType('dine_in')}
                 className={cn(
                   'rounded-md px-3 py-1.5 transition-all',
-                  orderType === 'dine_in' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  orderType === 'dine_in'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 🍽️ Dine-in
@@ -280,7 +322,9 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
                 onClick={() => setOrderType('takeaway')}
                 className={cn(
                   'rounded-md px-3 py-1.5 transition-all',
-                  orderType === 'takeaway' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  orderType === 'takeaway'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 🥡 Takeaway
@@ -288,7 +332,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
             </div>
 
             {effectiveTableName && (
-              <Badge variant="accent" className="font-semibold text-xs px-2.5 py-1">
+              <Badge variant="accent" className="font-semibold text-xs px-2.5 py-1 max-w-[160px] truncate">
                 📍 {effectiveTableName}
               </Badge>
             )}
@@ -313,7 +357,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
               </div>
 
               {/* Quick Table Chips */}
-              <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+              <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1 touch-pan-x">
                 {(tbls ?? []).map((t) => {
                   const isSelected = selectedTable === t.name;
                   return (
@@ -355,21 +399,161 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
         </CardContent>
       </Card>
 
+      {/* Customer Mobile & Loyalty Points Card */}
+      <Card className="border-border/80 bg-card/80 backdrop-blur overflow-hidden">
+        <CardContent className="p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              <Phone className="h-3.5 w-3.5 text-accent" /> Customer & Loyalty
+            </span>
+            {cleanPhone && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerPhone('');
+                  setCustomerName('');
+                  setSelectedReward(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="relative">
+              <Phone className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="tel"
+                placeholder="Mobile number (10 digits)"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="h-9 pl-9 pr-3 text-xs"
+              />
+            </div>
+            <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={activeCustomer?.name ? `Name: ${activeCustomer.name}` : 'Customer name (optional)'}
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="h-9 pl-9 pr-3 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Dynamic Customer Details Banner */}
+          {cleanPhone.length >= 3 && (
+            <AnimatePresence mode="wait">
+              {searchingCustomer ? (
+                <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+                  <span className="h-2 w-2 animate-ping rounded-full bg-accent" /> Searching loyalty profile…
+                </div>
+              ) : activeCustomer ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="rounded-xl border border-accent/30 bg-accent/10 p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-xs">
+                        <Star className="h-3.5 w-3.5 fill-current" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-bold text-foreground">
+                          {activeCustomer.name || 'Registered Customer'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {activeCustomer.totalOrders} order{activeCustomer.totalOrders === 1 ? '' : 's'} ·{' '}
+                          {activeCustomer.visits ?? 0} visit{activeCustomer.visits === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="accent" className="font-extrabold text-xs px-2.5 py-1">
+                        ⭐ {activeCustomer.points} Points
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Rewards eligibility */}
+                  {eligibleRewards.length > 0 ? (
+                    <div className="border-t border-accent/20 pt-2 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="flex items-center gap-1 text-xs font-semibold text-foreground">
+                        <Gift className="h-3.5 w-3.5 text-accent" />
+                        {eligibleRewards.length} Reward{eligibleRewards.length > 1 ? 's' : ''} available!
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setShowRewardsModal(true)}
+                        className="h-7 text-xs rounded-lg px-2.5 bg-accent hover:bg-accent/90 text-accent-foreground font-bold"
+                      >
+                        {selectedReward ? 'Change Reward' : 'Redeem Reward'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="border-t border-accent/20 pt-2 text-[11px] text-muted-foreground">
+                      💡 Customer will earn points on this order automatically upon settlement.
+                    </p>
+                  )}
+
+                  {/* Active Selected Reward Tag */}
+                  {selectedReward && (
+                    <div className="flex items-center justify-between rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Applied: {selectedReward.title} (-{selectedReward.pointsCost} pts)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReward(null)}
+                        className="text-muted-foreground hover:text-destructive p-0.5"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="rounded-xl border border-border bg-secondary/40 p-2.5 flex items-center justify-between text-xs"
+                >
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-accent" />
+                    New diner profile! They'll start earning points on this order.
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Dish Search & Filters */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search dishes to add..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-10 pl-9 text-sm"
+              className="h-10 pl-9 pr-9 text-sm"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
+                aria-label="Clear search"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -383,7 +567,9 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
               onClick={() => setVegOnly((v) => !v)}
               className={cn(
                 'flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition-all shrink-0',
-                vegOnly ? 'border-success bg-success/15 text-success' : 'border-border bg-card text-muted-foreground hover:bg-secondary',
+                vegOnly
+                  ? 'border-success bg-success/15 text-success'
+                  : 'border-border bg-card text-muted-foreground hover:bg-secondary',
               )}
             >
               <span className="h-2 w-2 rounded-full bg-success" />
@@ -393,7 +579,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
         </div>
 
         {/* Category Pills */}
-        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto py-1">
+        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto py-1 touch-pan-x">
           {[{ _id: 'all', name: 'All' }, ...(cats ?? [])].map((c) => (
             <button
               key={c._id}
@@ -417,7 +603,6 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
         <div className="grid grid-cols-2 gap-2.5">
           {filteredProducts.map((product) => {
             const hasOptions = (product.variants?.length ?? 0) > 0 || (product.addons?.length ?? 0) > 0;
-            // How many of this product in current ticket
             const inTicketCount = ticket
               .filter((item) => item.productId === product._id)
               .reduce((sum, item) => sum + item.quantity, 0);
@@ -427,14 +612,18 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
                 key={product._id}
                 onClick={() => handleAddProduct(product)}
                 className={cn(
-                  'group flex cursor-pointer flex-col justify-between overflow-hidden border transition-all active:scale-[0.98]',
-                  inTicketCount > 0 ? 'border-foreground/50 bg-secondary/30 ring-1 ring-foreground/20' : 'hover:border-border/80',
+                  'group flex h-full cursor-pointer flex-col justify-between overflow-hidden border transition-all active:scale-[0.98]',
+                  inTicketCount > 0
+                    ? 'border-foreground/50 bg-secondary/30 ring-1 ring-foreground/20'
+                    : 'hover:border-border/80',
                 )}
               >
-                <CardContent className="p-3 flex flex-col justify-between flex-1 space-y-2">
+                <CardContent className="p-3 flex flex-col justify-between h-full min-h-[108px] space-y-2">
                   <div>
                     <div className="flex items-start justify-between gap-1">
-                      <span className="line-clamp-2 text-xs font-semibold leading-tight">{product.name}</span>
+                      <span className="line-clamp-2 text-xs font-semibold leading-tight break-words">
+                        {product.name}
+                      </span>
                       {product.isVeg !== undefined && (
                         <span
                           className={cn(
@@ -442,7 +631,9 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
                             product.isVeg ? 'border-success' : 'border-destructive',
                           )}
                         >
-                          <span className={cn('h-1.5 w-1.5 rounded-full', product.isVeg ? 'bg-success' : 'bg-destructive')} />
+                          <span
+                            className={cn('h-1.5 w-1.5 rounded-full', product.isVeg ? 'bg-success' : 'bg-destructive')}
+                          />
                         </span>
                       )}
                     </div>
@@ -451,7 +642,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40 mt-auto">
                     <span className="text-xs font-bold">{formatCurrency(product.basePrice)}</span>
 
                     {inTicketCount > 0 ? (
@@ -476,38 +667,39 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
         </div>
       )}
 
-      {/* Floating Bottom Ticket Bar */}
+      {/* Floating Bottom Ticket Bar — Positioned above bottom nav without overlap */}
       <AnimatePresence>
         {totalCount > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
-            className="fixed inset-x-0 bottom-4 z-30 mx-auto max-w-md px-3"
+            className="fixed inset-x-0 bottom-20 z-30 mx-auto max-w-md px-3 pointer-events-none"
           >
-            <div className="flex items-center justify-between rounded-2xl border border-border bg-card/95 p-3 shadow-elevated backdrop-blur">
+            <div className="pointer-events-auto flex items-center justify-between rounded-2xl border border-border bg-card/95 p-3 shadow-elevated backdrop-blur">
               <button
                 type="button"
                 onClick={() => setTicketDrawerOpen(true)}
-                className="flex flex-1 items-center gap-3 text-left"
+                className="flex flex-1 items-center gap-3 text-left min-w-0 pr-2"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground font-bold text-background">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground font-bold text-background">
                   {totalCount}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold">
-                    {effectiveTableName ? `Table: ${effectiveTableName}` : 'Select table to order'}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold truncate">
+                    {effectiveTableName ? `Table: ${effectiveTableName}` : 'Take Order'}
+                    {activeCustomer?.name ? ` · ${activeCustomer.name}` : ''}
                   </p>
                   <p className="text-sm font-extrabold text-foreground">{formatCurrency(subtotal)}</p>
                 </div>
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setTicketDrawerOpen(true)}
-                  className="h-10 rounded-xl px-3"
+                  className="h-10 rounded-xl px-3 text-xs"
                 >
                   View ticket
                 </Button>
@@ -516,7 +708,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
                   variant="default"
                   onClick={handleSendOrder}
                   disabled={createOrder.isPending || (orderType === 'dine_in' && !effectiveTableName)}
-                  className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 px-4 font-bold"
+                  className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 px-4 font-bold text-xs"
                 >
                   <Send className={`h-3.5 w-3.5 ${createOrder.isPending ? 'animate-spin' : ''}`} />
                   {createOrder.isPending ? 'Sending…' : 'Send'}
@@ -527,17 +719,120 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
         )}
       </AnimatePresence>
 
+      {/* Rewards Selection Modal */}
+      <Dialog open={showRewardsModal} onOpenChange={setShowRewardsModal}>
+        <DialogContent className="max-w-md max-h-[85dvh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-3 border-b border-border">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Gift className="h-5 w-5 text-accent" />
+              <span>Redeem Rewards for {activeCustomer?.name || 'Customer'}</span>
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Available Balance: <strong className="text-foreground">{activeCustomer?.points ?? 0} points</strong>
+            </p>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+            {eligibleRewards.map((r) => {
+              const isSelected = selectedReward?._id === r._id;
+              return (
+                <div
+                  key={r._id}
+                  className={cn(
+                    'flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors',
+                    isSelected ? 'border-accent bg-accent/10' : 'border-border bg-card hover:bg-secondary/40',
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{r.title}</p>
+                    {r.description && <p className="text-xs text-muted-foreground line-clamp-1">{r.description}</p>}
+                    <span className="inline-block mt-1 text-xs font-bold text-accent">
+                      {r.pointsCost} points · Free item
+                    </span>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isSelected ? 'default' : 'outline'}
+                    onClick={() => {
+                      setSelectedReward(isSelected ? null : r);
+                      setShowRewardsModal(false);
+                    }}
+                    className={cn(
+                      'shrink-0 text-xs font-bold rounded-lg',
+                      isSelected && 'bg-accent text-accent-foreground',
+                    )}
+                  >
+                    {isSelected ? 'Applied ✓' : 'Apply'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="p-3 border-t border-border flex items-center justify-between bg-card">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedReward(null);
+                setShowRewardsModal(false);
+              }}
+            >
+              Clear Reward
+            </Button>
+            <Button type="button" size="sm" onClick={() => setShowRewardsModal(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Ticket Drawer Modal */}
       <Dialog open={ticketDrawerOpen} onOpenChange={setTicketDrawerOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-2 border-b border-border">
+        <DialogContent className="max-w-md max-h-[85dvh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
             <DialogTitle className="flex items-center justify-between text-base">
               <span>Order Ticket ({totalCount} items)</span>
               {effectiveTableName && <Badge variant="accent">{effectiveTableName}</Badge>}
             </DialogTitle>
+            {cleanPhone && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                <Phone className="h-3 w-3" /> {cleanPhone}
+                {activeCustomer?.name ? ` (${activeCustomer.name})` : customerName ? ` (${customerName})` : ''}
+              </p>
+            )}
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* Free Claimed Reward Line Item */}
+            {selectedReward && (
+              <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Gift className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="font-semibold text-sm truncate">{selectedReward.title}</span>
+                    <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                      🎁 Free
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                    Loyalty Reward ({selectedReward.pointsCost} pts spent)
+                  </p>
+                  <p className="text-xs font-bold text-foreground mt-1">₹0</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReward(null)}
+                  className="text-muted-foreground hover:text-destructive p-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             {ticket.map((item) => (
               <div
                 key={item.id}
@@ -599,7 +894,7 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
             </div>
           </div>
 
-          <DialogFooter className="p-4 border-t border-border flex-row items-center justify-between gap-3 bg-card">
+          <DialogFooter className="p-4 border-t border-border flex-row items-center justify-between gap-3 bg-card shrink-0">
             <div>
               <p className="text-xs text-muted-foreground">Total Amount</p>
               <p className="text-lg font-black">{formatCurrency(subtotal)}</p>
@@ -625,18 +920,18 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
 
       {/* Item Customization Modal */}
       <Dialog open={Boolean(customizingProduct)} onOpenChange={(open) => !open && setCustomizingProduct(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[85dvh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
             <DialogTitle className="text-base flex items-center justify-between">
-              <span>{customizingProduct?.name}</span>
-              <span className="text-sm font-bold text-accent">
+              <span className="truncate">{customizingProduct?.name}</span>
+              <span className="text-sm font-bold text-accent shrink-0 ml-2">
                 {customizingProduct ? formatCurrency(customizingProduct.basePrice) : ''}
               </span>
             </DialogTitle>
           </DialogHeader>
 
           {customizingProduct && (
-            <div className="space-y-4 py-2">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Variants */}
               {customizingProduct.variants && customizingProduct.variants.length > 0 && (
                 <div className="space-y-2">
@@ -674,7 +969,9 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
                           key={a.label}
                           className={cn(
                             'flex cursor-pointer items-center justify-between rounded-xl border p-2.5 text-xs transition-colors',
-                            selected ? 'border-foreground/60 bg-secondary/60 font-semibold' : 'border-border bg-card hover:bg-secondary/30',
+                            selected
+                              ? 'border-foreground/60 bg-secondary/60 font-semibold'
+                              : 'border-border bg-card hover:bg-secondary/30',
                           )}
                         >
                           <span className="flex items-center gap-2">
@@ -733,11 +1030,16 @@ export function WaiterOrderTaker({ onOrderCreated }: { onOrderCreated?: () => vo
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setCustomizingProduct(null)}>
+          <DialogFooter className="p-4 border-t border-border flex-row items-center justify-end gap-2 bg-card shrink-0">
+            <Button type="button" variant="outline" size="sm" onClick={() => setCustomizingProduct(null)}>
               Cancel
             </Button>
-            <Button type="button" onClick={confirmCustomization} className="bg-foreground text-background">
+            <Button
+              type="button"
+              size="sm"
+              onClick={confirmCustomization}
+              className="bg-foreground text-background font-bold"
+            >
               Add to Ticket
             </Button>
           </DialogFooter>

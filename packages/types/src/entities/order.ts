@@ -77,6 +77,12 @@ export const createOrderSchema = z.object({
   items: z.array(cartItemSchema).min(1),
   notes: z.string().optional(),
   loyaltyRewardId: objectIdSchema.optional(),
+  customer: z
+    .object({
+      name: z.string().optional(),
+      phone: z.string().optional(),
+    })
+    .optional(),
 });
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
