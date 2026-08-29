@@ -13,7 +13,6 @@ import {
   Otp,
   Redemption,
   Restaurant,
-  Subscription,
   Table,
 } from '../../models/index.js';
 import { isValidObjectId } from 'mongoose';
@@ -31,6 +30,7 @@ import * as orders from '../orders/orders.service.js';
 import { ensureSession, requestBill } from '../tables/sessions.service.js';
 import { createRazorpayOrder, isDemoMode, verifyPaymentSignature } from '../payments/payments.service.js';
 import { getIO } from '../../sockets/index.js';
+import { findEffectiveSubscription } from '../../utils/subscription.js';
 
 const router = Router();
 
@@ -72,7 +72,8 @@ router.post(
 
 /** Block diner access when the restaurant's Feedu subscription is inactive/expired. */
 async function assertSubscriptionActive(restaurantId: string) {
-  const sub = await Subscription.findOne({ restaurantId }).select('status currentPeriodEnd').lean();
+  const restaurant = await Restaurant.findById(restaurantId).select('brandId').lean();
+  const sub = await findEffectiveSubscription(restaurantId, restaurant?.brandId ? String(restaurant.brandId) : null);
   if (!sub) return; // legacy / no subscription on file — don't block
   const expired = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) < new Date();
   if (sub.status === 'past_due' || sub.status === 'cancelled' || expired) {
@@ -165,11 +166,12 @@ function rewardScope(restaurant: { _id: unknown; brandId?: unknown }) {
 }
 
 /** Attach the brand name so the customer app can show "Brand · Branch". */
-async function withBrandName<T extends { brandId?: unknown }>(restaurant: T): Promise<T & { brandName: string | null }> {
+async function withBrandName<T extends { brandId?: unknown; selfOrderingEnabled?: boolean }>(restaurant: T): Promise<T & { brandName: string | null; selfOrderingEnabled: boolean }> {
   const brand = restaurant.brandId
-    ? await Brand.findById(restaurant.brandId as string).select('name').lean()
+    ? await Brand.findById(restaurant.brandId as string).select('name selfOrderingEnabled').lean()
     : null;
-  return { ...restaurant, brandName: brand?.name ?? null };
+  const selfOrderingEnabled = restaurant.selfOrderingEnabled !== false && brand?.selfOrderingEnabled !== false;
+  return { ...restaurant, brandName: brand?.name ?? null, selfOrderingEnabled };
 }
 
 // Public restaurant + full menu by slug.
@@ -241,6 +243,9 @@ router.post(
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findOne({ slug: req.params.slug, isLive: true }).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    if (restaurant.selfOrderingEnabled === false) {
+      throw ApiError.forbidden('Self-ordering is disabled for this restaurant. Please place your order with a server.');
+    }
     const order = await orders.createOrder({
       restaurantId: String(restaurant._id),
       input: req.body,
@@ -278,6 +283,9 @@ router.post(
   asyncHandler(async (req, res) => {
     const restaurant = await Restaurant.findOne({ slug: req.params.slug, isLive: true }).lean();
     if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    if (restaurant.selfOrderingEnabled === false) {
+      throw ApiError.forbidden('Self-ordering is disabled for this restaurant. Please place your order with a server.');
+    }
     const restaurantId = String(restaurant._id);
     await assertSubscriptionActive(restaurantId);
 

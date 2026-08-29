@@ -69,6 +69,7 @@ const restaurantSchema = new Schema(
       completedSteps: { type: [String], default: [] },
     },
     isLive: { type: Boolean, default: false },
+    selfOrderingEnabled: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

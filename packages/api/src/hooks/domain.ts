@@ -26,7 +26,10 @@ export function createDomainHooks(client: ApiClient) {
       return useMutation({
         meta: { successMessage: 'Settings saved' },
         mutationFn: (body: Record<string, unknown>) => client.patch<Restaurant>('/restaurants/me', body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['restaurant'] }),
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ['restaurant'] });
+          qc.invalidateQueries({ queryKey: ['brand'] });
+        },
       });
     },
 

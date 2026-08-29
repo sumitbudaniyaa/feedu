@@ -11,9 +11,11 @@ import { FavoriteButton } from '../store/favorites.js';
 export function ProductSheet({
   product,
   onClose,
+  selfOrderingEnabled = true,
 }: {
   product: Product | null;
   onClose: () => void;
+  selfOrderingEnabled?: boolean;
 }) {
   const add = useCart((s) => s.add);
   const [variant, setVariant] = useState<string | undefined>(undefined);
@@ -194,51 +196,59 @@ export function ProductSheet({
               </div>
             </div>
 
-            {/* Sticky footer: quantity + add */}
-            <div className="flex items-center gap-3 border-t border-border bg-card p-4 pb-6">
-              <div className="flex shrink-0 items-center gap-1 rounded-xl border border-border px-1.5 py-1.5">
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  className="flex h-8 w-8 items-center justify-center"
-                  aria-label="Decrease"
+            {/* Sticky footer: quantity + add (or view-only notice) */}
+            {selfOrderingEnabled ? (
+              <div className="flex items-center gap-3 border-t border-border bg-card p-4 pb-6">
+                <div className="flex shrink-0 items-center gap-1 rounded-xl border border-border px-1.5 py-1.5">
+                  <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="flex h-8 w-8 items-center justify-center"
+                    aria-label="Decrease"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </motion.button>
+                  <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                  <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+                    disabled={qty >= maxQty}
+                    className={cn('flex h-8 w-8 items-center justify-center', qty >= maxQty && 'opacity-40')}
+                    aria-label="Increase"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </motion.button>
+                </div>
+                <Button
+                  variant="success"
+                  className="h-12 flex-1 justify-between rounded-xl"
+                  disabled={outOfStock}
+                  onClick={() => {
+                    add(
+                      {
+                        productId: product._id,
+                        name: product.name,
+                        variantLabel: variant,
+                        addonLabels: addons,
+                        unitPrice,
+                        stock: product.stock,
+                      },
+                      qty,
+                    );
+                    onClose();
+                  }}
                 >
-                  <Minus className="h-4 w-4" />
-                </motion.button>
-                <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
-                  disabled={qty >= maxQty}
-                  className={cn('flex h-8 w-8 items-center justify-center', qty >= maxQty && 'opacity-40')}
-                  aria-label="Increase"
-                >
-                  <Plus className="h-4 w-4" />
-                </motion.button>
+                  <span>{outOfStock ? 'Out of stock' : `Add ${qty} to order`}</span>
+                  <span>{formatCurrency(unitPrice * qty)}</span>
+                </Button>
               </div>
-              <Button
-                variant="success"
-                className="h-12 flex-1 justify-between rounded-xl"
-                disabled={outOfStock}
-                onClick={() => {
-                  add(
-                    {
-                      productId: product._id,
-                      name: product.name,
-                      variantLabel: variant,
-                      addonLabels: addons,
-                      unitPrice,
-                      stock: product.stock,
-                    },
-                    qty,
-                  );
-                  onClose();
-                }}
-              >
-                <span>{outOfStock ? 'Out of stock' : `Add ${qty} to order`}</span>
-                <span>{formatCurrency(unitPrice * qty)}</span>
-              </Button>
-            </div>
+            ) : (
+              <div className="border-t border-border bg-secondary/40 p-4 pb-6 text-center">
+                <p className="text-xs font-medium text-muted-foreground">
+                  📖 View-only digital menu — please place your order directly with your waiter.
+                </p>
+              </div>
+            )}
           </motion.div>
         </>
       )}

@@ -26,6 +26,7 @@ export interface CartRestaurant {
   sgstPercent: number;
   inclusive: boolean;
   accent?: string;
+  selfOrderingEnabled?: boolean;
 }
 
 /** A loyalty reward applied to the order — a free item, paid for with points. */

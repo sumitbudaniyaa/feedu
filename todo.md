@@ -183,7 +183,23 @@ Key decision: **`restaurantId` = branchId** (a Restaurant doc *is* a branch); ad
 - [x] `useMe` now `refetchOnWindowFocus` with a 60s `staleTime`, so a deleted/disabled session is
       caught on the next focus instead of lingering until the ~15-min token expiry.
 
-### Latest session — per-brand branch cap (`maxBranches`)
+### Latest session — Super Admin subscription renewal flow
+- [x] **Super Admin 1-Click Renewal Endpoints**: `POST /api/platform/brands/:id/renew` & `POST /api/platform/restaurants/:id/renew`.
+- [x] **Live extension logic**: If expired, extends from current date; if active, extends from `currentPeriodEnd`.
+- [x] **Renewal Dialog & Badges**: Added `RenewBrandDialog` and `RenewSubscriptionDialog` with preset buttons (`+1mo`, `+3mo`, `+1yr`, custom days), live date calculations, and `Expired` / `Expiring soon` status badges on Brand cards and Restaurant detail pages.
+- [x] **Multi-store Subscription Resolver**: Enhanced `assertSubscriptionActive` to use `findEffectiveSubscription(branchId, brandId)`.
+
+### Latest session — Self-Ordering toggle & Waiter order taker
+- [x] **Self-Ordering Toggle (`selfOrderingEnabled`)**:
+  - Added to `Restaurant` and `Brand` schemas and models (propagated across branches).
+  - Added toggle card in Admin **Settings** with instant reactive mutations and cache invalidations (`['restaurant']`, `['brand']`).
+  - Customer app handles view-only mode: displays `Digital Menu · View Only` banner tag, hides add/cart controls on cards/sections, shows waiter ordering notice in detail sheets, keeps `call-waiter` active, and server enforces 403 Forbidden on `/orders` and `/checkout`.
+- [x] **Waiter Mobile Order Taker (`WaiterOrderTaker`)**:
+  - Added **"Take Order"** tab and top **"+ New Order"** button in `WaiterApp`.
+  - Ergonomic mobile flow: Live table picker with occupancy status or custom table input / takeaway mode, instant category & dish search, VEG toggle, customizable variant/add-on drawer, and item notes.
+  - Floating ticket bar & review drawer with 1-tap **"Send to Kitchen"** via `createOrder`.
+
+### Previous session — per-brand branch cap (`maxBranches`)
 Made the multi-store self-serve branch limit a **per-brand setting** the Feedu team controls, instead
 of a global constant.
 - [x] `Brand.maxBranches` (default `SELF_SERVE_BRANCH_LIMIT`). Self-serve add-branch check uses it.

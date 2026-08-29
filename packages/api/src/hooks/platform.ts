@@ -200,6 +200,21 @@ export function createPlatformHooks(client: ApiClient) {
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },
+    /** One-click renew / extend a brand's SaaS subscription. */
+    useRenewBrandSubscription() {
+      const qc = useQueryClient();
+      return useMutation({
+        meta: { successMessage: 'Subscription renewed' },
+        mutationFn: ({
+          id,
+          body,
+        }: {
+          id: string;
+          body?: { cycle?: string; durationDays?: number; price?: number; plan?: string };
+        }) => client.post(`/platform/brands/${id}/renew`, body ?? {}),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
     /** Permanently delete a brand and all of its branches + data. */
     useDeleteBrand() {
       const qc = useQueryClient();
@@ -255,6 +270,21 @@ export function createPlatformHooks(client: ApiClient) {
         meta: { successMessage: 'Subscription updated' },
         mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
           client.patch<Subscription>(`/platform/restaurants/${id}/subscription`, body),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
+      });
+    },
+    /** One-click renew / extend a restaurant's subscription. */
+    useRenewSubscription() {
+      const qc = useQueryClient();
+      return useMutation({
+        meta: { successMessage: 'Subscription renewed' },
+        mutationFn: ({
+          id,
+          body,
+        }: {
+          id: string;
+          body?: { cycle?: string; durationDays?: number; price?: number; plan?: string };
+        }) => client.post(`/platform/restaurants/${id}/renew`, body ?? {}),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['platform'] }),
       });
     },

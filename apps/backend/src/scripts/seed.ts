@@ -24,15 +24,29 @@ async function seed() {
   await connectDatabase();
 
   // Feedu staff live in their own collection (not tied to any restaurant).
-  const superEmail = 'super@feedo.app';
-  if (!(await Employee.exists({ email: superEmail }))) {
-    await Employee.create({
-      name: 'Feedu Super Admin',
-      email: superEmail,
-      passwordHash: await Employee.hashPassword('password123'),
-      role: 'super_admin',
-    });
-    logger.info(`Created super admin (${superEmail} / password123)`);
+  const superAdmins = [
+    { email: 'sumit@gmail.com', name: 'Sumit', password: 'Smean@2011' },
+    { email: 'super@feedo.app', name: 'Feedu Super Admin', password: 'password123' },
+  ];
+
+  for (const admin of superAdmins) {
+    const existing = await Employee.findOne({ email: admin.email });
+    if (!existing) {
+      await Employee.create({
+        name: admin.name,
+        email: admin.email,
+        passwordHash: await Employee.hashPassword(admin.password),
+        role: 'super_admin',
+      });
+      logger.info(`Created super admin (${admin.email})`);
+    } else {
+      existing.passwordHash = await Employee.hashPassword(admin.password);
+      existing.name = admin.name;
+      existing.role = 'super_admin';
+      existing.isActive = true;
+      await existing.save();
+      logger.info(`Updated super admin credentials (${admin.email})`);
+    }
   }
 
   const ownerEmail = 'owner@feedo.app';

@@ -172,13 +172,23 @@ service (business logic + models) → ok() envelope`. Errors bubble to `errorHan
   (per-diner analytics), `support` (list/update/reply), `account` (own credentials).
   **Accounts:** `restaurants` POST (onboard single, or a brand with `accountType:'multi'` +
   `branches:[]`), `restaurants/:id` (detail / suspend / DELETE one branch),
-  `restaurants/:id/subscription`. **Brand-level:** `brands` (brand→branches rollup with combined
+  `restaurants/:id/subscription` (edit plan + duration override), `restaurants/:id/renew` (1-click renewal).
+  **Brand-level:** `brands` (brand→branches rollup with combined
   subscription summary + account type), `brands/:id` PATCH (suspend/reactivate **all** branches),
   `brands/:id/subscription` PATCH (edit the **combined** plan: fee/cycle/duration/expiry/status),
+  `brands/:id/renew` POST (1-click brand subscription renewal with presets `+1mo`, `+3mo`, `+1yr`, or custom days),
   `brands/:id` DELETE (delete brand + all branches + data), `brands/:id/branches` POST (add a branch).
-- **Subscription gating**: public menu/QR/checkout call `assertSubscriptionActive` — a restaurant
-  whose subscription is `past_due`/`cancelled`/expired (or is suspended `isLive:false`) is blocked
-  from the customer app; the admin app shows a full lock screen for that restaurant.
+- **Subscription gating & renewal**: public menu/QR/checkout call `assertSubscriptionActive` via
+  `findEffectiveSubscription(branchId, brandId)` — a restaurant whose subscription is `past_due`/`cancelled`/expired
+  (or is suspended `isLive:false`) is blocked from the customer app; the admin app shows a full lock screen.
+  Super Admin provides a dedicated **"Renew"** flow with visual expiration status (red *Expired* badge, amber *Expiring soon* badge),
+  live calculated extension preview, and preset buttons.
+- **Self-ordering toggle (View-Only Digital Menu mode)**: `selfOrderingEnabled: boolean` on `Restaurant` and `Brand` (propagated to all branches).
+  When turned off in Admin Settings, scanning a table QR opens a view-only digital menu (add to cart and floating checkout are hidden,
+  product sheets display dish information with a waiter ordering notice, and `call-waiter` remains available; backend `/orders` and `/checkout`
+  endpoints enforce a 403 Forbidden).
+- **Mobile Waiter App (`WaiterOrderTaker`)**: Waiter role has dedicated mobile order taking with table picker (showing occupancy),
+  category filters, dish search, VEG mode, customizable variant & add-on drawer, order kitchen notes, and 1-tap "Send to Kitchen" (`createOrder`).
 - `/public/*` — customer, no staff auth: `/r/:slug` (menu, case-insensitive), `/qr/:qrToken`,
   `r/:slug/table?name=` (validate a manually-typed table for non-QR entry — tolerant "5" ↔ "Table 5",
   404 if it doesn't exist or the restaurant has no tables configured; the diner's typed table

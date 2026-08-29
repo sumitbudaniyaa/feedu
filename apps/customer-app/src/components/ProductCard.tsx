@@ -143,10 +143,12 @@ export function ProductCard({
   product,
   index,
   onCustomise,
+  selfOrderingEnabled = true,
 }: {
   product: Product;
   index: number;
   onCustomise: () => void;
+  selfOrderingEnabled?: boolean;
 }) {
   return (
     <motion.div
@@ -176,10 +178,12 @@ export function ProductCard({
           </div>
           <div className="mt-auto flex items-center justify-between pt-3">
             <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
-            {/* Quick-add shouldn't trigger the card's open-sheet tap. */}
-            <span onClick={(e) => e.stopPropagation()}>
-              <AddControl product={product} onCustomise={onCustomise} />
-            </span>
+            {/* Quick-add shouldn't trigger the card's open-sheet tap when ordering is enabled. */}
+            {selfOrderingEnabled && (
+              <span onClick={(e) => e.stopPropagation()}>
+                <AddControl product={product} onCustomise={onCustomise} />
+              </span>
+            )}
           </div>
         </div>
       </Card>

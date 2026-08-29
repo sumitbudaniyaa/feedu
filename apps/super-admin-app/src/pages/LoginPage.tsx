@@ -11,8 +11,8 @@ export function LoginPage() {
   const isAuthed = useAuth((s) => Boolean(s.tokens?.accessToken));
   if (isAuthed) navigate('/', { replace: true });
 
-  const [email, setEmail] = useState('super@feedo.app');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
 
   return (
@@ -65,13 +65,20 @@ export function LoginPage() {
           >
             <div className="space-y-1.5">
               <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                type="email"
+                placeholder="super@feedo.app"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Password</Label>
               <div className="relative">
                 <Input
                   type={show ? 'text' : 'password'}
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

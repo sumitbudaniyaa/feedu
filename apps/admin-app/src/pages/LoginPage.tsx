@@ -26,6 +26,7 @@ export function LoginPage() {
     <div className="relative">
       <Input
         type={show ? 'text' : 'password'}
+        placeholder="Enter your password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         required
@@ -83,7 +84,13 @@ export function LoginPage() {
 
           <form onSubmit={onLogin} className="space-y-4">
             <Field label="Email">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                type="email"
+                placeholder="owner@feedo.app"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </Field>
             <Field label="Password">{PasswordField}</Field>
             {error && <ErrorText error={error} />}

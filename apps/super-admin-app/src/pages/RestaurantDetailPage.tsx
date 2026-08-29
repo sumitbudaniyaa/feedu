@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Boxes, IndianRupee, Pencil, Power, ReceiptText, Trash2, UserRound, Users } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Boxes, IndianRupee, Pencil, Power, ReceiptText, RefreshCw, Trash2, UserRound, Users } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -23,6 +23,7 @@ import { formatCurrency, formatDate, formatRelativeTime } from '@feedo/utils';
 import type { Order, SubscriptionPlan, SubscriptionStatus } from '@feedo/types';
 import {
   useDeleteRestaurant,
+  useRenewSubscription,
   useRestaurantDetail,
   useToggleLive,
   useUpdateSubscription,
@@ -259,14 +260,42 @@ function SubscriptionCard({
   subscription: import('@feedo/api').RestaurantDetail['subscription'];
 }) {
   const [editing, setEditing] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+
+  const currentEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
+  const isExpired = currentEnd ? currentEnd.getTime() < Date.now() : false;
+  const isExpiringSoon = Boolean(
+    currentEnd && !isExpired && currentEnd.getTime() - Date.now() < 7 * 86400000,
+  );
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">Subscription</CardTitle>
-        <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-base">Subscription</CardTitle>
+          {isExpired ? (
+            <Badge variant="destructive" className="flex items-center gap-1 text-[10px] px-1.5 py-0">
+              <AlertTriangle className="h-3 w-3" /> Expired
+            </Badge>
+          ) : isExpiringSoon ? (
+            <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] px-1.5 py-0">
+              Expiring soon
+            </Badge>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={isExpired ? 'default' : 'outline'}
+            className={isExpired ? 'bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5' : 'gap-1.5'}
+            onClick={() => setRenewing(true)}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Renew
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -282,8 +311,16 @@ function SubscriptionCard({
             </span>
           </SubRow>
           <SubRow label="Expires">
-            <span className="font-medium">
-              {subscription?.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : '—'}
+            <span
+              className={
+                isExpired
+                  ? 'font-bold text-destructive'
+                  : isExpiringSoon
+                  ? 'font-medium text-amber-600 dark:text-amber-400'
+                  : 'font-medium'
+              }
+            >
+              {currentEnd ? `${formatDate(currentEnd.toISOString())} ${isExpired ? '(Expired)' : ''}` : '—'}
             </span>
           </SubRow>
         </div>
@@ -293,6 +330,12 @@ function SubscriptionCard({
         subscription={subscription}
         open={editing}
         onClose={() => setEditing(false)}
+      />
+      <RenewSubscriptionDialog
+        restaurantId={restaurantId}
+        subscription={subscription}
+        open={renewing}
+        onClose={() => setRenewing(false)}
       />
     </Card>
   );
@@ -304,6 +347,176 @@ function SubRow({ label, children }: { label: string; children: React.ReactNode 
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       {children}
     </div>
+  );
+}
+
+function RenewSubscriptionDialog({
+  restaurantId,
+  subscription,
+  open,
+  onClose,
+}: {
+  restaurantId: string;
+  subscription: import('@feedo/api').RestaurantDetail['subscription'];
+  open: boolean;
+  onClose: () => void;
+}) {
+  const renew = useRenewSubscription();
+  const currentEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
+  const isExpired = currentEnd ? currentEnd.getTime() < Date.now() : true;
+
+  const [cycle, setCycle] = useState<Cycle>((subscription?.billingCycle as Cycle) ?? 'monthly');
+  const [price, setPrice] = useState(String(subscription?.price ?? 0));
+  const [mode, setMode] = useState<'cycle' | 'custom'>('cycle');
+  const [customDays, setCustomDays] = useState('30');
+
+  const computedExpiry = useMemo(() => {
+    const base = currentEnd && currentEnd.getTime() > Date.now() ? currentEnd.getTime() : Date.now();
+    const days =
+      mode === 'custom'
+        ? Number(customDays) || 30
+        : cycle === 'yearly'
+        ? 365
+        : cycle === 'quarterly'
+        ? 90
+        : 30;
+    return new Date(base + days * 86400000);
+  }, [currentEnd, mode, customDays, cycle]);
+
+  const handleRenew = (e: React.FormEvent) => {
+    e.preventDefault();
+    renew.mutate(
+      {
+        id: restaurantId,
+        body: {
+          cycle,
+          price: Number(price),
+          durationDays: mode === 'custom' ? Number(customDays) : undefined,
+        },
+      },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-emerald-500" /> Renew Subscription
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleRenew} className="space-y-4">
+          <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Current Plan:</span>
+              <span className="font-semibold capitalize text-foreground">{subscription?.plan ?? 'starter'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Current Expiry:</span>
+              <span className={isExpired ? 'font-semibold text-destructive' : 'font-medium text-foreground'}>
+                {currentEnd ? formatDate(currentEnd.toISOString()) : 'Not active'}{' '}
+                {isExpired && currentEnd ? '(Expired)' : ''}
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border/60 pt-1.5 font-medium">
+              <span className="text-emerald-600 dark:text-emerald-400">New Expiry After Renewal:</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                {formatDate(computedExpiry.toISOString())}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Renewal Period</Label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('cycle');
+                  setCycle('monthly');
+                }}
+                className={`rounded-lg border p-2.5 text-center text-xs font-medium transition-all ${
+                  mode === 'cycle' && cycle === 'monthly'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500'
+                    : 'border-border bg-card hover:bg-secondary/50 text-foreground'
+                }`}
+              >
+                <span className="block font-semibold text-sm">+1 Month</span>
+                <span className="text-[11px] text-muted-foreground">Monthly</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('cycle');
+                  setCycle('quarterly');
+                }}
+                className={`rounded-lg border p-2.5 text-center text-xs font-medium transition-all ${
+                  mode === 'cycle' && cycle === 'quarterly'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500'
+                    : 'border-border bg-card hover:bg-secondary/50 text-foreground'
+                }`}
+              >
+                <span className="block font-semibold text-sm">+3 Months</span>
+                <span className="text-[11px] text-muted-foreground">Quarterly</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('cycle');
+                  setCycle('yearly');
+                }}
+                className={`rounded-lg border p-2.5 text-center text-xs font-medium transition-all ${
+                  mode === 'cycle' && cycle === 'yearly'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500'
+                    : 'border-border bg-card hover:bg-secondary/50 text-foreground'
+                }`}
+              >
+                <span className="block font-semibold text-sm">+1 Year</span>
+                <span className="text-[11px] text-muted-foreground">Annual</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Custom Days (Optional)</Label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="e.g. 30, 60, 180"
+                value={mode === 'custom' ? customDays : ''}
+                onChange={(e) => {
+                  setMode('custom');
+                  setCustomDays(e.target.value);
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Fee (₹)</Label>
+              <Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+          </div>
+
+          {renew.isError && (
+            <p className="text-sm text-destructive">
+              {renew.error instanceof Error ? renew.error.message : 'Could not renew subscription'}
+            </p>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={renew.isPending} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+              <RefreshCw className={`h-4 w-4 ${renew.isPending ? 'animate-spin' : ''}`} />
+              {renew.isPending ? 'Renewing…' : `Confirm Renewal`}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -323,11 +536,21 @@ function SubscriptionDialog({
   const [status, setStatus] = useState<SubscriptionStatus>((subscription?.status as SubscriptionStatus) ?? 'active');
   const [price, setPrice] = useState(String(subscription?.price ?? 0));
   const [cycle, setCycle] = useState<Cycle>((subscription?.billingCycle as Cycle) ?? 'monthly');
+  const [durationDays, setDurationDays] = useState('');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     update.mutate(
-      { id: restaurantId, body: { plan, status, price: Number(price), billingCycle: cycle } },
+      {
+        id: restaurantId,
+        body: {
+          plan,
+          status,
+          price: Number(price),
+          billingCycle: cycle,
+          durationDays: durationDays ? Number(durationDays) : undefined,
+        },
+      },
       { onSuccess: onClose },
     );
   };
@@ -375,7 +598,53 @@ function SubscriptionDialog({
               </Select>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Expiry is set automatically from the billing cycle.</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Duration override (days, optional)</Label>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDurationDays('30');
+                    setStatus('active');
+                  }}
+                  className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground hover:bg-secondary/80"
+                >
+                  +30d
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDurationDays('90');
+                    setStatus('active');
+                  }}
+                  className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground hover:bg-secondary/80"
+                >
+                  +90d
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDurationDays('365');
+                    setStatus('active');
+                  }}
+                  className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground hover:bg-secondary/80"
+                >
+                  +1yr
+                </button>
+              </div>
+            </div>
+            <Input
+              type="number"
+              min="1"
+              placeholder="Leave blank to derive expiry from the billing cycle"
+              value={durationDays}
+              onChange={(e) => setDurationDays(e.target.value)}
+            />
+            {subscription?.currentPeriodEnd && (
+              <p className="text-xs text-muted-foreground">Current expiry: {formatDate(subscription.currentPeriodEnd)}</p>
+            )}
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

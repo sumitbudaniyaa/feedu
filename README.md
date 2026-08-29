@@ -19,13 +19,13 @@ Razorpay · JWT.
   **editable** earning systems — **points** + **points-expiry**, or a **visit-based punch card**
   "buy N get one free" — plus a points rewards catalog), Analytics (revenue/table, table turnover, avg serve time, peak hours, top products),
   tables & QR codes, **staff (with mobile number)**, **customer analytics** (click a diner → spend,
-  most-ordered, **favorite dishes**, reward claims, visits), settings (branding/tax/go-live + **subscription details**),
-  **support tickets** (chat), downloadable invoices. **Waiter role** is limited to a **dedicated mobile
-  waiter app** (live table **calls ring** with sound/vibrate + **slide-to-attend**, plus orders).
+  most-ordered, **favorite dishes**, reward claims, visits), settings (branding/tax/go-live + **subscription details** + **Self-Ordering QR toggle** for switching between QR ordering and view-only digital menu),
+  **support tickets** (chat), downloadable invoices. **Waiter role** gets a **dedicated mobile
+  waiter app** (live table **calls ring** with sound/vibrate + **slide-to-attend**, live orders, and a mobile **"Take Order"** tool for quick table order entry directly to the kitchen).
   - **Multi-store owner**: a default **"All branches"** (centralized) view — combined dashboard +
     branch comparison — or drill into one branch via the switcher; a **Branches** page to add / edit /
     suspend / delete branches and **create branch-manager logins**; **brand-level Settings** (name /
-    branding / tax apply to every branch). Inventory is centralized by default; per branch you can
+    branding / tax / self-ordering apply to every branch). Inventory is centralized by default; per branch you can
     override **availability/stock without affecting other branches**. Owners can self-add up to a
     **per-brand branch cap** (`maxBranches`, default 5) that the **Feedu team sets at onboarding and can
     edit later** — beyond it, only the Feedu team adds more.
@@ -38,13 +38,11 @@ Razorpay · JWT.
   menu has non-veg items — hidden for fully-vegetarian restaurants), a full product
   **detail bottom-sheet** (sizes/add-ons), highlighted curated sections, **favorite dishes** (tap the
   heart on any item; signed-in diners get a **quick-order circle row** on the home page to reorder in
-  one tap), **call-waiter** from the
-  table, cart, optional **special instructions for the kitchen** at checkout (e.g. "less spicy, no
+  one tap), **call-waiter** from the table, cart, optional **special instructions for the kitchen** at checkout (e.g. "less spicy, no
   onions"), **mobile-OTP login (also enforced at guest checkout)**, **Razorpay checkout**, separate
   **Rewards** (wallet + **visit-based punch card** with stamps/progress + in-app free-reward orders + **claim history**) and **Account** (details, order
-  history, log out) pages, order confirmation + tracking with a downloadable ticket invoice. Dine-in
-  only; direct (non-QR) entry asks for the table number and **validates it against the restaurant's
-  real tables** (tolerant "5" ↔ "Table 5"; rejects unknown tables).
+  history, log out) pages, order confirmation + tracking with a downloadable ticket invoice. Supports **View-Only Digital Menu mode** when
+  the restaurant turns off self-ordering.
 - **Kitchen** — real-time KDS (`feedu` Kitchen), prominent table number, veg/non-veg markers,
   status-colored cards, **customer special instructions surfaced in a highlighted band**, one-tap flow.
 - **Super-admin = the feedu company portal (you, the SaaS owner)** — separate **feedu SaaS revenue**
@@ -52,7 +50,7 @@ Razorpay · JWT.
   account-type/status filters) that **onboards single-store or multi-store accounts** (a multi-store
   brand is created with its branches inline and billed once for the whole brand); **brand-level**
   controls (suspend/reactivate *all* branches, edit the combined SaaS plan — fee/cycle/duration/expiry/
-  status, delete the whole brand) **and** per-branch suspend / add-branch; **Users** split into a
+  status, **1-click subscription renewals** with preset extensions and live preview, delete the whole brand) **and** per-branch suspend / add-branch; **Users** split into a
   **feedu team** (own `employees` collection, no tenant) + restaurant users, with **add-employee**;
   **support tickets** chat; **customers grouped by restaurant** → drill in → per-diner analytics; change
   own credentials.

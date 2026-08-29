@@ -25,6 +25,13 @@ export function CartPage() {
 
   const goBack = () => navigate(menuPath ?? '/');
 
+  // If self-ordering is turned off, cart/ordering is disallowed — send diner to view menu.
+  useEffect(() => {
+    if (restaurant?.selfOrderingEnabled === false) {
+      navigate(menuPath ?? '/');
+    }
+  }, [restaurant?.selfOrderingEnabled, menuPath, navigate]);
+
   // A reward needs a signed-in wallet — drop it if the session is gone.
   useEffect(() => {
     if (appliedReward && !isAuthed) setReward(null);

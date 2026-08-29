@@ -408,7 +408,7 @@ router.patch(
     }
     if (cycle !== undefined) update.billingCycle = cycle;
     // Expiry: an explicit duration wins; otherwise it's derived from the cycle.
-    if (durationDays !== undefined) {
+    if (durationDays !== undefined && durationDays !== '') {
       update.currentPeriodEnd = new Date(Date.now() + Number(durationDays) * 86400000);
     } else if (price !== undefined || cycle !== undefined) {
       const existing = await Subscription.findOne({ brandId: brand._id }).select('billingCycle').lean();
@@ -418,6 +418,43 @@ router.patch(
     Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
 
     // One combined subscription per brand — keyed by brandId.
+    const sub = await Subscription.findOneAndUpdate({ brandId: brand._id }, update, {
+      new: true,
+      upsert: true,
+    });
+    return ok(res, sub);
+  }),
+);
+
+// One-click renew / extend a brand's combined subscription.
+router.post(
+  '/brands/:id/renew',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { cycle, durationDays, price, plan } = req.body as Record<string, unknown>;
+    const brand = await Brand.findById(req.params.id).lean();
+    if (!brand) throw ApiError.notFound('Brand not found');
+
+    const existing = await Subscription.findOne({ brandId: brand._id }).lean();
+    const effectiveCycle = (cycle as string) ?? existing?.billingCycle ?? 'monthly';
+    const months = CYCLE_MONTHS[effectiveCycle] ?? 1;
+    const durationMs = durationDays ? Number(durationDays) * 86400000 : months * 30 * 86400000;
+
+    // Extend from current expiry if it is in the future, otherwise extend from now.
+    const currentEnd = existing?.currentPeriodEnd ? new Date(existing.currentPeriodEnd).getTime() : 0;
+    const startFrom = currentEnd > Date.now() ? currentEnd : Date.now();
+    const newEnd = new Date(startFrom + durationMs);
+
+    const effectivePrice = price !== undefined ? Number(price) : (existing?.price ?? 0);
+    const update: Record<string, unknown> = {
+      status: 'active',
+      currentPeriodEnd: newEnd,
+      billingCycle: effectiveCycle,
+      price: effectivePrice,
+      mrr: toMrr(effectivePrice, effectiveCycle),
+    };
+    if (plan) update.plan = plan;
+
     const sub = await Subscription.findOneAndUpdate({ brandId: brand._id }, update, {
       new: true,
       upsert: true,
@@ -499,7 +536,7 @@ router.patch(
   '/restaurants/:id/subscription',
   validateObjectId(),
   asyncHandler(async (req, res) => {
-    const { plan, status, features, seats, price, billingCycle } =
+    const { plan, status, features, seats, price, billingCycle, durationDays } =
       req.body as Record<string, unknown>;
     const update: Record<string, unknown> = { plan, status, features, seats };
     const cycle = (billingCycle as string) ?? undefined;
@@ -521,15 +558,55 @@ router.patch(
         ? { brandId: restaurant.brandId }
         : { restaurantId: req.params.id };
 
-    // Expiry is derived automatically from "now + billing duration" whenever the
-    // price or cycle is (re)set — never entered by hand.
-    if (price !== undefined || cycle !== undefined) {
+    if (durationDays !== undefined && durationDays !== '') {
+      update.currentPeriodEnd = new Date(Date.now() + Number(durationDays) * 86400000);
+    } else if (price !== undefined || cycle !== undefined) {
       const existing = await Subscription.findOne(subFilter).select('billingCycle').lean();
       const months = CYCLE_MONTHS[cycle ?? existing?.billingCycle ?? 'monthly'] ?? 1;
       update.currentPeriodEnd = new Date(Date.now() + months * 30 * 86400000);
     }
     // Drop undefined keys so we never overwrite with nulls.
     Object.keys(update).forEach((k) => update[k] === undefined && delete update[k]);
+    const sub = await Subscription.findOneAndUpdate(subFilter, update, { new: true, upsert: true });
+    return ok(res, sub);
+  }),
+);
+
+// One-click renew / extend a restaurant's subscription.
+router.post(
+  '/restaurants/:id/renew',
+  validateObjectId(),
+  asyncHandler(async (req, res) => {
+    const { cycle, durationDays, price, plan } = req.body as Record<string, unknown>;
+    const restaurant = await Restaurant.findById(req.params.id).select('brandId').lean();
+    if (!restaurant) throw ApiError.notFound('Restaurant not found');
+    const brand = restaurant.brandId
+      ? await Brand.findById(restaurant.brandId).select('accountType').lean()
+      : null;
+    const subFilter =
+      brand?.accountType === 'multi' && restaurant.brandId
+        ? { brandId: restaurant.brandId }
+        : { restaurantId: req.params.id };
+
+    const existing = await Subscription.findOne(subFilter).lean();
+    const effectiveCycle = (cycle as string) ?? existing?.billingCycle ?? 'monthly';
+    const months = CYCLE_MONTHS[effectiveCycle] ?? 1;
+    const durationMs = durationDays ? Number(durationDays) * 86400000 : months * 30 * 86400000;
+
+    const currentEnd = existing?.currentPeriodEnd ? new Date(existing.currentPeriodEnd).getTime() : 0;
+    const startFrom = currentEnd > Date.now() ? currentEnd : Date.now();
+    const newEnd = new Date(startFrom + durationMs);
+
+    const effectivePrice = price !== undefined ? Number(price) : (existing?.price ?? 0);
+    const update: Record<string, unknown> = {
+      status: 'active',
+      currentPeriodEnd: newEnd,
+      billingCycle: effectiveCycle,
+      price: effectivePrice,
+      mrr: toMrr(effectivePrice, effectiveCycle),
+    };
+    if (plan) update.plan = plan;
+
     const sub = await Subscription.findOneAndUpdate(subFilter, update, { new: true, upsert: true });
     return ok(res, sub);
   }),

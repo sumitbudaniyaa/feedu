@@ -54,6 +54,7 @@ export const {
   useUpdateRestaurant,
   useDashboard,
   useOrders,
+  useCreateOrder,
   useUpdateOrderStatus,
   useRecordPayment,
   useRedemptions,
@@ -171,6 +172,7 @@ export interface BrandInfo {
   branding?: { accent?: string; themeMode?: string };
   tax?: { gstNumber?: string; gstPercent?: number; inclusive?: boolean };
   currency?: string;
+  selfOrderingEnabled?: boolean;
 }
 
 /** The signed-in account's brand — drives whether multi-branch features show. */

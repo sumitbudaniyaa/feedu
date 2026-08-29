@@ -65,6 +65,7 @@ export const restaurantSchema = z.object({
   currency: z.string().default('INR'),
   onboarding: onboardingStateSchema.default({}),
   isLive: z.boolean().default(false),
+  selfOrderingEnabled: z.boolean().default(true),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

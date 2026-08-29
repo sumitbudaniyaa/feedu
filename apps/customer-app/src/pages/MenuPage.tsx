@@ -92,6 +92,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
         sgstPercent: data.restaurant.tax?.sgstPercent ?? 2.5,
         inclusive: data.restaurant.tax?.inclusive ?? false,
         accent: data.restaurant.branding?.accent,
+        selfOrderingEnabled: (data.restaurant as { selfOrderingEnabled?: boolean }).selfOrderingEnabled !== false,
       },
       data.table?._id ?? null,
       menuPath,
@@ -124,6 +125,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
   }
 
   const { restaurant, categories, products, sections, table } = data;
+  const selfOrderingEnabled = (restaurant as { selfOrderingEnabled?: boolean }).selfOrderingEnabled !== false;
   // Table: a scanned QR resolves the real one; otherwise the diner types it in.
   const effectiveTable = table?.name ?? tableName ?? null;
   // Curated sections show while browsing "All" with no search — veg mode still shows them,
@@ -140,10 +142,9 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
     return matchesCat && matchesSearch && matchesVeg;
   });
 
-  // Tap a favorite circle → order directly. Items with options open the sheet
-  // (the diner must pick a variant/add-on); simple items drop straight in the cart.
+  // Tap a favorite circle → order directly if enabled, otherwise open details.
   const pickFavorite = (p: Product) => {
-    if (p.variants.length > 0 || p.addons.length > 0) setSelected(p);
+    if (!selfOrderingEnabled || p.variants.length > 0 || p.addons.length > 0) setSelected(p);
     else incSimple({ productId: p._id, name: p.name, addonLabels: [], unitPrice: p.basePrice, stock: p.stock });
   };
 
@@ -219,9 +220,16 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
               const showBrand = Boolean(brandName && brandName !== restaurant.name);
               return (
                 <>
-                  <h1 className="truncate text-2xl font-bold leading-tight tracking-tight">
-                    {showBrand ? brandName : restaurant.name}
-                  </h1>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="truncate text-2xl font-bold leading-tight tracking-tight">
+                      {showBrand ? brandName : restaurant.name}
+                    </h1>
+                    {!selfOrderingEnabled && (
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
+                        Digital Menu
+                      </span>
+                    )}
+                  </div>
                   {showBrand && (
                     <p className="mt-0.5 truncate text-sm text-white/80">📍 {restaurant.name}</p>
                   )}
@@ -356,7 +364,12 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
 
         {/* Curated sections from the Menu CMS */}
         {browsing && sections.length > 0 && (
-          <SectionsBlock sections={sections} products={sectionProducts} onCustomise={setSelected} />
+          <SectionsBlock
+            sections={sections}
+            products={sectionProducts}
+            onCustomise={setSelected}
+            selfOrderingEnabled={selfOrderingEnabled}
+          />
         )}
 
         {categories.length > 0 && (
@@ -386,7 +399,13 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               {filtered.map((p, i) => (
-                <ProductCard key={p._id} product={p} index={i} onCustomise={() => setSelected(p)} />
+                <ProductCard
+                  key={p._id}
+                  product={p}
+                  index={i}
+                  onCustomise={() => setSelected(p)}
+                  selfOrderingEnabled={selfOrderingEnabled}
+                />
               ))}
             </div>
           ) : (
@@ -414,7 +433,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className={cn('fixed inset-x-0 z-40 mx-auto flex max-w-md justify-center px-5', count > 0 ? 'bottom-20' : 'bottom-5')}
+            className={cn('fixed inset-x-0 z-40 mx-auto flex max-w-md justify-center px-5', count > 0 && selfOrderingEnabled ? 'bottom-20' : 'bottom-5')}
           >
             <span className="inline-flex items-center gap-2 rounded-full bg-success px-4 py-2.5 text-sm font-semibold text-white shadow-elevated">
               <BellRing className="h-4 w-4" /> A waiter is on the way to {effectiveTable}
@@ -424,7 +443,7 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {count > 0 && (
+        {count > 0 && selfOrderingEnabled && (
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -451,9 +470,13 @@ export function MenuPage({ mode }: { mode: 'slug' | 'qr' }) {
       </AnimatePresence>
 
       {/* Ongoing order — pay / request bill / status; sits above the cart pill if both show. */}
-      <OngoingOrderPill bottomClass={count > 0 ? 'bottom-[5.5rem]' : 'bottom-5'} />
+      <OngoingOrderPill bottomClass={count > 0 && selfOrderingEnabled ? 'bottom-[5.5rem]' : 'bottom-5'} />
 
-      <ProductSheet product={selected} onClose={() => setSelected(null)} />
+      <ProductSheet
+        product={selected}
+        onClose={() => setSelected(null)}
+        selfOrderingEnabled={selfOrderingEnabled}
+      />
 
       {/* Table prompt for link/direct entry (no QR scan). */}
       <AnimatePresence>

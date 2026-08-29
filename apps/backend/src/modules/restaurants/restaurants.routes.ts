@@ -288,13 +288,14 @@ router.get(
       branding: brand.branding,
       tax: brand.tax,
       currency: brand.currency,
+      selfOrderingEnabled: brand.selfOrderingEnabled !== false,
       branchCount,
       maxBranches: brand.maxBranches ?? SELF_SERVE_BRANCH_LIMIT,
     });
   }),
 );
 
-// Update the brand (name / branding / tax / currency) — applies to ALL branches.
+// Update the brand (name / branding / tax / currency / self-ordering) — applies to ALL branches.
 router.patch(
   '/me/brand',
   requireBrand,
@@ -319,18 +320,20 @@ router.patch(
         })
         .optional(),
       currency: z.string().optional(),
+      selfOrderingEnabled: z.boolean().optional(),
     }),
   ),
   asyncHandler(async (req, res) => {
     const body = req.body as Record<string, unknown>;
     const brand = await Brand.findByIdAndUpdate(req.brandId, body, { new: true });
     if (!brand) throw ApiError.notFound('Brand not found');
-    // Branding/tax/currency are shared — propagate to every branch so the
-    // customer app theme and order GST stay in sync across the brand.
+    // Branding/tax/currency/self-ordering are shared — propagate to every branch so the
+    // customer app theme, order GST, and self-ordering stay in sync across the brand.
     const propagate: Record<string, unknown> = {};
     if (body.branding !== undefined) propagate.branding = brand.branding;
     if (body.tax !== undefined) propagate.tax = brand.tax;
     if (body.currency !== undefined) propagate.currency = brand.currency;
+    if (body.selfOrderingEnabled !== undefined) propagate.selfOrderingEnabled = brand.selfOrderingEnabled;
     if (Object.keys(propagate).length) {
       await Restaurant.updateMany({ brandId: req.brandId }, propagate);
     }

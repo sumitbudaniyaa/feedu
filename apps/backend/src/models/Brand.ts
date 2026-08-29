@@ -42,6 +42,7 @@ const brandSchema = new Schema(
       inclusive: { type: Boolean, default: false },
     },
     currency: { type: String, default: 'INR' },
+    selfOrderingEnabled: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

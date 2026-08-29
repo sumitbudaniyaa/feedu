@@ -45,6 +45,7 @@ interface SettingsEntity {
   description?: string;
   branding?: { accent?: string; themeMode?: string };
   tax?: { gstNumber?: string; cgstPercent?: number; sgstPercent?: number; inclusive?: boolean };
+  selfOrderingEnabled?: boolean;
 }
 
 const ACCENTS: { key: AccentKey; hex: string }[] = [
@@ -76,6 +77,8 @@ export function SettingsPage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Section>(null);
   const [pwOpen, setPwOpen] = useState(false);
+  const ru = useUpdateRestaurant();
+  const bu = useUpdateBrandSettings();
 
   const goLive = useMutation({
     mutationFn: () => apiClient.post('/restaurants/me/go-live'),
@@ -125,6 +128,44 @@ export function SettingsPage() {
           </SubRow>
         </div>
       </SectionCard>
+
+      {/* Self-ordering toggle card */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle className="text-base">Self-Ordering (QR Ordering)</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Allow diners to place orders directly from their phones when scanning the table QR.
+            </p>
+          </div>
+          <Badge variant={entity.selfOrderingEnabled !== false ? 'success' : 'outline'}>
+            {entity.selfOrderingEnabled !== false ? 'Ordering Enabled' : 'View-Only Menu'}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded-lg border border-border/80 p-3.5 bg-card/60">
+            <div className="space-y-0.5 pr-4">
+              <p className="text-sm font-medium">Customer Ordering Mode</p>
+              <p className="text-xs text-muted-foreground">
+                {entity.selfOrderingEnabled !== false
+                  ? 'Active: Diners can add dishes to cart, customize, and place orders directly from their mobile devices.'
+                  : 'Disabled: Scanning the QR code displays a view-only digital menu without cart or checkout. Orders are taken by waiters.'}
+              </p>
+            </div>
+            <Switch
+              checked={entity.selfOrderingEnabled !== false}
+              disabled={bu.isPending || ru.isPending}
+              onCheckedChange={(checked) => {
+                if (brandMode) {
+                  bu.mutate({ selfOrderingEnabled: checked });
+                } else {
+                  ru.mutate({ selfOrderingEnabled: checked });
+                }
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Branding */}
       <SectionCard title={brandMode ? 'Brand branding' : 'Branding'} onEdit={() => setEditing('branding')}>

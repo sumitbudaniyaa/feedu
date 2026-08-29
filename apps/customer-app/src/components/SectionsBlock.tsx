@@ -9,10 +9,11 @@ interface SectionsBlockProps {
   sections: Section[];
   products: Product[];
   onCustomise: (product: Product) => void;
+  selfOrderingEnabled?: boolean;
 }
 
 /** Renders the admin-curated Menu CMS sections (carousel / hero / grid). */
-export function SectionsBlock({ sections, products, onCustomise }: SectionsBlockProps) {
+export function SectionsBlock({ sections, products, onCustomise, selfOrderingEnabled = true }: SectionsBlockProps) {
   const byId = new Map(products.map((p) => [p._id, p]));
 
   const visible = sections
@@ -47,12 +48,22 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
             <span className="shrink-0 text-xs text-muted-foreground">{items.length} items</span>
           </div>
 
-          {section.layout === 'carousel' && <Carousel items={items} onCustomise={onCustomise} />}
-          {section.layout === 'hero' && <Hero items={items} onCustomise={onCustomise} />}
+          {section.layout === 'carousel' && (
+            <Carousel items={items} onCustomise={onCustomise} selfOrderingEnabled={selfOrderingEnabled} />
+          )}
+          {section.layout === 'hero' && (
+            <Hero items={items} onCustomise={onCustomise} selfOrderingEnabled={selfOrderingEnabled} />
+          )}
           {section.layout === 'grid' && (
             <div className="grid grid-cols-2 gap-3">
               {items.map((p, idx) => (
-                <ProductCard key={p._id} product={p} index={idx} onCustomise={() => onCustomise(p)} />
+                <ProductCard
+                  key={p._id}
+                  product={p}
+                  index={idx}
+                  onCustomise={() => onCustomise(p)}
+                  selfOrderingEnabled={selfOrderingEnabled}
+                />
               ))}
             </div>
           )}
@@ -62,18 +73,39 @@ export function SectionsBlock({ sections, products, onCustomise }: SectionsBlock
   );
 }
 
-function Carousel({ items, onCustomise }: { items: Product[]; onCustomise: (p: Product) => void }) {
+function Carousel({
+  items,
+  onCustomise,
+  selfOrderingEnabled,
+}: {
+  items: Product[];
+  onCustomise: (p: Product) => void;
+  selfOrderingEnabled?: boolean;
+}) {
   return (
     // First card sits at the page gutter; bleed only to the right so cards peek off-screen.
     <div className="no-scrollbar -mr-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pr-5 pb-2">
       {items.map((p) => (
-        <CarouselCard key={p._id} product={p} onCustomise={() => onCustomise(p)} />
+        <CarouselCard
+          key={p._id}
+          product={p}
+          onCustomise={() => onCustomise(p)}
+          selfOrderingEnabled={selfOrderingEnabled}
+        />
       ))}
     </div>
   );
 }
 
-function CarouselCard({ product, onCustomise }: { product: Product; onCustomise: () => void }) {
+function CarouselCard({
+  product,
+  onCustomise,
+  selfOrderingEnabled,
+}: {
+  product: Product;
+  onCustomise: () => void;
+  selfOrderingEnabled?: boolean;
+}) {
   const { qty } = useAddProduct(product);
   return (
     <Card
@@ -88,16 +120,26 @@ function CarouselCard({ product, onCustomise }: { product: Product; onCustomise:
         <p className="truncate text-sm font-medium leading-snug">{product.name}</p>
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">{formatCurrency(product.basePrice)}</span>
-          <span onClick={(e) => e.stopPropagation()}>
-            <AddControl product={product} onCustomise={onCustomise} size="sm" />
-          </span>
+          {selfOrderingEnabled && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <AddControl product={product} onCustomise={onCustomise} size="sm" />
+            </span>
+          )}
         </div>
       </div>
     </Card>
   );
 }
 
-function Hero({ items, onCustomise }: { items: Product[]; onCustomise: (p: Product) => void }) {
+function Hero({
+  items,
+  onCustomise,
+  selfOrderingEnabled,
+}: {
+  items: Product[];
+  onCustomise: (p: Product) => void;
+  selfOrderingEnabled?: boolean;
+}) {
   const [feature, ...rest] = items;
   if (!feature) return null;
   return (
@@ -115,12 +157,16 @@ function Hero({ items, onCustomise }: { items: Product[]; onCustomise: (p: Produ
             )}
             <p className="mt-1 text-sm font-semibold">{formatCurrency(feature.basePrice)}</p>
           </div>
-          <span onClick={(e) => e.stopPropagation()}>
-            <AddControl product={feature} onCustomise={() => onCustomise(feature)} />
-          </span>
+          {selfOrderingEnabled && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <AddControl product={feature} onCustomise={() => onCustomise(feature)} />
+            </span>
+          )}
         </div>
       </Card>
-      {rest.length > 0 && <Carousel items={rest} onCustomise={onCustomise} />}
+      {rest.length > 0 && (
+        <Carousel items={rest} onCustomise={onCustomise} selfOrderingEnabled={selfOrderingEnabled} />
+      )}
     </div>
   );
 }
